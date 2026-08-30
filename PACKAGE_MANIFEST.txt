@@ -1,0 +1,54 @@
+RABUSHINAIGM DISCORD COMPLETION PACKAGE
+=======================================
+
+ROOT
+  README_FIRST.md
+  PACKAGE_MANIFEST.txt
+  CHECK_PREREQUISITES.cmd
+  INSTALL.cmd
+  BUILD_ALL.cmd
+  SETUP_SERVER_SECRETS.cmd
+  START_RABUSHIN.cmd
+  .env.example
+  .gitignore.additions
+
+client\
+  index.html
+  main.js
+  style.css
+  vite.config.js
+  package.json
+
+server\
+  server.js
+  package.json
+
+RabuShinAIGM.Core\
+  RabuShinAIGM.Core.vbproj
+  Models\AppModels.vb
+  Services\DiceService.vb
+  Services\CharacterGenerationService.vb
+  Services\ManualCharacterCreationService.vb
+  Services\StartingEquipmentService.vb
+  Services\DiscordSpellService.vb
+  Data\srd_spells_5_2_1.json
+
+RabuShinAIGM.Server\
+  RabuShinAIGM.Server.csproj
+  Program.cs
+  ApiModels.cs
+  ProgramHelpers.cs
+  DiscordSupabaseService.cs
+  OpenAiGameMasterService.cs
+  CampaignCanonService.cs
+  Data\campaign_phase2.json
+  Data\greymoor_phase1.json
+  Data\Canon\*.txt
+
+SUPABASE_SQL\
+  01_DISCORD_FULL_SETUP.sql
+
+SETUP\
+  INSTALL_INTO_EXISTING_PROJECT.ps1
+  SET_SERVER_SECRETS.ps1
+  VERIFY_LOCAL.ps1

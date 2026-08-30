@@ -1,0 +1,542 @@
+CHAPTER 3
+                       EMBERFALL
+                  ASHES THAT BREATHE
+   Recommended Levels 4–5 • Starting Level 4 • Hybrid Milestone Advancement
+Chapter Purpose. Emberfall reveals the scale and precision of Rabu Shin’s
+environmental testing. The characters descend through a mining city built beneath
+an active volcano, trace rhythmic heat surges to a buried lattice crucible, and
+confront a Molten Chimera Spawn engineered to survive extreme thermal stress.
+Characters should reach 5th level after destroying the crucible, preventing a
+magma catastrophe, and recovering proof that the next trial is glacial.
+
+
+                             Emberfall settlement map
+
+
+Emberfall
+Emberfall clings to the black slopes beneath Mount Cindervane, an active volcano
+whose lava channels power the settlement’s forges and mines. The city survives
+through ore, glass, obsidian, and stubborn discipline. Its streets are carved into
+basalt terraces. Iron bridges span glowing channels. Bells mark tremors, shift
+changes, and evacuation routes. Recently, those bells have begun sounding at
+precise forty-seven-minute intervals. Lava changes course without earthquakes.
+Stone walls swell and contract like lungs. Miners speak of a crystal beneath the
+mountain that breathes fire.
+                                 ARRIVAL AT EMBERFALL
+   A red glow stains the horizon long before Emberfall comes into view. The road
+   climbs through fields of cooled black stone while ash drifts like gray snow.
+   Ahead, a city of iron roofs and basalt walls crouches beneath a burning
+   mountain. Hammers ring from a hundred forges. Then the ground shifts
+   beneath your boots—once, twice, and once again—three measured pulses, each
+   exactly the same strength. Every worker in sight goes silent.
+
+
+Starting the Chapter
+ • Stonewake Evidence. A heat-blackened shipping seal and the phrase “Proceed
+    with thermal strain” point directly toward Emberfall.
+ • Merchant Passage. Captain Meryn Holt provides transport to the volcanic coast,
+   where the party arrives during a mine evacuation.
+ • Foreman’s Contract. Foreman Garric offers 150 gp to investigate the
+    disappearance of a survey crew in the Third Descent.
+ • Arcane Inquiry. A Lunareth scholar asks the party to retrieve a sample of the red
+   crystalline inclusions forming in Emberfall steel.
+ Chapter Flow: The chapter opens with investigation in town, followed by the Breathing
+ Crystal incident, a spreading crystal fever, and a descent into the mines. The central
+ dungeon can be run as five linked zones: mine entrance, collapsed galleries, magma
+ chamber, living stone passage, and the lattice crucible. Optional quests fit between major
+ parts or can supply allies and resources for the descent.
+
+
+Keyed Locations in Emberfall
+1. Ember Tavern — A crowded miners’ hall where shift crews trade rumors.
+Foreman Garric uses a private back room as an emergency command post.
+2. Ashgrip Inn — A stone lodging house protected by heat wards. Travelers,
+merchants, and a frightened surviving miner can be found here.
+3. The Steel Forge — A heavy industrial forge producing rails, tools, and armor. Its
+master smith has isolated weapons contaminated by red crystal.
+
+
+4. The Brass Anvil — Durn Blackhammer’s renowned workshop. The forge burns
+even when its vents are closed, and a blade quenched here recently whispered in
+an unknown voice.
+5. Grimroots Apothecary — Apothecary Grim treats burns and lung sickness. He
+is the first to recognize that crystal fever is transformation, not infection.
+6. Moltenvein Mercantile — Veskan Thrice-Weighed buys ore and funds
+expeditions. His ledgers reveal missing shipments of alchemical reagents.
+7. Wicks’ Wonders — A cluttered shop of lamps, lenses, climbing gear, and mining
+charms. Wicks can provide specialized equipment for the descent.
+8. Mine Entrance — The guarded mouth of Emberfall’s primary mine. Rails vanish
+into heated darkness beneath a carved emergency arch.
+9. The Lower Shafts — A network of galleries distorted by lattice influence. Walls
+curve into smooth ribs and ore veins pulse with heat.
+10. The Lattice Crucible — A hidden chamber suspended above magma where
+Rabu Shin’s device redirects heat and grows the Molten Chimera Spawn.
+
+Emberfall Rumors
+ d8                                        Rumor
+ 1                                         The volcano trembles every forty-
+                                           seven minutes, no matter the weather.
+ 2                                         A miner returned from the lower
+                                           shaft with red glass growing beneath
+                                           his fingernails.
+ 3                                         Something screamed from inside a
+                                           sealed ore cart.
+ 4                                         The Brass Anvil burns hotter after
+                                           midnight, even with no fuel.
+ 5                                         A traveling arcanist entered the mine
+                                           and never came back.
+ 6                                         Stone near the Third Descent rises and
+                                           falls as if breathing.
+ 7                                         A whole lava channel changed
+                                           direction to avoid an old tunnel.
+ 8                                         Frostharbor sent a buyer seeking
+                                           heat-resistant crystal samples.
+
+
+Important NPCs
+Foreman Garric — A practical human veteran who values lives over ore but hides
+how many miners have already disappeared. He speaks in clipped orders and
+knows the mine layout.
+
+
+Miner Elra Voss — The only survivor of the missing survey crew. She heard a
+calm voice speaking through the stone: “Structural resilience acceptable.”
+Durn Blackhammer — A proud dwarf master smith at the Brass Anvil. He
+distrusts arcane theory but respects evidence and courage.
+Apothecary Grim — A soot-stained herbalist with a dry manner. He can stabilize
+crystal fever but cannot cure it while the crucible remains active.
+Veskan Thrice-Weighed — A wealthy ore merchant who unknowingly sold
+specialized reagents to a House Varin agent. He fears public blame more than
+danger.
+Korin Ashvein — A young tiefling surveyor who knows old ventilation passages
+and can guide the party if convinced the mission is not suicidal.
+
+
+Part 1: The Breathing Crystal
+                                   THE MINE ALARM
+   A siren shrieks from the mine district. Workers scatter as an ore cart bursts
+   through the gate, rolling without anyone pushing it. Inside lies a crystal mass
+   the size of a child, glowing red beneath a skin of black glass. It expands.
+   Contracts. Expands again. Four shapes peel themselves from the stone around
+   it—small winged things with molten eyes and mouths full of sparks.
+
+
+Four Magma Mephit Krasis attack near the mine entrance. They resemble ordinary
+magma mephits reinforced with black crystalline plates and acidic glands. Their
+goal is not to kill indiscriminately; two defend the crystal while two drive
+witnesses away.
+
+Encounter Features
+ • Ore Carts. A creature can use an action to release a cart. It travels 30 feet in a
+   straight line; creatures in its path make a DC 13 Dexterity save or take 7 (2d6)
+   bludgeoning damage and fall prone.
+ • Steam Vent. At initiative count 20, one marked vent erupts. Creatures within 5
+    feet make a DC 12 Dexterity save or take 4 (1d8) fire damage.
+ • Breathing Crystal. AC 14, 20 hit points, immune to poison and psychic damage.
+   When reduced to 0 hit points, it becomes inert rather than exploding.
+ • Crowd Hazard. A failed ranged attack by 5 or more risks striking a fleeing
+    worker unless the attacker has a clear elevated position.
+Studying the Crystal. A DC 15 Arcana check identifies a repeating transmutation
+cycle that draws heat from the ground and stores it in layered tissue. A DC 14
+Investigation check reveals tool marks: the crystal was deliberately placed inside
+the ore cart.
+                                 A MESSAGE IN HEAT
+   When the last creature falls, the crystal contracts one final time. A pattern of
+
+
+   green lines flickers across its surface, forming words in a language none of you
+   can hear but all of you understand: “Thermal intake stable. Begin distributed
+   ignition.”
+
+
+Part 2: Lava Imp Uprising
+Within an hour, reports arrive from the Steel Forge and Brass Anvil. Small
+elemental creatures are emerging from vents, stealing heated metal, and carrying
+it toward the mine. This is a coordinated collection effort directed by the crucible.
+                                 THE FORGE REVOLT
+   The Brass Anvil’s doors bulge outward. Through the windows, tools whirl in a
+   cyclone of sparks while fist-sized creatures leap between the rafters. One drags
+   a white-hot sword by the blade, laughing in crackling bursts. Durn
+   Blackhammer braces the door from inside and roars, “Either help me or find a
+   safer city!”
+
+
+Run this as a three-round objective encounter against three magma mephits and
+two magma mephit Krasis. The party must rescue Durn, shut two fuel valves, and
+prevent the creatures from carrying a red-steel ingot into the mine.
+ • Rescue Durn. DC 13 Athletics to force the warped door or DC 13 thieves’ tools to
+   release the jammed mechanism.
+ • Shut a Valve. An action and DC 12 Athletics or Sleight of Hand. Each open valve
+    causes 3 (1d6) fire damage to one random creature at initiative count 20.
+ • Protect the Ingot. A Krasis carrying the ingot has speed 20 feet and cannot fly. If
+    it reaches the mine entrance, the Molten Chimera Spawn begins the final battle
+    with 15 temporary hit points.
+ • Forge Collapse. After three rounds, any open valve causes a roof beam to fall.
+    Creatures beneath it make a DC 13 Dexterity save or take 9 (2d8) bludgeoning
+    damage.
+Reward. Durn provides one +1 weapon on loan for the remainder of the chapter. If
+the party saves the forge and ingot, he permanently gifts the weapon after the
+crucible is destroyed.
+
+
+Part 3: Crystal Fever
+Workers exposed to the breathing crystal develop fever, hardened veins, and
+painful sensitivity to heat. Apothecary Grim has converted his shop into a ward.
+The condition worsens whenever the underground node pulses.
+                                 GRIMROOTS WARD
+   Six miners lie beneath damp sheets. Red light moves through their veins in
+
+
+   slow, branching lines. One woman grips the cot hard enough to crack the
+   wood. “It keeps asking me to open the door,” she whispers. “There’s a door
+   under the mountain, and it knows I can hear it.”
+
+
+The characters must identify the condition and stabilize the patients before
+descending. Run a skill challenge requiring four successes before three failures.
+Useful checks include Arcana DC 14, Medicine DC 13, Nature DC 14, Religion DC 15,
+or appropriate healing magic.
+• On Success. All patients stabilize. Grim gives the party three doses of Cinderbane
+  Tonic. As a bonus action, a creature can drink a dose to gain resistance to fire
+  damage for 10 minutes.
+• On Failure. Two patients transform partially and attack using magma mephit
+  statistics without flight. After the encounter, the remaining patients stabilize but
+  the party receives only one tonic.
+• Key Clue. The fever is not contagious. It is a remote adaptation response caused
+  by the crucible’s pulses.
+• Elra’s Memory. When stabilized, Miner Elra draws a precise map of the Third
+  Descent and marks the wall that “opened like a mouth.”
+
+
+Part 4: Into the Lower Mines
+                                THE THIRD DESCENT
+   The mine swallows the sound of the city. Rails descend through chambers lit by
+   red fungus and cracks of molten light. Every forty-seven minutes, the tunnel
+   tightens around you with a deep grinding groan. Dust falls upward for a
+   heartbeat. Far below, something answers with a slow, wet breath.
+
+
+Environmental Rules
+• Extreme Heat. After each hour underground, a creature without protection
+  makes a DC 12 Constitution save or gains one level of exhaustion. Cinderbane
+  Tonic or fire resistance prevents this save.
+• Unstable Ground. Dashing across fractured stone requires a DC 11 Acrobatics
+  check. On a failure, the creature falls prone.
+• Pulse Cycle. Every forty-seven minutes, the lattice crucible pulses. Until the party
+   reaches it, each pulse causes one nearby wall, bridge, or lava channel to shift.
+• Mine Navigation. Following Elra’s map avoids one random encounter. Without
+  it, the group must succeed on a DC 14 Survival check or lose 30 minutes and
+  face a hazard.
+
+Zone A: The Collapsing Shaft
+                                STONE THAT MOVES
+   The tunnel ahead has folded inward. Support beams bend like softened wax,
+   and a narrow ledge crosses a shaft glowing orange far below. Halfway across,
+   the stone wall opens in a smooth circular seam. A hand reaches out from
+   inside the mountain. Then another.
+
+
+Three lattice-bound mining constructs emerge. Use animated armor statistics, but
+describe them as suits of abandoned mining gear filled with heated crystal. The
+shaft collapses in stages.
+• At initiative count 20 in round 1, stones fall in a 10-foot square: DC 13 Dexterity
+  save, 7 (2d6) bludgeoning damage.
+• In round 2, one 10-foot section of ledge breaks away. A creature on it can use a
+   reaction to make a DC 13 Dexterity save and move to an adjacent safe square.
+• In round 3, the remaining supports fail unless a character spends an action and
+   succeeds on a DC 14 Athletics, mason’s tools, or carpenter’s tools check.
+• A creature that falls is caught on a lower scaffold after 20 feet and takes 7 (2d6)
+  bludgeoning damage rather than falling into lava.
+Discovery. Inside the constructs are metal tags belonging to the missing survey
+crew. Each tag bears a new rune meaning “iteration.”
+
+
+Zone B: The Magma Chamber
+A broad cavern is divided by a river of magma. Two Magma Mephit Krasis and one
+fire snake guard a chain bridge. The mephits use Acid Spit to weaken armored
+characters while the fire snake blocks the bridge.
+ Diplomatic Alternative: The fire snake is not controlled by the lattice and can be driven
+ away by destroying a red crystal embedded near its nest. A DC 14 Arcana or Animal
+ Handling check reveals its distress. Removing the crystal turns the snake against one
+ mephit before it retreats.
+
+
+Zone C: The Breathing Wall
+                                  THE LIVING PASSAGE
+   The tunnel ends at a wall of polished black stone. Veins of red light spread
+   across it in the shape of ribs. The entire surface moves inward, then outward,
+   carrying a gust of air that smells of iron and burned hair. A vertical seam
+   appears down its center.
+
+
+The wall is a transformed section of mountain rather than a creature. Opening it
+requires three successes before two failures using Arcana DC 15, Athletics DC 16,
+Investigation DC 14, or mining tools DC 13. Each failure releases a heat pulse
+dealing 5 (1d10) fire damage to everyone within 15 feet. The password “Refinement
+requires iteration,” learned in Greymoor Hollow, counts as one automatic success.
+
+
+Part 5: The Lattice Crucible
+                              THE MOLTEN CHIMERA SPAWN
+   The passage opens above a chamber vast enough to hold a cathedral. A crystal
+   structure rotates over a lake of magma, suspended by chains of light. Streams
+   of fire rise against gravity and pour into its facets. Beneath it, something
+   massive pulls itself from a basin of molten stone—three bodies forced into one:
+   draconic jaws, a horned furnace-skull, and a leonine frame plated in obsidian.
+   Every head opens its eyes at once.
+
+
+The Crucible Chamber
+• Central Crucible. AC 16, 50 hit points, immunity to fire, poison, and psychic
+   damage; vulnerability to cold and thunder. It floats 15 feet above the magma
+   basin.
+• Suspension Chains. Three light-chains connect the crucible to stone pylons. A
+   chain has AC 14 and 15 hit points. Destroying a chain lowers the crucible 5 feet
+   and disables one pulse effect.
+
+
+ • Magma Channels. A creature entering a channel takes 10 (3d6) fire damage.
+   Narrow bridges provide access to each pylon.
+ • Cooling Valves. Two ancient mining valves can be opened with an action and DC
+    14 Athletics. Each opened valve deals 10 cold damage to the crucible and creates
+    a cloud of steam that heavily obscures a 10-foot area until the next round.
+ • Escape Tunnel. A reinforced passage leads upward. It becomes accessible when
+   the crucible is destroyed.
+
+Crucible Pulses
+At initiative count 20, roll on the following table. Do not repeat the same result
+twice in a row. Destroying a suspension chain removes the highest remaining
+result from the table.
+ d4                                            Pulse Effect
+ 1                                             Heat Wave. Each creature makes a DC
+                                               13 Constitution save or takes 5 (1d10)
+                                               fire damage.
+ 2                                             Magma Line. A 5-foot-wide, 30-foot-
+                                               long line erupts; DC 14 Dexterity save,
+                                               10 (3d6) fire damage, half on success.
+ 3                                             Stone Shift. One bridge rotates 90
+                                               degrees. Creatures on it make a DC 13
+                                               Dexterity save or slide 10 feet.
+ 4                                             Adaptive Surge. The Molten Chimera
+                                               Spawn gains resistance to the last
+                                               damage type that harmed it until
+                                               initiative count 20 next round.
+
+Molten Chimera Tactics
+ • The chimera opens with Furnace Breath if it can catch at least two characters.
+ • It uses Pounce to cross bridges and isolate a character near a pylon.
+ • If a character attacks the crucible, one head focuses exclusively on that
+    character until another creature deals more damage to the chimera.
+ • At half hit points, its obsidian plates crack. Its speed increases by 10 feet, but its
+   Armor Class decreases by 1.
+ • If the red-steel ingot reached the mine in Part 2, the creature begins with 15
+    temporary hit points.
+                                  RABU SHIN OBSERVES
+     The three-headed creature roars, but a second voice speaks beneath the sound
+     —calm, measured, almost pleased. “Thermal strain exceeds projections.
+     External variables introduced. Continue observation.” The crucible turns, and
+     for an instant a tall human silhouette appears inside the crystal.
+
+
+Destroying the Crucible
+When the crucible reaches 0 hit points, it fractures and releases its stored heat.
+Each creature makes a DC 14 Dexterity save, taking 14 (4d6) fire damage on a
+failure or half on a success. The Molten Chimera Spawn takes the damage
+automatically and loses Adaptive Surge. If the chimera is already dead, the blast
+begins the escape sequence immediately.
+
+Escape from the Lower Mines
+The party has six rounds to reach the reinforced passage before the chamber fills
+with magma. Run the escape as three group checks: Athletics or Acrobatics DC 13,
+Survival or Investigation DC 13, and Arcana or mining tools DC 14. On each failed
+group check, every character takes 3 (1d6) fire or bludgeoning damage. A character
+can remain behind for one round to grant the group advantage on the next check,
+but must then make a DC 15 individual check to catch up.
+                             THE MOUNTAIN EXHALES
+   The mountain convulses as the crystal breaks. Lava crashes down into its
+   natural channels, no longer climbing toward the machine. Behind you, the
+   chamber folds inward in a storm of sparks and black stone. Ahead, a line of
+   cool night air cuts through the smoke. When you emerge, every forge bell in
+   Emberfall begins to ring—not in warning, but in celebration.
+
+
+Optional Quests in Emberfall
+Part 6: Ore Thieves
+A gang has been stealing red-crystal ore from sealed storage. Four bandits and one
+bandit captain operate from an abandoned smelter. They were hired by a masked
+buyer from Silverreach. Their ledger records payments marked with House Varin’s
+silver stag seal.
+Reward. 60 gp, two alchemist’s fire, and evidence that later grants advantage on
+one investigation check in Silverreach.
+
+Part 7: Living Magma
+A lava channel has developed purposeful movement and is approaching homes.
+Use a fire elemental with half hit points, but allow the party to end the encounter
+without destroying it by removing a lattice shard embedded in the channel wall.
+Three successes before two failures using Arcana DC 14, Athletics DC 15, or smith’s
+tools DC 13 calms the flow.
+
+Part 8: Black Lung Plague
+Miners in the Ashgrip Inn cough up soot that forms tiny geometric patterns. The
+illness is caused by powdered lattice residue in ventilation ducts. Cleaning the
+ducts requires navigating roof vents while two smoke mephits attack. Grim
+rewards the party with two greater antitoxin doses, each granting advantage on
+one Constitution saving throw against poison or disease.
+
+Part 9: The Shattered Vein
+A newly exposed ore vein sings when struck. Durn wants a sample; Lunareth
+agents want it destroyed. The vein contains encoded research notes rather than
+raw power. A DC 16 Arcana check extracts the message: “Photosynthetic host
+integration scheduled.” This points toward Lunareth and Chapter 4.
+
+Part 10: Ashbound Spirit
+The ghost of a miner named Talla appears near the Third Descent. She cannot rest
+because her crew’s bodies were incorporated into lattice constructs. Recovering
+their tags and performing a burial rite prevents one random mine hazard and
+grants each character inspiration before the final descent.
+
+
+Chapter Resolution
+Rewards
+ • Foreman Garric pays 150 gp for ending the threat and rescuing any surviving
+    miners.
+
+
+• Durn Blackhammer permanently grants the loaned +1 weapon if the Brass Anvil
+  and red-steel ingot were saved.
+• Apothecary Grim supplies two potions of fire resistance for future travel.
+• The party can recover a Thermal Lattice Fragment, which functions as a
+   required key in Sunspire later in the campaign.
+• House Varin evidence from Ore Thieves strengthens the political investigation in
+  Silverreach.
+
+Thermal Lattice Fragment
+Wondrous item, story item
+This palm-sized piece of red-black crystal remains warm in any climate. Once per
+long rest, its bearer can use a reaction when taking fire damage to reduce that
+damage by 1d10 + the bearer’s proficiency bonus. The fragment is also one of the
+keys needed to enter the Gene Vault at Sunspire.
+
+Milestone Advancement
+Characters advance to 5th level when they destroy the lattice crucible, defeat or
+neutralize the Molten Chimera Spawn, and prevent a catastrophic magma surge
+from reaching Emberfall. If they solve the crisis without combat, award the
+milestone when the thermal experiment is permanently disabled and its purpose is
+understood.
+
+What the Characters Learn
+• Rabu Shin’s devices are climate-specific experiments built to measure controlled
+  adaptation.
+• The lattice network can reshape terrain as well as living creatures.
+• Rabu Shin can observe events remotely through major nodes.
+• House Varin or its agents are purchasing and transporting research materials.
+• The next stage is called “glacial calibration,” pointing toward Frostharbor.
+• The Shattered Vein message also implicates Lunareth’s living forest research.
+                                     ASHES SETTLE
+   At dawn, Mount Cindervane still burns—but its rhythm belongs to the earth
+   again. Miners return to the upper galleries, and smoke rises from repaired
+   forges. In the shattered crucible, the party finds a thin crystal plate etched with
+   two lines: “Thermal strain viable. Structural resilience acceptable. Proceed to
+   glacial phase.” Beneath the words is a map coordinate far to the north—and
+   the initials R.S.
+
+
+Appendix C: Chapter 3 Creatures
+Magma Mephit Krasis
+Small elemental (Krasis), neutral evil
+ Armor Class 13 (natural armor) | Hit Points 27 (6d6 + 6) | Speed 30 ft., fly
+ 30 ft.
+ STR 8 (-1) DEX 14 (+2) CON 12 (+1) INT 8 (-1) WIS 10 (+0) CHA 10 (+0) | CR
+ 1 (200 XP)
+ Damage Resistances. acid, fire; bludgeoning, piercing, and slashing from
+ nonmagical attacks
+ Damage Vulnerability. cold
+ Death Burst. When the mephit dies, it bursts in acid and cinders. Each creature
+ within 5 feet makes a DC 12 Dexterity saving throw, taking 5 (1d10) acid
+ damage on a failure or half on a success.
+ False Appearance. While motionless against volcanic stone, the mephit is
+ indistinguishable from a crystalline mineral growth.
+ Lattice Coordination. The mephit has advantage on an attack roll if another
+ Krasis is within 5 feet of the target and is not incapacitated.
+ ACTIONS
+ Claws. Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2)
+ slashing damage plus 2 (1d4) fire damage.
+ Acid Spit. Ranged Weapon Attack: +4 to hit, range 30/60 ft., one target. Hit: 7
+ (2d6) acid damage, and metal armor worn by the target takes a temporary -1
+ penalty to AC until the end of the target’s next turn.
+ Cinder Breath (Recharge 6). The mephit exhales burning grit in a 15-foot
+ cone. Each creature in the area makes a DC 12 Dexterity save, taking 7 (2d6) fire
+ damage on a failure or half on a success.
+
+
+Molten Chimera Spawn
+Large monstrosity (Krasis), chaotic evil
+ Armor Class 16 (obsidian plates) | Hit Points 136 (16d10 + 48) | Speed 40
+ ft., climb 20 ft.
+ STR 19 (+4) DEX 13 (+1) CON 17 (+3) INT 7 (-2) WIS 13 (+1) CHA 11 (+0) |
+ CR 7 (2,900 XP)
+ Saving Throws. Dex +4, Con +6, Wis +4
+ Damage Resistances. fire; bludgeoning, piercing, and slashing from
+ nonmagical attacks
+ Damage Vulnerability. cold
+ Threefold Awareness. The chimera has advantage on Wisdom (Perception)
+
+
+checks and cannot be surprised while conscious.
+Adaptive Carapace. At initiative count 20, the chimera gains resistance to the
+last damage type that damaged it. This resistance lasts until initiative count 20
+on the next round.
+Cracked Plating. When reduced to 68 hit points or fewer, the chimera’s speed
+increases by 10 feet and its Armor Class becomes 15.
+Lava Stride. The chimera can move across lava without taking damage and
+ignores difficult terrain caused by volcanic rock.
+ACTIONS
+Multiattack. The chimera makes three attacks: one with its Bite, one with its
+Horns, and one with its Claws.
+Bite. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 11 (2d6 + 4)
+piercing damage plus 3 (1d6) fire damage.
+Horns. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 10 (1d12 + 4)
+bludgeoning damage. If the chimera moved at least 20 feet straight toward the
+target, the target must succeed on a DC 15 Strength save or fall prone.
+Claws. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 13 (2d8 + 4)
+slashing damage.
+Furnace Breath (Recharge 5–6). The chimera exhales molten shards in a 30-
+foot cone. Each creature in the area makes a DC 15 Dexterity save, taking 28
+(8d6) fire damage on a failure or half on a success.
+Pounce. The chimera leaps up to 20 feet to an unoccupied space it can see. Each
+creature within 5 feet of the landing space makes a DC 15 Dexterity save or
+takes 7 (2d6) bludgeoning damage and falls prone.
+REACTIONS
+Molten Deflection. When hit by a melee attack, the chimera can spray molten
+blood. The attacker must succeed on a DC 14 Dexterity saving throw or take 5
+(1d10) fire damage.
+
+
+Appendix D: Chapter 3 Clues and Campaign
+Links
+Clue                         Found At                     Campaign Meaning
+Breathing crystal            Mine entrance                The Emberfall outbreak
+message                                                   is a controlled thermal
+                                                          experiment.
+House Varin ledger           Ore Thieves smelter          Silverreach money
+                                                          supports transport of
+                                                          lattice materials.
+Shattered Vein code          Optional ore vein            A living-plant trial is
+
+
+                                                                underway near
+                                                                Lunareth.
+Thermal lattice                 Crucible remains                The party has recovered
+fragment                                                        one of Sunspire’s Gene
+                                                                Vault keys.
+Glacial coordinates             Crucible data plate             Frostharbor is the next
+                                                                confirmed
+                                                                environmental
+                                                                calibration site.
+Rabu Shin silhouette            Final encounter                 Rabu Shin can observe
+                                                                and speak through the
+                                                                lattice network.
+Production Roadmap: The next section will expand Chapter 4: Lunareth — The
+Blooming Horror / Theory of Perfection, including the ancient forest city, Conclave
+secrets, pollen plague, living wards, forest-hybrid Krasis, the Krasis Treant, optional
+quests, rewards, and complete creature statistics.

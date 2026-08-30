@@ -1,0 +1,480 @@
+Chapter 1
+          GREYMOOR HOLLOW
+              THE SHEEP THAT HOWLED
+   Recommended Levels 1–3 • Starting Level 1 • Hybrid Milestone Advancement
+Chapter Purpose. Greymoor Hollow introduces the Krasis, establishes the
+repeated lattice motifs, and turns ordinary rural fears into evidence of deliberate
+transformation. Characters should reach 3rd level after resolving the Missing
+Shepherd and confronting the Shepherd Krasis.
+
+
+                           Greymoor Hollow settlement map
+
+
+Greymoor Hollow
+Greymoor Hollow is a practical farming settlement of low stone walls, timber
+cottages, grazing pastures, and crop fields divided by a narrow stream. Its people
+are cautious with outsiders but quick to cooperate when their harvest is
+threatened. Recent events have strained that reserve: livestock breathe incorrectly,
+corn rots before harvest, tools corrode near the stream, and a faint green shimmer
+sometimes moves along the waterline after dark.
+
+Starting the Chapter
+                          WHY THE ADVENTURERS ARE HERE
+   The Lowroad bends between stone fences and fields yellowed by late summer.
+   Greymoor Hollow lies less than a mile ahead, its chimney smoke rising in thin
+   gray columns. You have come seeking work, answers, or simply a safe roof
+   before nightfall. Then the birds fall silent. In the tall grass beside the road,
+   something begins to growl.
+
+
+Part 1: The Lowroad Ambush
+                               THE WOLF REVEALS ITSELF
+   A broken cart wheel lies half-buried in the roadside dust. Beyond it, the grass
+   shivers without wind. A low, strained growl rises from the ditch—wet, uneven,
+   and followed by a second breath from the same throat. A shape lunges into the
+   road. It is a wolf, but one shoulder bulges beneath stretched hide, and a half-
+   formed foreleg twitches against its ribs. Its eyes glow faintly green.
+
+
+Encounter: Partially Mutated Wolf. Use the wolf stat block. The mutation is
+cosmetic and does not alter its challenge rating. The wolf begins 20 feet from the
+nearest character and attempts to knock isolated targets prone with its bite and
+Pack Tactics only if another hostile creature becomes involved.
+Terrain. The road is 15 feet wide. Tall grass on each side is lightly obscured and
+counts as difficult terrain for Small creatures. The broken wheel provides half
+cover.
+
+Developments
+ • At half hit points, the wolf releases a warped howl that echoes too long. A distant
+   answer comes from the direction of Greymoor’s pastures.
+ • A character examining the body with a successful DC 12 Arcana check detects
+   residual transmutation magic beneath the skin.
+ • A successful DC 12 Investigation check reveals a faint geometric scar burned
+   beneath the wolf’s fur.
+ • The abandoned cart contains grain sacks, a broken lantern, and a bloodstained
+    farmer’s cloak. Tracks indicate the driver fled toward town.
+
+
+                                  AFTER THE AMBUSH
+   The creature collapses in the dust. Its malformed limb twitches once and
+   becomes still. Beneath the patchy fur, a precise geometric scar has been burned
+   into the flesh. The air around the body smells faintly of wet iron. Beyond the
+   road, the fields remain unnaturally quiet—and Greymoor Hollow waits less
+   than a mile ahead.
+
+
+Continuing to Greymoor Hollow
+                           ARRIVAL AT GREYMOOR HOLLOW
+   The final stretch of road passes silent sheep pastures and cornfields whose
+   outer rows have turned gray. The village sign creaks above the road:
+   GREYMOOR HOLLOW — HARVEST ENDURES. Farmers stop their work as
+   you pass. A mother pulls her child indoors. Somewhere behind a barn, a sheep
+   bleats with a sound that almost resembles a human cough.
+
+
+The villagers direct armed strangers to Mayor Harlowe, who has taken a table at
+the Mudhaven Inn to hear reports. Characters may visit other locations first, but
+the mayor provides the clearest route into the chapter.
+
+
+Keyed Locations in Greymoor Hollow
+1. Mudhaven Inn — A warm but tense public house run by Hilda Mudhaven, a
+practical human commoner with 12 hit points. Farmers exchange rumors here,
+and Mayor Harlowe uses the back room for emergency meetings.
+2. Shepherd’s Croft — Young Tomas’s home and the epicenter of the livestock
+mutations. Sheep pens, a low barn, and a ruined pasture surround the croft.
+3. Raff’s Smithy — Raff, a lawful good dwarf using the guard stat block, distrusts
+magic. Tools left near the stream corrode in patterned lines.
+4. Farmer’s Market — Several stalls remain closed. Grain appears sound from the
+outside but is hollow within. This location begins The Well That Whispers and The
+Crimson Cornfield.
+5. Brimblecup’s Sundries — A traveling natural philosopher recently purchased
+preserving salts, lamp oil, wire, and glass vials. The buyer was a Krasis scout.
+6. Old Horn Apothecary — The herbalist has seen doubled fish gills and a green
+shimmer in water samples. She offers two healing potions at half price in exchange
+for help.
+7. Fletcher’s Cottage — Humanoid tracks behind the cottage pace in repeating
+geometric patterns before turning toward the stream.
+8. Eldric’s Farm — Dying crop circles, black milk, moving farm tools, and the
+silent scarecrow make this farm a recurring center of the chapter.
+
+Greymoor Rumors
+ d6                                        Rumor
+ 1                                         Something beneath the central well
+                                           breathes after sunset.
+ 2                                         A scarecrow on Eldric’s farm changes
+                                           direction every night.
+ 3                                         Tomas saw sheep walking on the barn
+                                           wall.
+ 4                                         The stream glows green when the
+                                           moon is hidden.
+ 5                                         A peddler’s tonic cured pain, then
+                                           made a farmer’s bones crack.
+ 6                                         Corn in the northern field bleeds
+                                           when cut.
+
+
+Part 2: Mayor Harlowe’s Concern
+                                  THE MAYOR SPEAKS
+   Mayor Harlowe removes his hat as you approach. Deep shadows sit beneath
+   his eyes, and a stack of written complaints lies untouched beside his ale. “You
+   came down the Lowroad,” he says. “Then you have already seen one of them.”
+   He lowers his voice. “Farmer Eldric has reported dying fields, frightened cattle,
+   and a scarecrow that will not remain where he leaves it. Last night, he found it
+   facing his bedroom window.”
+
+
+Harlowe offers 25 gp to investigate Eldric’s farm, plus meals and lodging at the
+Mudhaven Inn. He does not use the word “curse” in public, but he fears that panic
+will destroy Greymoor as surely as crop failure.
+
+Roleplaying Mayor Harlowe
+• Voice: tired authority, measured words, urgency concealed beneath civic
+  restraint.
+• Ideal: Greymoor survives because neighbors act before fear takes hold.
+• Bond: he promised the families of Greymoor he would keep their children safe.
+• Secret: he has received two reports of sheep speaking, but has withheld them to
+   prevent panic.
+
+Part 3: The Silent Scarecrow
+Farmer Eldric and his daughter Mira meet the characters at their farm. Eldric is
+stubborn, exhausted, and ashamed that he is afraid of his own field. Mira is
+observant and insists that the scarecrow moves only when no one looks directly at
+it.
+                                    ELDRIC’S FIELD
+   Rows of corn sag inward around a thirty-foot circle of gray, brittle soil. At its
+   center stands a scarecrow of burlap, straw, and dark wood. It faces away from
+   you. No wind moves its coat. The field smells of split stems and something
+   chemical beneath the soil. Then, from somewhere inside the corn, a dry stalk
+   snaps.
+
+
+Investigation
+• DC 11 Nature: the plants have been drained of vitality rather than diseased.
+• DC 12 Arcana: residual transmutation magic radiates from the soil in a
+  geometric pattern.
+• DC 13 Investigation: the scarecrow post bears the same lattice scar found on the
+  wolf.
+• A character who watches the scarecrow while another looks away notices that
+  its head has changed angle when attention returns.
+
+
+• Digging beneath the post reveals a thumb-sized crystal filament connected to
+  dead roots. Removing it ends the field’s pulse.
+Development: At night, the scarecrow rotates to face whichever character carries the
+wolf’s scarred hide or the crystal filament. It is not alive; the lattice uses it as a marker
+and observation point.
+
+
+                                       THE FIRST LINK
+  Eldric turns the crystal fragment over in his weathered hands, then drops it as
+  a faint green pulse runs through its center. “That thing was in my soil,” he
+  whispers. Beyond him, the scarecrow’s empty burlap face now points toward
+  the road leading deeper into Greymoor.
+
+
+Part 4: The Mutated Pool
+Clues from the farm, apothecary, and Fletcher’s Cottage lead a quarter mile
+upstream to a shaded bend where the water glows under moonlight.
+                                  THE STREAM BEND
+   The stream widens into a shallow pool beneath leaning willows. Green light
+   drifts below the surface in slow pulses. Fish crowd the edges, their gills
+   opening in doubled pairs. A flat stone at the center of the pool rises like a lid—
+   and the reeds around you begin to shake.
+
+
+Encounter. Three giant rats and one swarm of insects attack. Their extra eyes and
+hardened growths are cosmetic. The swarm emerges at the end of the first round
+unless the characters disturb the reeds first.
+
+Discovery
+Beneath the flat stone lies a crystalline shard etched with geometric runes. It is
+inert but magical. When a creature first touches it, that creature hears a calm
+whisper inside its thoughts: “Refinement requires iteration.” A DC 15 Arcana check
+confirms directed transformation rather than natural mutation.
+
+Part 5: The Well That Whispers
+                                  THE WELL AT DUSK
+   The market square empties as dusk settles. The central well stands beneath a
+   crooked wooden frame, its rope swaying although the air is still. From below
+   comes a wet scrape, then a breath drawn through stone. A bucket rises coated
+   in gray slime. Something whispers from the dark—not in words, but in the
+   cadence of a voice trying to learn them.
+
+
+Encounter. One gray ooze clings to the well lining 15 feet below the rim. A swarm
+of rats bursts from a side crack when the ooze is first damaged. The narrow well
+makes ranged attacks difficult; a creature climbing without a secured rope must
+succeed on a DC 10 Athletics check.
+
+Developments
+ • The ooze has consumed a lattice-tainted runoff deposit and is not a designed
+    Krasis.
+ • The rats flee if reduced below half hit points after the ooze is destroyed.
+ • Cleaning the lowest stones and sealing the runoff crack stops the whispering.
+ • A silver ring worth 15 gp lies in the ooze’s residue; it belonged to a missing
+   farmhand.
+
+Part 6: Harvest Moon Howl
+                                  THE MOONLIT PACK
+
+
+   The harvest moon hangs enormous above Eldric’s fields. Three wolves move
+   along the crop line, low and silent. A fourth shape rises behind them, larger
+   than a dire wolf, with thornlike growths splitting the skin along its spine. It
+   lifts its head. The howl that follows rattles dry kernels from the stalks.
+
+
+Encounter. Three wolves and one Thornfang Krasis. Use dire wolf statistics for the
+Thornfang, with AC 14. Its bite deals an extra 1d4 piercing damage from embedded
+thorns. At half hit points, its back splits and the thorns extend, but this is cosmetic.
+
+Tactics and Terrain
+ • The wolves use Pack Tactics and attempt to pull characters into the corn.
+ • The Thornfang attacks prone targets and guards the escape route toward
+    Shepherd’s Croft.
+ • The corn is lightly obscured beyond 10 feet and counts as difficult terrain.
+ • Tracks after the fight show the pack was circling livestock rather than hunting
+    randomly—as if herding prey toward the croft.
+
+
+Part 7: Milk Gone Black
+                                  THE WARPED CALF
+   The barn doors stand open. Inside, cattle crowd against the far wall, their eyes
+   rolling white. A calf occupies the nearest stall alone. Its hide ripples as though
+   something moves beneath it. Thick black fluid drips from its mouth and hisses
+   when it touches the straw.
+
+
+Encounter. One Warped Calf. Use boar statistics and add Acid Spit: ranged weapon
+attack, range 20/60 feet, +3 to hit, one target, 1d6 acid damage. The calf fights only
+while cornered or when the black grain in its trough is disturbed.
+
+Clues
+ • The calf ate grain from a sack marked with a tiny geometric brand.
+ • The black fluid is mildly acidic but loses potency after one hour.
+ • A DC 12 Medicine check reveals crystal fibers growing through the calf’s
+   digestive tract.
+ • The sack came from a market shipment handled by the Traveling Peddler.
+
+Part 8: Missing Shepherd
+Mayor Harlowe finally admits that Tomas has vanished and that several sheep
+now possess too many legs. Tracks from the croft lead to an abandoned upper
+pasture and a barn built against a low stone ridge.
+                                 THE SILENT PASTURE
+   The pasture is silent. Six sheep stand in a loose ring around the barn, their
+   bodies misshapen beneath dirty wool. Some have six legs. One turns its head
+   farther than its neck should allow. Above them, clinging upside down to the
+   barn wall, hangs a thin humanoid figure wrapped in a shepherd’s torn cloak. It
+   smiles with Tomas’s face.
+
+
+Encounter. One Shepherd Krasis and six Krasis Warped Sheep. The Shepherd uses
+the cultist stat block and has Spider Climb. The sheep use wolf statistics with 9 hit
+points each. They fight without bleating and attempt to knock characters prone for
+the Shepherd.
+
+Shepherd Krasis Tactics
+ • Begins on the wall or ceiling and throws stones or uses a light crossbow until
+   approached.
+ • Uses Spider Climb to change surfaces without provoking opportunity attacks
+   when possible.
+ • Commands the warped sheep to surround isolated characters.
+ • At half hit points, whispers: “Evolution requires suffering.”
+
+
+Developments
+• If captured, the Shepherd Krasis cannot explain Rabu Shin’s plan; its mind
+   contains repeated instructions and sensory impressions.
+• Tomas is no longer recoverable. His memories surface only as fragments in the
+   Krasis’s speech.
+• A carved lattice sigil in the barn beam matches the wolf, scarecrow, and stream
+  shard.
+• A concealed packet contains notes on livestock response rates and a route
+  toward Stonewake Port.
+                               CHAPTER REVELATION
+  The last warped sheep falls, and silence returns to the pasture. In the barn, a
+  page of precise observations lists dates, temperatures, feeding schedules, and
+  mutation rates. At the bottom, one sentence has been written in a different
+  hand: “Rural viability confirmed. Begin aquatic strain.”
+
+
+Optional Greymoor Quests
+These quests may be completed before or after Missing Shepherd. Use them to
+deepen the mystery, provide additional treasure, or advance characters who
+bypass earlier encounters.
+
+Part 9: The Crimson Cornfield
+                               THE BLEEDING HARVEST
+   A farmer brings down his sickle. The corn stalk opens with a wet snap, and
+   dark red fluid runs across his hand. All around you, the field shivers although
+   there is no wind. Beneath the rustle comes another sound: roots dragging
+   through soil.
+
+
+Encounter. Two vine blights hide among the corn. They use Entangling Plants to
+restrain characters while attacking from opposite rows.
+• The field is difficult terrain and lightly obscured beyond 10 feet.
+• Destroying two buried crystal seeds ends the bleeding within 1d4 hours.
+• Each seed is worth 10 gp to an arcane researcher but risks spreading
+  contamination if mishandled.
+
+Part 10: Bandits on the Grain Road
+                                 ROADSIDE ROBBERY
+   An overturned grain wagon blocks the road. Sacks have been cut open, but the
+   spilled grain lies untouched. Four armed figures rise from behind the stone
+   wall. Their leader steps forward, one arm swollen beneath leather wrappings
+   and ending in a grafted claw. “Leave the wagon,” he says, “and keep your
+   hands where I can count them.”
+
+
+Encounter. Four bandits and one bandit captain with a grafted arm. The captain
+gains +1 damage on melee attacks and has advantage on the first attack roll it
+makes during the encounter.
+• The bandits were paid to steal specific branded grain sacks, not valuables.
+• The captain received the graft willingly as payment.
+• A letter directs delivery to a traveling peddler outside Stonewake Port.
+
+Part 11: Swarm in the Barn
+                                    THE RAT KING
+   The barn floor seems to ripple beneath the straw. Then the straw erupts. Rats
+   pour between the boards in two black waves, and at their center crawls a knot
+   of tails, teeth, and fused bodies moving as a single creature.
+
+
+Encounter. Two swarms of rats and one Rat King. Use swarm of rats statistics for
+the Rat King, increase its hit points to 30, and give it Pack Tactics.
+ • A creature knocked prone in the barn is immediately surrounded if a swarm can
+   reach it.
+ • The Rat King nests above a crystal filament beneath the floor.
+ • Removing the filament ends the rats’ unnatural coordination.
+
+Part 12: The Traveling Peddler
+Lucien Vale arrives at the market selling miracle tonics. This is primarily a social
+encounter. Use the spy stat block if combat occurs.
+                                   MIRACLES FOR SALE
+   A lacquered wagon rolls into the market beneath chiming brass bells. Its
+   owner bows with theatrical grace and lifts a vial of pearlescent liquid. “Aches
+   dissolved, vigor restored, and age itself persuaded to loosen its grip,” he
+   announces. A farmer drinks. His posture straightens—then the bones in his
+   hand crack loudly beneath the skin.
+
+
+Social Encounter Goals
+ • Identify the tonic as a diluted mutation catalyst with DC 13 Arcana or Medicine.
+ • Prevent villagers from consuming additional doses.
+ • Follow or persuade Lucien to reveal his supplier.
+ • Recover his ledger linking Greymoor’s trials to coastal shipments.
+Lucien’s Escape. If exposed, Lucien uses Cunning Action to flee through the
+market. He carries a smoke pellet that heavily obscures a 10-foot radius until the
+start of his next turn.
+
+Part 13: The Broken Plow Curse
+                                   THE PLOWS MOVE
+   Moonlight glints from an iron blade moving through the field. A plow drags
+   itself across the soil with no animal before it and no hand upon its handles.
+   Another follows, carving a perfect spiral into the earth. Both stop at once. Then
+   their blades turn toward you.
+
+
+Encounter. Two animated plows. Use animated armor statistics with AC 16, 25 hit
+points, and a slam that deals bludgeoning damage.
+ • The plows attempt to charge in straight lines and knock characters prone.
+ • The spiral they carve is a lattice calibration symbol.
+ • A buried metal-and-crystal device worth 40 gp powers both objects.
+ • Destroying or removing the device ends the animation immediately.
+
+
+Concluding Chapter 1
+Milestone Advancement
+Characters advance to 3rd level when they defeat or neutralize the Shepherd
+Krasis, secure evidence of directed mutation, and convince Mayor Harlowe that
+the threat is arcane rather than a local curse. If the party has completed only the
+minimum encounters, award the level after the final revelation in the barn.
+
+Rewards
+ • Mayor Harlowe’s payment: 75 gp for resolving the full livestock threat.
+ • Eldric’s reward: preserved food, free lodging, and a family heirloom worth 25
+   gp.
+ • Old Horn Apothecary: two potions of healing at half price, or one free potion
+   after the well is cleansed.
+ • Lattice shards: important campaign keys. They are magical evidence, not
+   intended for sale.
+ • Optional quest rewards: 15–40 gp each, favors from farmers, and improved
+   reputation in Greymoor.
+
+Greymoor’s Aftermath
+The settlement returns to work, but not to innocence. Crops begin recovering after
+the lattice filaments are removed. Ordinary animals remain skittish near the
+stream. Mayor Harlowe quietly records every strange report and asks the party to
+carry warning to Stonewake Port, where Greymoor’s grain and livestock are
+shipped.
+                         TRANSITION TO STONEWAKE PORT
+   Morning settles over Greymoor Hollow with the sound of ordinary sheep and
+   axes striking honest wood. Mayor Harlowe meets you at the village bridge.
+   “Stonewake receives everything we grow,” he says, handing over a sealed
+   letter. “If whatever did this traveled with our shipments, the harbor needs
+   warning.” Downstream, the water catches the sun—and for a single heartbeat,
+   flashes green.
+
+
+If the Characters Leave Early
+ • Day 3: two warped sheep attack a farmer.
+ • Day 5: villagers barricade homes and trade stops.
+ • Day 7: the Shepherd Krasis drives a full livestock outbreak through the market.
+ • Stonewake receives contaminated grain, strengthening the aquatic lattice node
+    in Chapter 2.
+
+
+Appendix A: Chapter 1 Creatures
+Partially Mutated Wolf — Use Wolf statistics. Mutation is cosmetic.
+Thornfang Krasis — Use Dire Wolf statistics; AC 14; bite deals +1d4 piercing
+damage.
+Warped Calf — Use Boar statistics; add Acid Spit, +3 to hit, range 20/60 ft., 1d6 acid
+damage.
+Krasis Warped Sheep — Use Wolf statistics with 9 hit points.
+Shepherd Krasis — Use Cultist statistics; add Spider Climb.
+Grafted-Arm Bandit Captain — Use Bandit Captain statistics; +1 melee damage;
+advantage on first attack.
+Rat King — Use Swarm of Rats statistics; 30 hit points; Pack Tactics.
+Traveling Peddler — Use Spy statistics.
+Animated Plow — Use Animated Armor statistics; AC 16; 25 hit points; slam
+damage is bludgeoning.
+
+Shepherd Krasis: Encounter Profile
+The Shepherd Krasis is not intended as a durable solo boss. Its danger comes from
+vertical positioning, the warped flock, and the emotional horror of recognizing
+Tomas within the creature. Keep it moving across walls and rafters. Let it repeat
+simple phrases as though recalling instructions rather than speaking with full
+agency.
+ Signature Line: “Evolution requires suffering.” Deliver it quietly, as a statement of
+ learned doctrine rather than a battle cry.
+
+
+Appendix B: Clues and Campaign Links
+ Clue                           Found At                        Meaning
+ Geometric scar                 Wolf, scarecrow, barn           A repeated lattice
+                                beam                            marking, proving a
+                                                                shared source.
+ Crystal filament               Eldric’s field, barn floor      A local node that drains
+                                                                or directs living systems.
+ Whispered phrase               Stream shard                    First indirect contact
+                                                                with Rabu Shin’s
+                                                                philosophy.
+ Branded grain                  Barn and market                 Mutation can be
+                                                                distributed through
+                                                                trade goods.
+
+
+ Observation notes          Shepherd’s barn             Greymoor is a controlled
+                                                        rural experiment.
+ Aquatic strain order       Shepherd’s barn             Direct transition to
+                                                        Stonewake Port.
+
+
+Production Roadmap
+The next book section will expand Chapter 2: Stonewake Port — Tides of Bone with
+the same format: settlement overview, keyed locations, five primary quests, five
+optional quests, encounter developments, rewards, chapter transition, creature
+appendix, and integrated maps.

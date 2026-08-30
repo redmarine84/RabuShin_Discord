@@ -1,0 +1,144 @@
+{
+  "campaign": {
+    "title": "Quests of Rabu Shin: Tales of the Krasis",
+    "setting": "Vael Turog",
+    "rules": "D&D 5e 2024",
+    "phase": "Phase 1 - Greymoor Hollow",
+    "sourcePriority": [
+      "Current website campaign PDF for story, progression, and chapter canon",
+      "Uploaded printable Word document for expanded reference material, maps, items, monster art, factions, and lattice systems",
+      "Supplied Dracolycan, Dracocerval, and Umbrakin stat-block images for those three creatures"
+    ]
+  },
+  "chapter": {
+    "number": 1,
+    "location": "Greymoor Hollow",
+    "title": "The Sheep That Howled",
+    "recommendedLevels": "1-3",
+    "startingLevel": 1,
+    "endingLevel": 3,
+    "purpose": "Introduce the Krasis, repeat lattice motifs, and turn ordinary rural fears into evidence of deliberate transformation.",
+    "tone": "Heroic fantasy with creeping bio-arcane horror; begin strange and grounded, then reveal deliberate design.",
+    "openingScene": "The party begins on the Lowroad within a mile of Greymoor Hollow. Birds fall silent and a partially mutated wolf attacks near an abandoned cart.",
+    "milestone": "Advance to level 3 after the Shepherd Krasis is defeated or neutralized, evidence of directed mutation is secured, and Mayor Harlowe is convinced the threat is arcane rather than a local curse."
+  },
+  "locations": [
+    {"name":"Mudhaven Inn","dm":"Run by Hilda Mudhaven. Mayor Harlowe uses the back room for emergency meetings. Farmers trade rumors here."},
+    {"name":"Shepherd's Croft","dm":"Tomas's home and the epicenter of livestock mutations. Sheep pens, low barn, ruined pasture."},
+    {"name":"Raff's Smithy","dm":"Raff is a lawful-good dwarf who distrusts magic. Tools left near the stream corrode in patterned lines."},
+    {"name":"Farmer's Market","dm":"Several stalls are closed. Grain looks sound outside but is hollow within. Leads to the well and crimson cornfield."},
+    {"name":"Brimblecup's Sundries","dm":"A supposed natural philosopher bought preserving salts, lamp oil, wire, and glass vials; the buyer was a Krasis scout."},
+    {"name":"Old Horn Apothecary","dm":"The herbalist has seen doubled fish gills and green shimmer in water samples. Offers discounted healing potions for help."},
+    {"name":"Fletcher's Cottage","dm":"Humanoid tracks behind the cottage pace in repeating geometric patterns before turning toward the stream."},
+    {"name":"Eldric's Farm","dm":"Dying crop circles, black milk, moving tools, and the silent scarecrow make this a recurring chapter location."}
+  ],
+  "rumors": [
+    "Something beneath the central well breathes after sunset.",
+    "A scarecrow on Eldric's farm changes direction every night.",
+    "Tomas saw sheep walking on the barn wall.",
+    "The stream glows green when the moon is hidden.",
+    "A peddler's tonic cured pain, then made a farmer's bones crack.",
+    "Corn in the northern field bleeds when cut."
+  ],
+  "scenes": [
+    {
+      "key":"lowroad",
+      "title":"The Lowroad Ambush",
+      "playerFacing":"A malformed wolf attacks near a broken cart less than a mile from Greymoor Hollow.",
+      "dm":"Use normal wolf statistics; mutation is cosmetic. Road is 15 feet wide. Tall grass lightly obscures and is difficult terrain for Small creatures. Broken wheel gives half cover. At half HP the howl receives a distant answer. DC 12 Arcana finds residual transmutation; DC 12 Investigation finds a geometric scar. Cart clues point toward town.",
+      "discoveries":["greymoor.wolf_transmutation","greymoor.wolf_lattice_scar","greymoor.abandoned_cart"]
+    },
+    {
+      "key":"mayor",
+      "title":"Mayor Harlowe's Concern",
+      "playerFacing":"Mayor Harlowe offers work investigating Eldric's farm and the worsening disturbances.",
+      "dm":"Harlowe offers 25 gp plus meals and lodging. Voice: tired authority. Secret: he has two reports of sheep speaking and withheld them to prevent panic.",
+      "discoveries":["greymoor.harlowe_job","greymoor.harlowe_speaking_sheep"]
+    },
+    {
+      "key":"scarecrow",
+      "title":"The Silent Scarecrow",
+      "playerFacing":"Eldric and Mira show the party a dead circular patch of field and a scarecrow that seems to change position when unobserved.",
+      "dm":"DC 11 Nature: vitality drained, not disease. DC 12 Arcana: transmutation in geometric pattern. DC 13 Investigation: lattice scar. Beneath the post is a thumb-sized crystal filament connected to dead roots; removing it ends the pulse. The scarecrow is an observation marker, not alive.",
+      "discoveries":["greymoor.scarecrow_lattice","greymoor.crystal_filament"]
+    },
+    {
+      "key":"pool",
+      "title":"The Mutated Pool",
+      "playerFacing":"A moonlit stream bend glows green and fish show doubled gills.",
+      "dm":"Three giant rats and one swarm of insects attack; mutations are cosmetic. Beneath a flat stone is an inert magical shard. First touch gives the mental phrase 'Refinement requires iteration.' DC 15 Arcana confirms directed transformation.",
+      "discoveries":["greymoor.stream_shard","greymoor.directed_transformation"]
+    },
+    {
+      "key":"well",
+      "title":"The Well That Whispers",
+      "playerFacing":"At dusk, gray slime coats the market well bucket and something below mimics the cadence of speech.",
+      "dm":"One gray ooze clings 15 feet down; a rat swarm emerges after it is damaged. The ooze consumed lattice-tainted runoff and is not a designed Krasis. Cleaning the lower stones and sealing the runoff crack stops the whispering. A 15 gp silver ring belonged to a missing farmhand.",
+      "discoveries":["greymoor.well_runoff"]
+    },
+    {
+      "key":"harvest_howl",
+      "title":"Harvest Moon Howl",
+      "playerFacing":"Three wolves and a larger thorn-spined beast move through Eldric's fields under the harvest moon.",
+      "dm":"Three wolves plus one Thornfang using dire wolf statistics, AC 14 and +1d4 piercing on bite. Tracks show the pack was herding livestock toward the croft rather than hunting randomly.",
+      "discoveries":["greymoor.pack_herding"]
+    },
+    {
+      "key":"black_milk",
+      "title":"Milk Gone Black",
+      "playerFacing":"A warped calf in Eldric's barn produces thick black acidic fluid.",
+      "dm":"Use boar statistics plus Acid Spit, ranged 20/60, +3, 1d6 acid. It fights only if cornered or if black grain is disturbed. DC 12 Medicine finds crystal fibers in its digestive tract. Grain sack bears a geometric brand and traces to the Traveling Peddler.",
+      "discoveries":["greymoor.black_grain","greymoor.peddler_link"]
+    },
+    {
+      "key":"missing_shepherd",
+      "title":"Missing Shepherd",
+      "playerFacing":"Tracks lead to an abandoned upper pasture where six misshapen sheep encircle a barn and a humanoid wearing Tomas's torn cloak clings to the wall.",
+      "dm":"One Shepherd Krasis and six warped sheep. In current campaign-book encounter use cultist+Spider Climb for Shepherd and wolf stats with 9 HP for sheep; expanded codex blocks are available as optional tougher variants. Tomas is no longer recoverable. A carved lattice sigil matches earlier clues. Concealed notes record livestock response rates and a route toward Stonewake Port. At half HP the Shepherd says 'Evolution requires suffering.'",
+      "discoveries":["greymoor.tomas_fate","greymoor.rabu_shin_name","greymoor.stonewake_route","greymoor.directed_trials"]
+    },
+    {
+      "key":"crimson_cornfield",
+      "title":"The Crimson Cornfield",
+      "playerFacing":"Corn bleeds dark red fluid and roots drag beneath the soil.",
+      "dm":"Two vine blights. Two buried crystal seeds cause the effect. Removing them ends the bleeding within 1d4 hours; each is worth 10 gp to a researcher but can spread contamination if mishandled.",
+      "discoveries":["greymoor.crystal_seeds"]
+    },
+    {
+      "key":"grain_road",
+      "title":"Bandits on the Grain Road",
+      "playerFacing":"Bandits block a grain wagon and their captain bears a willing graft.",
+      "dm":"Four bandits plus one bandit captain. Captain has +1 melee damage and advantage on first attack. They were hired to steal branded grain, not valuables. Letter directs delivery to a traveling peddler outside Stonewake Port.",
+      "discoveries":["greymoor.willing_grafts","greymoor.coastal_shipments"]
+    },
+    {
+      "key":"rat_king",
+      "title":"Swarm in the Barn",
+      "playerFacing":"Rats erupt from beneath a barn floor around a fused Rat King.",
+      "dm":"Two rat swarms and one Rat King using swarm statistics, 30 HP and Pack Tactics. A crystal filament beneath the floor drives the unnatural coordination; remove it to end that coordination.",
+      "discoveries":["greymoor.rat_filament"]
+    },
+    {
+      "key":"peddler",
+      "title":"The Traveling Peddler",
+      "playerFacing":"Lucien Vale sells miracle tonics that briefly help before causing unnatural effects.",
+      "dm":"Primarily social; spy stat block if combat. DC 13 Arcana or Medicine identifies diluted mutation catalyst. Goals: stop villagers, follow/persuade Lucien, recover ledger linking Greymoor trials to coastal shipments. He uses Cunning Action and a smoke pellet if fleeing.",
+      "discoveries":["greymoor.mutation_catalyst","greymoor.coastal_shipments"]
+    },
+    {
+      "key":"plow",
+      "title":"The Broken Plow Curse",
+      "playerFacing":"Two plows move by themselves and carve a perfect spiral in the soil.",
+      "dm":"Use animated armor statistics with AC 16, 25 HP and bludgeoning slam. A buried metal-and-crystal device worth 40 gp powers both. Spiral is a lattice calibration symbol. Removing the device ends animation immediately.",
+      "discoveries":["greymoor.calibration_symbol"]
+    }
+  ],
+  "chapterRevelation": "Evidence in the Shepherd's barn records precise trial data and ends with the instruction that rural viability is confirmed and an aquatic strain should begin. This points the campaign toward Stonewake Port.",
+  "aftermath": "Greymoor returns to work but remains changed. Crops begin recovering after lattice filaments are removed, animals stay skittish near the stream, and Mayor Harlowe asks the party to carry warning to Stonewake Port.",
+  "director": {
+    "rabuShinRoleplay": "Distant, calm, analytical, never needlessly angry. He treats resistance as data and capable heroes as viable variables.",
+    "krasisBehavior": "Purposeful, reactive, instrumental. They target useful objectives, learn from failures, and retreat or adapt when appropriate.",
+    "threeCluesRule": "Never place the only path forward behind one check. Failure adds cost or uncertainty rather than a dead end.",
+    "horrorDialDefault": 1
+  }
+}

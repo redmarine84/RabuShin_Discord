@@ -1,0 +1,684 @@
+Chapter 10
+                              SUNSPIRE
+                  THE SHATTERED GENOME
+               Recommended Level 10 • Advancement to Level 11
+
+ DM NOTE. Chapter Purpose. Sunspire is the place where Rabu Shin transformed his
+ research from physical biomancy into encoded consciousness. The characters uncover
+ the origin of the lattice network, learn that Aetherfall was designed as a city-sized
+ ascension engine, and secure the blueprint needed to survive the final assault.
+
+
+                                  Sunspire settlement map
+
+
+Sunspire
+Sunspire rises from the southwestern desert around a broad oasis fed by springs
+that should not exist. White stone domes, wind towers, shaded courtyards, and
+bright cloth awnings ring the water. Beyond the living city, half-buried golden
+ruins stretch into the dunes. Those ruins were once an arcane academy, then a
+sealed laboratory, and finally the birthplace of Rabu Shin’s ascension research.
+The city itself remains inhabited, but the desert has become unstable. Sandstorms
+move against the wind. Mirages persist after being touched. Travelers vanish from
+
+
+one side of a dune and emerge days later without having aged. Each disturbance
+traces back to the buried Gene Vault beneath the oldest spire.
+
+  ARRIVAL IN SUNSPIRE
+  Heat shimmers above the road as the dunes fall away, revealing blue water and
+  pale towers clustered around a green oasis. Brass chimes sing in the wind.
+  Beyond the city, broken golden spires lean from the sand like the ribs of a buried
+  giant. For one heartbeat, every shadow points toward the ruins. Then the sun
+  shifts, and the illusion is gone.
+
+
+Starting the Chapter
+The coordinates recovered in Frostharbor lead to Sunspire’s ruined research
+quarter. The glacial crystal also acts as one of three keys required to open the Gene
+Vault. The party should already possess compatible lattice fragments from
+Emberfall and Marrowfen; if one was lost, the chapter provides replacement
+fragments through the optional quests.
+• The Ascension Coordinates. Frostharbor’s core identifies a sealed chamber
+   beneath the oldest ruined tower.
+• The Scholar’s Request. Professor Ilyra Venn of the Bardic University asks the
+   party to recover missing records from the ruins.
+• The Empty Caravan. A merchant train arrived with all cargo intact but no people,
+   animals, or footprints.
+• The Singing Well. Kazuid’s Well has begun repeating phrases spoken by people
+   who died years ago.
+
+Desert Travel
+A creature traveling for more than 4 hours in the open desert without sufficient
+water must succeed on a DC 13 Constitution saving throw or gain one level of
+exhaustion. Proper supplies, magical water, or travel during the cooler hours
+prevents this check. During a sandstorm, visibility is limited to 30 feet and Wisdom
+(Survival) checks made to navigate are DC 15.
+
+ DM NOTE. Sunspire should feel dangerous because reality is failing, not simply because
+ the climate is hot. Use the desert hazards to frame strange events, preserve urgency, and
+ reward preparation.
+
+
+Keyed Locations in Sunspire
+1. Shimmering Sands Inn. A cool, tiled inn run by Nima Saffronveil. Its courtyard
+fountain occasionally flows upward at midnight.
+
+
+2. Briefgin & Quail Tavern. A crowded tavern favored by guides, caravan guards,
+and treasure hunters. The back room contains maps of the ruined research
+quarter.
+3. Kazuid’s Well. The oasis’s oldest spring. Voices now echo from its depths in
+languages no living resident recognizes.
+4. Bardic University. A center for oral history, magic, and desert archaeology.
+Professor Ilyra Venn has collected fragments of Rabu Shin’s earliest lectures.
+5. Finehilt Forge. Master smith Daro Finehilt can fit weapons with heat-resistant
+grips and examine the alloy used in the Gene Vault doors.
+6. Coldswell Fish Market. Fish raised in the oasis have recently developed glasslike
+scales and perfect bilateral symmetry.
+7. The Ruined Research Quarter. Half-buried towers, collapsed observatories, and
+fractured courtyards surrounding the sealed Gene Vault.
+8. The Gene Vault. Rabu Shin’s original laboratory, protected by dimensional locks,
+failed prototypes, and a consciousness imprint that believes it is the true Rabu
+Shin.
+
+Important NPCs
+             NPC                    Role and Manner               What They Know
+
+ Professor Ilyra Venn          Elven historian; brilliant,   Rabu Shin began with
+                               impatient, ashamed of         curative research before
+                               academic secrecy.             turning toward forced
+                                                             adaptation.
+
+ Nima Saffronveil              Innkeeper and former          Several missing caravans
+                               caravan master; warm,         passed the same ruined
+                               practical, observant.         obelisk.
+
+ Daro Finehilt                 Dwarven smith; blunt,         The Gene Vault metal
+                               methodical, fascinated by     contains memory-responsive
+                               strange alloys.               crystal.
+
+ Sahir Kazuid                  Keeper of the oasis well;     The well repeats voices
+                               solemn and deeply             when the buried engine
+                               superstitious.                pulses.
+
+ Archivist Pellion             Human university curator;     He sold access records to a
+                               nervous, evasive,             lattice agent and fears
+                               compromised.                  exposure.
+
+ The Residual Avatar           Stored consciousness          Aetherfall is the completed
+                               imprint of Rabu Shin; calm    ascension engine and the
+                               and absolute.                 true Rabu Shin is waiting
+                                                             there.
+
+
+Sunspire Rumors
+                    d8                                         Rumor
+
+ 1                                          A caravan crossed the western gate with no
+                                            drivers, but the camels still followed
+                                            commands.
+
+ 2                                          The ruins rearrange themselves every new
+                                            moon.
+
+ 3                                          Kazuid’s Well spoke the name of a child
+                                            before she was born.
+
+ 4                                          A golden statue walked across the dunes
+                                            during last week’s storm.
+
+ 5                                          The university sealed an archive after a
+                                            student began writing in Rabu Shin’s hand.
+
+ 6                                          The oasis water casts reflections of people
+                                            who are not present.
+
+ 7                                          A door beneath the ruins opens only for
+                                            those carrying three different lattice shards.
+
+ 8                                          The oldest tower casts no shadow at noon.
+
+
+Part 1: Echoes in the Oasis
+  THE SINGING WELL
+  A crowd has gathered around Kazuid’s Well. The water is perfectly still, though
+  wind ripples every banner in the square. From the darkness below comes a calm
+  voice: “The mind is sufficient.” Several listeners step back. One elderly woman
+  begins to cry. “That was my husband,” she whispers. “He died twenty years ago.”
+
+
+Sahir Kazuid asks the characters to descend into the maintenance chamber
+beneath the well. A successful DC 15 Arcana check identifies the voices as residual
+memories drawn from people who have touched the oasis water. A DC 16
+Investigation check locates a hair-thin crystal filament running from the well
+toward the ruined quarter.
+In the chamber below, the party encounters 2 Lattice Reflections. These
+translucent humanoid figures repeat movements and phrases stolen from nearby
+minds. They attack only when the filament is damaged.
+Cutting or dispelling the filament ends the voices for 24 hours. The effect returns
+until the Gene Vault is shut down. The filament contains a partial map showing a
+maintenance route beneath the ruins.
+
+
+Part 2: The Empty Caravan
+  THE SILENT ARRIVAL
+  A line of dust appears on the western road. Six camels emerge from the heat
+  haze, harnessed to three covered wagons. No hands hold the reins. No guards
+  ride beside them. The animals stop at the gate in perfect unison, kneel, and wait.
+
+
+The caravan belongs to the Amber Road Consortium. Its cargo includes food,
+glassware, and sealed containers of medical supplies. No blood or signs of struggle
+are present. A DC 15 Investigation check finds that every personal item remains
+except mirrors. A DC 14 Survival check reveals footprints ending simultaneously
+around a black obelisk two miles outside the city.
+At the obelisk, the characters find the missing travelers trapped as living
+reflections inside polished stone. Three Desert Guardian Constructs defend the site.
+Destroying the obelisk releases the captives, who remember a voice asking
+whether they preferred flesh or permanence.
+
+ DM NOTE. This encounter previews the consciousness-transfer technology without fully
+ explaining it. The victims are not clones; their bodies were temporarily displaced into a
+ lattice pocket and can be restored.
+
+
+Part 3: Secrets of the Bardic University
+Professor Ilyra Venn possesses fragments of Rabu Shin’s early thesis but lacks the
+final lecture transcript. Archivist Pellion secretly sold the transcript to a disguised
+agent and altered the archive log. The characters can expose him through a short
+investigation.
+
+              Clue                           Check                        Result
+
+ A duplicate seal on the          Investigation DC 14          The access record was
+ archive ledger                                                replaced.
+
+ Crystal dust in Pellion’s        Arcana DC 15                 The dust matches lattice
+ sleeve                                                        fragments from the ruins.
+
+ A frightened copying clerk       Persuasion DC 13             Pellion met a masked buyer
+                                                               after midnight.
+
+ A missing mirror from the        Perception DC 14             The mirror was used as a
+ archive hall                                                  temporary relay surface.
+
+
+If confronted, Pellion confesses and gives the party a brass tuning key used to align
+the Gene Vault’s outer lock. He also reveals the buyer’s phrase: “The body is
+inefficient. The mind is sufficient.”
+
+
+The recovered lecture shows that Rabu Shin originally intended to eliminate
+hereditary disease. His methods became increasingly coercive after the Lunareth
+Conclave rejected human trials.
+
+Part 4: Crossing the Shattered Quarter
+The ruined research quarter lies one mile beyond the living city. Reaching the
+central spire requires 4 successes before 3 failures in a skill challenge. Suggested
+checks include Arcana to predict spatial pulses, Athletics to cross collapsing stone,
+Perception to identify false ruins, Survival to navigate the storm, and Thieves’
+Tools to disable old wards. The base DC is 15.
+
+                  Failure                                    Consequence
+
+ First failure                               Each character takes 7 (2d6) slashing
+                                             damage from glasslike sand.
+
+ Second failure                              The party is separated by a spatial fold; each
+                                             creature begins the next encounter 20 feet
+                                             apart.
+
+ Third failure                               The vault awakens early, giving its first
+                                             guardian 20 temporary hit points.
+
+
+  THE RUINED SPIRE
+  The central tower rises from the dunes in broken rings. Sections of wall hang in
+  the air without support, slowly rotating around a dark opening. Beneath the
+  sand, pale green lines ignite one after another, forming a geometric web that
+  stretches toward the horizon.
+
+
+Part 5: Opening the Gene Vault
+The circular vault door contains three recessed sockets and one brass resonance
+plate. The sockets accept fragments attuned to heat, water, and cold: the Emberfall
+thermal fragment, the Marrowfen relay shard, and the Frostharbor crystal. The
+brass tuning key from the university aligns the lock.
+If a required fragment is missing, a replacement can be recovered from the
+optional quests in this chapter. Forcing the door requires three successful DC 20
+Arcana checks before two failures. Each failure triggers a 4d8 force pulse affecting
+every creature within 30 feet.
+
+  THE DOOR OPENS
+  The three fragments ignite in different colors—red, green, and blue. Their light
+  flows into the circular door and meets at its center. Stone unfolds like the petals
+  of a metallic flower. Beyond lies a descending corridor untouched by sand, its
+  walls reflecting not your faces, but younger and older versions of you.
+
+
+The Gene Vault
+The Gene Vault is unnaturally clean. Unless otherwise stated, ceilings are 20 feet
+high, doors are seamless stone, and pale lines in the floor provide dim light. The
+architecture reacts to thought: frightened characters hear distant breathing, while
+confident characters see doors open a heartbeat before they touch them.
+
+1. Antechamber of Iteration
+Six statues depict the same humanoid body at successive stages of alteration. A
+creature that studies the sequence and succeeds on a DC 16 Medicine or Arcana
+check realizes the final statue is not physically perfected; its skull is empty and
+filled with crystal.
+Touching the last statue activates 2 Stone Golems reskinned as Lattice Guardians.
+They attempt to push intruders onto glowing floor sigils that deal 10 (3d6) force
+damage at initiative count 20.
+
+2. Hall of Failed Iterations
+  PRESERVED FAILURES
+  Glass cylinders line the chamber from floor to ceiling. Within each floats a
+  different attempt at controlled evolution: reinforced lungs, mirrored eyes, limbs
+  grown for impossible environments. None of the bodies move. Then every eye
+  opens at once.
+
+
+The specimens are dead, but the vault projects their fear into the room. Each
+creature must succeed on a DC 16 Wisdom saving throw or be frightened for 1
+minute, repeating the save at the end of each turn. A successful DC 17 Arcana
+check shuts down the emotional archive.
+A hidden cabinet contains 3 superior healing potions and Rabu Shin’s earliest
+consent forms. The first pages require willing subjects. Later pages remove the
+word willing entirely.
+
+3. Chamber of Borrowed Forms
+Four mirror frames surround a circular platform. When a creature steps onto it, a
+Lattice Doppelganger forms using that creature’s appearance and one of its attacks.
+The party must defeat 3 doppelgangers. Each has AC 17, 55 hit points, resistance to
+psychic damage, and can copy one weapon attack or cantrip from the creature it
+mirrors.
+Breaking a mirror prevents the matching doppelganger from reforming. Each
+mirror has AC 15, 25 hit points, and immunity to poison and psychic damage.
+
+
+4. Gravity Archive
+Crystal tablets float in concentric rings around a central void. The room has no
+fixed down direction. Moving between tablets requires a DC 14 Acrobatics or
+Arcana check; failure sends the creature drifting 20 feet and costs its movement.
+The tablets contain the Ascension Engine blueprint. Recovering a complete copy
+requires 3 successful DC 16 Arcana or Investigation checks. Each attempt awakens
+an Ocular Genome Construct that uses the reduced Beholder stat block described
+later in the chapter.
+
+5. Memory Theater
+  RABU SHIN BEFORE THE KRASIS
+  The chamber darkens. A younger Rabu Shin appears at a lectern before a
+  crowded hall. “A child should not inherit a death sentence from blood,” he says.
+  The image changes. The hall is empty now. His voice is colder. “If consent
+  protects suffering, then consent is another weakness to be removed.”
+
+
+The theater presents five linked memories: his early curative research, rejection by
+Lunareth, secret House Varin funding, the first successful mind encoding, and the
+construction of Aetherfall. Characters who watch all five gain advantage on one
+Intelligence check made during the final containment sequence in Aetherfall.
+
+6. The Soul Encoding Chamber
+A ring of crystal needles surrounds a reclining platform. A partially encoded
+consciousness named Mira Sol remains trapped here. She was Rabu Shin’s
+laboratory assistant and volunteered for the first transfer before understanding
+that he intended to duplicate rather than move her mind.
+Freeing Mira requires two successful DC 17 Arcana checks and one DC 15 Medicine
+check. A failure deals 14 (4d6) psychic damage to the character making the check.
+If rescued, Mira explains that the true Rabu Shin is distributed through Aetherfall’s
+city lattice, while the entity below is only a stored residual avatar.
+Mira grants the party the Resonance Phrase: “Identity precedes iteration.”
+Speaking it during the final encounter in this chapter suppresses one legendary
+action of the Residual Avatar for 1 round.
+
+7. Ascension Engine Prototype
+This chamber contains a smaller version of Aetherfall’s central engine. Three
+pylons stabilize a sphere of folded light. Characters can disable the prototype
+before the final battle. Each pylon requires an action and a successful DC 17
+Arcana check or can be destroyed (AC 18, 35 hit points, immune to poison and
+psychic damage).
+For each pylon disabled, remove one environmental effect from the final battle. If
+all three are disabled, the Residual Avatar begins combat with 30 fewer hit points.
+
+
+8. The Shattered Genome
+  THE RESIDUAL AVATAR
+  The last door opens onto a circular chamber beneath a dome of black glass. A
+  human figure stands at its center, formed from golden light and translucent
+  bone. His face is calm, almost kind. “You have carried my keys across the world,”
+  he says. “You have preserved the experiment exactly as intended.”
+
+
+The Residual Avatar is a stored consciousness imprint formed from Rabu Shin’s
+last physical scan. It believes it is continuous with the true Rabu Shin but cannot
+access Aetherfall directly while the vault remains sealed. It attempts conversation
+before combat.
+The avatar offers to cure disease, restore lost limbs, or preserve a dying loved one
+in exchange for access to the collected lattice fragments. It answers questions
+honestly but frames coercion as necessary efficiency. It attacks when the party
+refuses to surrender the fragments or attempts to shut down the prototype.
+
+Final Battle: The Residual Avatar
+The battle takes place on a circular platform surrounded by shifting walls of
+memory. At initiative count 20, roll on the Genome Chamber Effects table. A
+disabled pylon removes the corresponding effect from the available results,
+starting from the lowest numbered result.
+
+                    d4                               Genome Chamber Effect
+
+ 1                                         Anti-Magic Sweep. A 20-foot-wide beam
+                                           crosses the chamber. Creatures in the beam
+                                           cannot cast spells until initiative count 20 of
+                                           the next round.
+
+ 2                                         Gravity Inversion. Each creature must
+                                           succeed on a DC 16 Dexterity save or rise 20
+                                           feet and fall at the end of its next turn.
+
+ 3                                         Memory Lance. One random creature takes
+                                           13 (3d8) psychic damage and cannot take
+                                           reactions until its next turn.
+
+ 4                                         Adaptive Ward. The avatar gains resistance
+                                           to the damage type that dealt the most
+                                           damage since the previous round.
+
+
+At half its hit points, the avatar fractures into three Genome Echoes. Each echo has
+AC 17, 35 hit points, and one of the following attacks: force ray (+9 to hit, 4d8
+force), psychic burst (15-foot cone, DC 16 Wisdom, 4d6 psychic and frightened until
+end of next turn), or gravity crush (DC 16 Strength, 4d8 force and restrained until
+an action is used to escape). The avatar reforms when all echoes are destroyed.
+
+
+When reduced to 0 hit points, the avatar does not die immediately. It uses its final
+action to project the true Rabu Shin’s voice from Aetherfall.
+
+  INVITATION TO AETHERFALL
+  The avatar collapses into a column of light. Above it, the image of a floating city
+  appears—bridges curving through clouds, towers joined by radiant veins. A voice
+  fills the chamber. “You have proven adaptability. You are suitable variables.
+  Come to Aetherfall. Witness what your resistance has helped perfect.”
+
+
+Vault Collapse
+Defeating the avatar destabilizes the prototype. The characters have 5 rounds to
+recover the blueprint, free any remaining captives, and escape. Each round, every
+character can take one collapse action in addition to normal movement.
+
+            Action                        Check                       Success
+
+ Secure the Blueprint          Arcana or Investigation DC   The complete Ascension
+                               16                           Engine design is preserved.
+
+ Stabilize a Corridor          Arcana DC 15                 The party gains one
+                                                            additional round before
+                                                            collapse.
+
+ Carry a Captive               Athletics DC 14              Move a helpless captive
+                                                            safely toward the exit.
+
+ Open an Emergency Gate        Thieves’ Tools or Strength   Create a shorter route to the
+                               DC 16                        surface.
+
+ Shield the Group              Constitution save DC 15      On success, reduce falling-
+                                                            debris damage by half for
+                                                            everyone this round.
+
+
+At the end of each round, creatures still in the vault take 10 (3d6) bludgeoning
+damage from collapsing stone and crystal, or half as much if the group succeeded
+on Shield the Group. If the party fails to escape, the emergency spatial system
+ejects them into the desert but each creature gains one level of exhaustion and
+loses one unsecured nonmagical item.
+
+Optional Sunspire Quests
+The Glass Jackals
+A pack of six jackals with transparent skin stalks the oasis at night. Defeating or
+calming them reveals a heat-attuned lattice fragment that can replace the
+Emberfall key. Nature or Animal Handling DC 15 allows the party to lure them
+away without combat.
+
+
+The Buried Observatory
+A collapsed observatory contains star charts showing Aetherfall’s movement
+pattern. Recovering them requires navigating animated sand and defeating 2 Air
+Elementals. The charts grant advantage on the first navigation check made in
+Aetherfall.
+
+The Mirror Thief
+A child named Tavi has been stealing mirrors under the influence of a lattice
+whisper. Following him leads to a minor relay nest. Cleansing it saves Tavi and
+grants a water-attuned fragment if the Marrowfen key is missing.
+
+Finehilt’s Impossible Alloy
+Daro Finehilt asks the party to retrieve a metal sample from a walking golden
+statue. The statue uses the Shield Guardian stat block. Returning the sample lets
+Daro create one Resonant Weapon Coating, granting a weapon +1d6 force damage
+against constructs and aberrations until the end of the Aetherfall chapter.
+
+The Oasis Below
+A sinkhole exposes an ancient reservoir where a Water Weird has fused with
+lattice crystal. Purifying the reservoir prevents the city’s water from becoming a
+memory relay and earns the party Sunspire’s formal alliance.
+
+Rewards and Advancement
+• Characters advance to Level 11 after defeating the Residual Avatar, recovering
+   the Ascension Engine blueprint, and escaping the Gene Vault.
+• Ascension Engine Blueprint. Grants advantage on one group check made to
+  disable or stabilize Aetherfall’s central engine.
+• Resonance Phrase. Once during the final campaign chapter, a character can
+   speak “Identity precedes iteration” to suppress one regeneration or legendary-
+   action effect for 1 round.
+• Sunspire Alliance. If the party saves the oasis and exposes the truth, Sunspire
+   supplies desert guides, scholars, and restorative magic before the final assault.
+• Treasure. The vault contains 4,000 gp in ancient trade bars, 3 superior healing
+   potions, a spell scroll of reverse gravity, and one rare magic item appropriate to
+   the party.
+
+Consequences of Failure
+If the Residual Avatar survives or escapes through the prototype, it transmits the
+party’s tactics to Aetherfall. Rabu Shin gains one additional Legendary Resistance
+in the final battle. If the blueprint is lost, the party can still reach Aetherfall but has
+disadvantage on the first containment check made against the Ascension Engine.
+If the Gene Vault remains active, the oasis continues absorbing memories. Within
+one month, residents begin losing personal history while the city’s wells speak
+with their voices.
+
+
+Transition to Blackroot Enclave
+The recovered blueprint reveals that destroying Aetherfall’s engine without a
+containment lattice could release enough biomantic energy to mutate entire
+regions at once. Professor Ilyra identifies only one group known to possess
+compatible suppression technology: the wardens of Blackroot Enclave.
+
+  ROAD TO THE LAST UNALTERED STRONGHOLD
+  Professor Ilyra spreads the blueprint across a stone table. One section glows
+  brighter than the rest: a containment pattern shaped like interlocking roots.
+  “This is not Rabu Shin’s work,” she says. “Someone designed a way to stop him.
+  Blackroot Enclave has been preparing for this longer than any of us knew.”
+
+
+Sunspire Creature Appendix
+Lattice Reflection
+Medium construct, unaligned
+
+ Armor Class 16 | Hit Points 58 (9d8 + 18) | Speed 30 ft.
+ STR 10 (+0) DEX 16 (+3) CON 14 (+2) INT 8 (-1) WIS 12 (+1) CHA 6 (-2)
+ Saving Throws Dex +6, Wis +4
+ Skills Perception +4, Stealth +6
+ Damage Resistances psychic; bludgeoning, piercing, and slashing from nonmagical
+ attacks
+ Senses darkvision 60 ft., passive Perception 14 | Languages understands the
+ languages of its copied memories but cannot speak normally | Challenge 4 (1,100
+ XP)
+ Borrowed Motion. When a creature within 30 feet takes the Dash, Disengage,
+ or Dodge action, the reflection can take the same action as a reaction.
+ Memory Static. A creature that starts its turn within 10 feet of the reflection
+ must succeed on a DC 14 Wisdom saving throw or cannot take reactions until
+ the start of its next turn.
+ Actions
+ Multiattack. The reflection makes two Glass Hand attacks.
+ Glass Hand. Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 10 (2d6
+ + 3) force damage.
+ Stolen Voice (Recharge 5-6). One creature within 30 feet must make a DC 14
+ Wisdom saving throw, taking 18 (4d8) psychic damage on a failed save, or half
+ as much on a success. On a failure, the target can speak only in the reflection’s
+ copied phrases until the end of its next turn.
+
+
+Desert Guardian Construct
+Large construct, unaligned
+
+ Armor Class 18 | Hit Points 95 (10d10 + 40) | Speed 30 ft.
+ STR 20 (+5) DEX 10 (+0) CON 18 (+4) INT 6 (-2) WIS 12 (+1) CHA 5 (-3)
+ Saving Throws Con +7
+ Skills Perception +4
+ Damage Immunities poison, psychic; Condition Immunities charmed, exhaustion,
+ frightened, paralyzed, petrified, poisoned
+ Senses darkvision 60 ft., passive Perception 14 | Languages understands Ancient
+ Sunspire but cannot speak | Challenge 6 (2,300 XP)
+ Immutable Form. The construct is immune to any spell or effect that would
+ alter its form.
+
+
+ Magic Weapons. The construct’s weapon attacks are magical.
+ Sandstep. The construct ignores difficult terrain caused by sand and can move
+ through loose sand without leaving tracks.
+ Actions
+ Multiattack. The construct makes two Gilded Fist attacks.
+ Gilded Fist. Melee Weapon Attack: +8 to hit, reach 10 ft., one target. Hit: 16
+ (2d10 + 5) bludgeoning damage plus 4 (1d8) force damage.
+ Obelisk Pulse (Recharge 5-6). Each creature in a 20-foot-radius sphere
+ centered on a point within 60 feet must make a DC 15 Dexterity saving throw,
+ taking 27 (6d8) force damage on a failed save, or half as much on a success.
+
+
+Ocular Genome Construct
+Large aberration, lawful neutral
+
+ Armor Class 18 | Hit Points 150 (20d10 + 40) | Speed 0 ft., fly 20 ft. (hover)
+ STR 10 (+0) DEX 14 (+2) CON 15 (+2) INT 17 (+3) WIS 15 (+2) CHA 15 (+2)
+ Saving Throws Int +7, Wis +6
+ Skills Arcana +7, Perception +10
+ Damage Resistances force, psychic; Condition Immunities prone
+ Senses darkvision 120 ft., passive Perception 20 | Languages telepathy 120 ft. |
+ Challenge 10 (5,900 XP)
+ All-Around Vision. The construct has advantage on Wisdom (Perception)
+ checks and cannot be surprised.
+ Antimagic Focus. At the start of its turn, the construct chooses one creature it
+ can see within 60 feet. Until the start of its next turn, spells of 3rd level or lower
+ cast by that creature require a DC 15 spellcasting ability check or fail with no
+ effect.
+ Actions
+ Bite. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 14 (4d6)
+ piercing damage.
+ Genome Rays. The construct fires three rays chosen at random, rerolling
+ duplicates: 1) Force Ray, DC 16 Dexterity save or 22 (4d10) force damage; 2)
+ Fear Ray, DC 16 Wisdom save or frightened for 1 minute; 3) Restraint Ray, DC
+ 16 Strength save or restrained by crystal growth; 4) Memory Ray, DC 16
+ Intelligence save or 18 (4d8) psychic damage and disadvantage on next attack;
+ 5) Gravity Ray, DC 16 Dexterity save or moved 30 feet; 6) Disintegration Ray, DC
+ 16 Dexterity save or 36 (8d8) force damage, half on success.
+
+
+Residual Avatar of Rabu Shin
+Large construct, lawful evil
+
+
+Armor Class 19 | Hit Points 225 (18d10 + 126) | Speed 40 ft., fly 40 ft. (hover)
+STR 18 (+4) DEX 18 (+4) CON 24 (+7) INT 20 (+5) WIS 18 (+4) CHA 20 (+5)
+Saving Throws Con +12, Int +10, Wis +9, Cha +10
+Skills Arcana +15, Insight +9, Perception +9
+Damage Resistances cold, fire, force, lightning, psychic; Damage Immunities poison;
+Condition Immunities charmed, exhaustion, frightened, poisoned
+Senses truesight 60 ft., passive Perception 19 | Languages all, telepathy 120 ft. |
+Challenge 14 (11,500 XP)
+Legendary Resistance (3/Day). If the avatar fails a saving throw, it can choose
+to succeed instead.
+Encoded Mind. The avatar is immune to effects that read thoughts, alter
+memories, or possess it.
+Adaptive Shell. At the end of each of its turns, the avatar gains resistance to
+the damage type that dealt the most damage to it since its previous turn. The
+resistance lasts until the end of its next turn.
+Spellcasting. The avatar is a 15th-level spellcaster (spell save DC 18, +10 to hit).
+At will: mage hand, ray of frost, shocking grasp. 3/day each: counterspell, blight,
+dimension door, wall of force. 1/day each: disintegrate, reverse gravity,
+dominate monster.
+Actions
+Multiattack. The avatar makes two Lattice Blade attacks or one Lattice Blade
+attack and uses Genome Bolt.
+Lattice Blade. Melee Spell Attack: +10 to hit, reach 10 ft., one target. Hit: 22 (4d8
++ 4) force damage.
+Genome Bolt. Ranged Spell Attack: +10 to hit, range 120 ft., one target. Hit: 27
+(6d8) force or psychic damage, chosen by the avatar.
+Rewrite Form (Recharge 5-6). One creature within 60 feet must succeed on a
+DC 18 Constitution saving throw or take 36 (8d8) force damage and be
+transformed until the end of its next turn: its speed is halved, it cannot take
+reactions, and it has disadvantage on attack rolls. On a success, it takes half
+damage and is not transformed.
+Fracture into Echoes (1/Day). When first reduced below half its hit points, the
+avatar disappears and creates three Genome Echoes as described in the
+encounter. It reforms with its current hit points when all echoes are destroyed.
+Reactions
+Calculated Counter. When a creature the avatar can see casts a spell, the
+avatar moves up to half its speed without provoking opportunity attacks before
+resolving counterspell.
+Legendary Actions
+The creature can take 3 legendary actions, choosing from the options below.
+Only one option can be used at a time and only at the end of another creature’s
+turn. It regains spent legendary actions at the start of its turn.
+
+
+ Warp Step. The avatar teleports up to 30 feet to an unoccupied space it can see.
+ Genome Bolt. The avatar uses Genome Bolt.
+ Gravity Crush (Costs 2 Actions). One creature within 60 feet must succeed on
+ a DC 18 Strength save or take 18 (4d8) force damage and be restrained until the
+ end of its next turn.
+
+
+Chapter 10 Clue Chain
+         Discovery                      What It Proves                       Leads To
+
+Voices in Kazuid’s Well           The lattice can store and       The Gene Vault filament
+                                  replay human memories.          network.
+
+Empty caravan victims             The network can                 Consciousness-transfer
+                                  temporarily displace living     research.
+                                  bodies.
+
+Rabu Shin’s early lecture         His work began as curative      The campaign’s central
+                                  medicine and became             moral conflict.
+                                  coercive.
+
+Ascension Engine blueprint        Aetherfall is a city-sized      Blackroot containment
+                                  mind-transfer and reality-      planning.
+                                  alteration engine.
+
+Mira Sol’s testimony              The true Rabu Shin is           The final assault strategy.
+                                  distributed throughout
+                                  Aetherfall.
+
+Residual Avatar’s invitation      Rabu Shin expects the party     Aetherfall finale.
+                                  and considers them
+                                  successful test subjects.
+
+
+Treasure Summary
+                   Reward                                     Location or Condition
+
+3 superior healing potions                       Hall of Failed Iterations
+
+4,000 gp in ancient trade bars                   Gene Vault treasury alcove
+
+Spell scroll of reverse gravity                  Gravity Archive
+
+One rare magic item                              Awarded after the Residual Avatar battle
+
+Resonant Weapon Coating                          Finehilt’s Impossible Alloy optional quest
+
+Ascension Engine Blueprint                       Gravity Archive and collapse sequence
+
+Resonance Phrase                                 Rescue Mira Sol

@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RabuShinAIGM.Core\RabuShinAIGM.Core.vbproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>c5e891ca-40a3-481c-b486-3177e8831356</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

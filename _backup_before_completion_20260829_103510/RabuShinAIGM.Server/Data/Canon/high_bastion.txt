@@ -1,0 +1,470 @@
+CHAPTER 5
+                    HIGH BASTION
+             SIEGE OF STONE AND STEEL
+   Recommended Levels 6-7 • Starting Level 6 • Hybrid Milestone Advancement
+Chapter Purpose. High Bastion shifts the campaign from investigation to open
+warfare. The characters discover that Rabu Shin is testing coordinated Krasis
+infantry against a disciplined fortress. They must expose tunnel infiltrators, defend
+the walls, preserve the inner gate, and defeat a regenerating commander designed
+to learn from military resistance. Characters should reach 7th level after breaking
+the siege and recovering proof that Silverreach interests funded the assault.
+
+
+                             High Bastion settlement map
+
+
+High Bastion
+High Bastion is a mountain fortress built into a sheer ridge overlooking the
+continent’s central trade roads. Its concentric walls, high towers, cliffside barracks,
+and iron-bound gates have withstood armies, monsters, and winter storms. The
+garrison prides itself on discipline. Yet the enemy now probing its defenses does
+not raid for food or territory. It studies patrol routes, withdraws before traps close,
+and changes tactics after every skirmish.
+                                ARRIVAL AT HIGH BASTION
+   High Bastion rises from the mountain like a crown of black stone. Banners
+   whip above battlements crowded with soldiers. Far below, switchback roads
+   cling to the cliffs. A horn sounds once, then twice. Archers rush to the western
+   wall as a boulder strikes the outer gate with a crack like thunder. It does not
+   roll from the slope. Something below has thrown it.
+
+
+Starting the Chapter
+ • The Conclave’s Warning. Archmage Vaelis sends a sealed letter explaining that
+    lattice formations have appeared in military patterns around High Bastion.
+ • A Desperate Courier. A wounded scout reaches Lunareth with a request from
+   Captain Valric Stonehand: “Bring anyone who has fought these things before.”
+ • The Silverreach Connection. Records recovered beneath Lunareth mention
+    payments routed through House Varin to mercenary companies operating near
+    the fortress.
+ • The Northern Road. The party’s route toward Frostharbor naturally passes
+    through High Bastion, where all civilian traffic has been halted.
+ Chapter Flow: The party enters during a siege alert, meets the war council, and
+ investigates attacks occurring both outside and beneath the fortress. The middle of the
+ chapter presents several defensive missions that influence the final assault. The finale is
+ a multi-stage battle at the inner gate against Krasis Ogres, disciplined hybrid soldiers, and
+ the Krasis Commander.
+
+
+Keyed Locations in High Bastion
+1. The Outer Gate. A layered gatehouse overlooking the mountain road. Its
+murder holes, winches, and ballista platforms are the first target of every assault.
+2. Bastion Bazaar. A crowded courtyard now serving as a refugee camp,
+infirmary, and supply depot.
+3. Ironpeak Armory. Weapons and armor are repaired here under Quartermaster
+Brunna Flint. Several shipments bear false Silverreach seals.
+4. WyvernGuard Tavern. An officers’ tavern where scouts trade reports and
+frightened soldiers speak more honestly than they do at council.
+
+
+5. Council Hall. Captain Valric Stonehand coordinates the defense from a chamber
+covered in geometric attack maps.
+6. Cliffwatch Tower. A damaged watchtower above a hidden ascent route. Its
+signal crystal has been sabotaged.
+7. The Inner Gate. The fortress’s final defensive line and the site of the chapter’s
+climactic battle.
+8. Underkeep Tunnels. Old drainage and mining passages beneath the fortress.
+Krasis forces are using them to bypass the walls.
+
+Important NPCs
+ NPC                          Roleplaying Notes            What They Know
+ Captain Valric               Blunt, disciplined,          The enemy changes
+ Stonehand                    respects competence          tactics after every failed
+                              more than rank.              attack and prioritizes
+                                                           healers and spellcasters.
+ Sergeant Steelhand           Gruff veteran who treats     A saboteur has been
+                              the party as soldiers        marking tunnel doors
+                              once they prove              with mirrored cuts.
+                              themselves.
+ Private Ericson              Young scout, observant       He saw an ogre’s
+                              but shaken.                  wounds close unless
+                                                           burned.
+ Quartermaster Brunna         Suspicious dwarf with a      Crates from Silverreach
+ Flint                        perfect memory for           contained alchemical
+                              inventory.                   feed and bone-binding
+                                                           reagents.
+ Chaplain Mirelda Voss        Calm priest who              Radiant magic disrupts
+                              oversees the infirmary.      the crystalline scarring
+                                                           left by Krasis weapons.
+
+
+Rumors in the Fortress
+ d6                                         Rumor
+ 1                                          The enemy knows the watch schedule
+                                            before it is posted.
+ 2                                          Something climbs the cliff without
+                                            ropes.
+ 3                                          A dead ogre stood up after the battle
+                                            and walked away.
+ 4                                          Silverreach merchants paid the
+                                            mercenaries outside the walls.
+ 5                                          The tunnels under the keep breathe at
+
+
+                                               night.
+ 6                                             The next assault will come from inside
+                                               the fortress.
+
+
+Part 1: War Council
+                                  THE PATTERN OF WAR
+     The council table is buried beneath maps, casualty lists, and broken pieces of
+     strange bone armor. Red markers surround the fortress in precise arcs.
+     Captain Stonehand places one final marker at the inner gate. “They are not
+     trying to take the Bastion,” he says. “They are measuring how we stop them.”
+
+
+Stonehand asks the party to complete three urgent missions before nightfall. Each
+completed mission grants one Defensive Advantage during the final battle. The
+party may attempt all three, but resting before the siege causes one uncompleted
+mission to fail automatically.
+ Mission                        Objective                    Defensive Advantage
+ The Tunnel Breach              Seal the underkeep           No enemy
+                                route and defeat             reinforcements enter
+                                burrowing attackers.         from beneath the inner
+                                                             courtyard.
+ The Broken Ballista            Recover the winch            Once during the finale,
+                                assembly and repair a        the party can call a
+                                wall engine.                 ballista strike for 4d10
+                                                             piercing damage.
+ The Cliffwatch Signal          Clear the tower and          The garrison is not
+                                restore its beacon.          surprised; allied soldiers
+                                                             hold one flank without
+                                                             player assistance.
+
+
+Part 2: The Tunnel Breach
+                                  SOMETHING BENEATH
+     The passage descends through raw mountain stone. Fresh claw marks score
+     the floor, but the walls are smoother than mining tools could make them. A
+     low vibration travels through your boots. Dust spills from the ceiling in a
+     straight line, moving toward you.
+
+
+Two Ankhegs burst from the tunnel floor. One has plates of grafted iron and bone,
+increasing its Armor Class to 16. They are not natural allies; a lattice beacon
+embedded in the wall compels them to attack in coordinated turns.
+
+
+ • Collapsing Supports. A creature adjacent to a timber support can use an action
+    and make a DC 13 Athletics check to collapse a 10-foot section after it moves
+    clear.
+ • Acid Channels. Ankheg acid opens narrow runoff channels. A creature entering
+   one takes 3 (1d6) acid damage.
+ • Beacon Crystal. AC 13, 15 hit points. Destroying it removes the ankhegs’
+   advantage from Pack Coordination.
+ Tunnel Evidence: Beyond the breach, the party finds supply crates marked with House
+ Varin’s silver hawk. Their contents include concentrated nutrient paste, restraint chains,
+ and notes measuring “fortification response time.”
+
+
+Part 3: The Regenerating Prisoner
+A captured hybrid lies chained in the infirmary. It resembles a human soldier
+beneath segmented chitin and grafted muscle. Its wounds close slowly while the
+chaplain watches. The prisoner does not plead. It studies everyone who enters.
+                                 THE PRISONER LEARNS
+   The prisoner’s eyes move from sword to spell focus to holy symbol. “Radiant
+   response observed,” it says. “Flame response observed. Command pattern
+   updated.” The chains tighten as new bone ridges grow beneath its wrists.
+   “Thank you.”
+
+
+Run this as a tense interrogation. A DC 15 Insight check reveals that every question
+teaches the creature something about the fortress. A DC 14 Arcana or Medicine
+check identifies a crystal node at the base of its skull. Removing or destroying the
+node stops its regeneration and frees the prisoner’s original mind for a few final
+moments.
+ • The prisoner was once Lieutenant Corren Vale, captured six weeks earlier.
+ • He remembers a “surgeon with glass hands” directing the transformation.
+ • The assault commander is called the Stone-Breaker and regenerates unless
+    struck by fire or radiant energy.
+ • A second force waits beyond the ridge to record the outcome, not to join the
+   siege.
+
+
+Part 4: Defensive Missions
+The Broken Ballista
+The replacement winch lies in a wrecked supply cart outside the western wall.
+Four hobgoblins and one hobgoblin captain guard it. They are mercenaries, not
+
+
+Krasis. Captured mercenaries reveal they were paid through a Silverreach broker
+and ordered to keep the fortress occupied, not conquer it.
+
+Cliffwatch Signal
+The tower is occupied by two gargoyles altered with climbing hooks and a lattice
+saboteur using spy statistics. Restoring the beacon requires three successes before
+two failures using Arcana DC 14, Investigation DC 13, or smith’s tools DC 12. Failure
+triggers a lightning discharge dealing 3d6 lightning damage to creatures in the
+tower.
+
+Mountain Wyvern
+A wyvern circles supply caravans below the fortress. It is not corrupted, but a
+crystal barb lodged beneath its wing drives it into a frenzy. Removing the barb
+after reducing the wyvern below half its hit points ends the encounter peacefully
+and earns the garrison’s gratitude. Killing it provides enough venom for two doses
+of wyvern poison.
+
+Avalanche Run
+A patrol is trapped beneath unstable snow and stone. Run a four-success skill
+challenge using Athletics, Survival, Nature, or appropriate magic. Each failure
+inflicts 2d6 bludgeoning damage on a rescuer or costs one trapped soldier. Saving
+at least four soldiers adds twenty guards to the final defense.
+
+Spy in Steel
+One officer at the war council is a disguised lattice agent. Clues include mirrored
+handwriting, no reaction to cold, and crystalline blood beneath a bandaged palm.
+Exposing the spy prevents the commander from knowing the party’s exact
+capabilities in advance.
+
+
+Part 5: Siege of the Inner Gate
+                                     THE ASSAULT BEGINS
+     Night falls without sunset. Smoke from burning pitch turns the sky black while
+     horns answer one another across the mountain. Then comes the impact: one
+     strike, then another, each perfectly timed. The outer gate buckles. Soldiers
+     shout from the walls. Through the smoke emerge towering shapes carrying
+     shields grown from bone and iron. Behind them marches a figure whose torn
+     flesh closes with every step.
+
+
+Running the Siege
+The siege occurs in three waves. The party has one round between waves to move,
+drink potions, or issue orders. At initiative count 20, roll on the Siege Event table.
+Apply earned Defensive Advantages when appropriate.
+ d6                                            Siege Event
+ 1                                             Falling Masonry. One 10-foot square
+                                               becomes hazardous; creatures there
+                                               make a DC 14 Dexterity save or take
+                                               2d8 bludgeoning damage.
+ 2                                             Burning Pitch. A 15-foot line ignites
+                                               and deals 2d6 fire damage to
+                                               creatures entering it.
+ 3                                             Wounded Soldier. A nearby guard
+                                               falls. A character can stabilize the
+                                               guard as an action, preserving morale.
+ 4                                             Gate Strain. The enemy deals 1
+                                               structural damage to the gate. At 5
+                                               structural damage, the gate collapses.
+ 5                                             Arrow Volley. Characters in the open
+                                               make a DC 13 Dexterity save or take
+                                               1d8+2 piercing damage.
+ 6                                             Bastion Counterattack. Allied soldiers
+                                               deal 10 damage to one enemy chosen
+                                               by the party.
+
+
+Wave One: The Shield Line
+Four Krasis Soldiers advance behind two shield-grafted Krasis Ogres. The soldiers
+use the ogres as mobile cover and focus attacks on anyone attempting to reach the
+gate winches. The ogres attempt to deal structural damage rather than pursue
+fleeing characters.
+
+
+Wave Two: The Breach Team
+Two additional Krasis Soldiers enter with three cult engineers carrying lattice
+charges. A charge placed against the gate explodes at the end of the following
+round, dealing 2 structural damage unless removed with an action and a DC 14
+Arcana or thieves’ tools check.
+
+Wave Three: The Stone-Breaker
+                              THE KRASIS COMMANDER
+   The battlefield quiets for a heartbeat. A broad figure steps through the smoke
+   wearing armor fused directly into its skin. One eye is human. The other glows
+   with a rotating green sigil. It looks at the broken defenders, then at you.
+   “Resistance profile confirmed,” it says. “Commencing refinement.”
+
+
+The Krasis Commander enters with any surviving enemies. It prioritizes the
+character who dealt the most damage in the previous wave and changes targets
+when a creature demonstrates fire or radiant attacks. If the party completed the
+prisoner scene, they know how to suppress its regeneration.
+
+Victory Conditions
+ • The Krasis Commander is defeated.
+ • The inner gate retains at least 1 structural point, or the party prevents enemies
+    from crossing the courtyard for three rounds after it falls.
+ • At least one senior defender survives: Stonehand, Steelhand, or Chaplain
+   Mirelda.
+ • The party recovers the commander’s tactical journal or intact cranial lattice.
+
+
+Aftermath
+                                   AFTER THE SIEGE
+   Dawn reveals a battlefield arranged with terrible precision. The dead lie in
+   lines. Broken bone shields point toward the gate like compass needles. Captain
+   Stonehand kneels beside the commander’s remains and lifts a crystal slate
+   from its chest. “This was never an invasion,” he says. “We were an
+   examination.”
+
+
+The tactical journal records response times, casualty ratios, damage types, and the
+party’s combat habits. One section bears the seal of House Varin in Silverreach.
+Another entry reads: “Fortification breach efficiency improving. Urban compliance
+at 42 percent. Awaiting amphibious relay confirmation.” This points toward both
+Silverreach and Marrowfen.
+
+
+Rewards
+ • Stonehand pays the party 750 gp from the fortress war chest.
+ • Each character receives the Bastion Defender’s Mark, granting advantage on one
+   Charisma check with Vael Turog soldiers or officials.
+ • The party receives one suit of +1 armor or one +1 shield chosen from the
+    armory, subject to DM approval.
+ • If the wyvern was spared, it later appears during a mountain journey and drives
+    off one random encounter.
+ • The commander’s lattice core is a campaign key and provides advantage on one
+    Arcana check made to disable a Krasis relay.
+
+Milestone Advancement
+Characters advance to 7th level after they defend High Bastion, defeat the Krasis
+Commander, and secure evidence of the Silverreach funding network. If the gate
+fell but the fortress survived, advancement still occurs; the damaged Bastion
+becomes a visible consequence in later chapters.
+
+If High Bastion Falls
+ • Trade between the western settlements and Silverreach is severed.
+ • House Varin presents the defeat as proof that traditional armies are obsolete.
+ • Refugees crowd Greymoor Hollow and Lunareth.
+ • Krasis forces gain a military staging ground, adding one elite enemy to a later
+   Silverreach or Marrowfen encounter.
+
+Transition to Marrowfen and Silverreach
+                               TWO ROADS FORWARD
+   The crystal slate projects two routes across a relief map. One line descends
+   southeast into black marshland, pulsing in time with a distant relay. The other
+   runs east into Silverreach and ends beneath the crest of House Varin.
+   Stonehand folds his arms. “One route finds the weapons,” he says. “The other
+   finds who paid for them.”
+
+
+Chapter 5 Creature Appendix
+Krasis Soldier
+Medium aberration, lawful evil
+ Armor Class 16 (grafted scale) | Hit Points 52 (8d8+16) | Speed 30 ft.
+ STR 16 (+3) DEX 14 (+2) CON 15 (+2) INT 10 (+0) WIS 12 (+1) CHA 8 (-1)
+ Saving Throws. Str +5, Con +4
+ Skills. Athletics +5, Perception +3
+ Damage Resistances. poison
+ Senses. darkvision 60 ft., passive Perception 13
+ Challenge. 3 (700 XP)
+ Pack Discipline. The soldier has advantage on an attack roll against a creature
+ if at least one allied Krasis is within 5 feet of the creature.
+ Adaptive Guard. After taking damage of a type other than psychic or force, the
+ soldier gains resistance to that damage type until the start of its next turn.
+ ACTIONS
+ Multiattack. The soldier makes two grafted blade attacks.
+ Grafted Blade. Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 8
+ (1d10+3) slashing damage plus 3 (1d6) acid damage.
+ Formation Step. The soldier moves up to half its speed without provoking
+ opportunity attacks, provided it ends this movement within 5 feet of an allied
+ Krasis.
+
+
+Shield-Grafted Krasis Ogre
+Large giant (aberrant), lawful evil
+ Armor Class 17 (bone shield) | Hit Points 105 (10d10+50) | Speed 35 ft.
+ STR 20 (+5) DEX 8 (-1) CON 20 (+5) INT 7 (-2) WIS 10 (+0) CHA 7 (-2)
+ Saving Throws. Str +8, Con +8
+ Damage Resistances. bludgeoning, piercing, and slashing from nonmagical
+ attacks while its shield is intact
+ Senses. darkvision 60 ft., passive Perception 10
+ Challenge. 5 (1,800 XP)
+ Living Bulwark. Allied creatures directly behind the ogre have three-quarters
+ cover. The shield can be targeted separately (AC 17; 30 hit points; immune
+ poison and psychic). When destroyed, the ogre loses its damage resistance.
+ Siege Breaker. The ogre deals double damage to objects and structures.
+ ACTIONS
+ Multiattack. The ogre makes two shield maul attacks.
+
+
+ Shield Maul. Melee Weapon Attack: +8 to hit, reach 10 ft., one target. Hit: 14
+ (2d8+5) bludgeoning damage. A Large or smaller target must succeed on a DC
+ 16 Strength save or be pushed 10 feet.
+ Bone Rush (Recharge 5-6). The ogre moves up to its speed in a straight line.
+ Creatures in its path make a DC 16 Dexterity save, taking 18 (4d8) bludgeoning
+ damage and falling prone on a failure, or half damage on a success.
+ REACTIONS
+ Interpose Shield. When an adjacent ally is hit by an attack, the ogre becomes
+ the target instead.
+
+
+Krasis Commander
+Medium aberration, lawful evil
+ Armor Class 18 (grafted half plate) | Hit Points 145 (17d8+68) | Speed 30
+ ft.
+ STR 18 (+4) DEX 16 (+3) CON 18 (+4) INT 14 (+2) WIS 14 (+2) CHA 12 (+1)
+ Saving Throws. Str +8, Dex +7, Con +8, Wis +6
+ Skills. Athletics +8, Insight +6, Perception +6
+ Damage Resistances. poison; one adaptive damage type
+ Condition Immunities. poisoned
+ Senses. darkvision 60 ft., passive Perception 16
+ Challenge. 8 (3,900 XP)
+ Regeneration. The commander regains 10 hit points at the start of its turn if it
+ has at least 1 hit point. This trait does not function on the turn after it takes fire
+ or radiant damage.
+ Adaptive Flesh. When the commander takes acid, cold, fire, lightning, or
+ thunder damage, it gains resistance to that type until it takes a different listed
+ damage type.
+ Tactical Analysis. At the end of each round, the commander marks the
+ creature that dealt the most damage to it. It has advantage on attack rolls
+ against that creature until the end of the next round.
+ ACTIONS
+ Multiattack. The commander makes three attacks: two with its lattice blade
+ and one with its war tendril.
+ Lattice Blade. Melee Weapon Attack: +8 to hit, reach 5 ft., one target. Hit: 11
+ (2d6+4) slashing plus 4 (1d8) force damage.
+ War Tendril. Melee Weapon Attack: +8 to hit, reach 15 ft., one target. Hit: 9
+ (1d10+4) bludgeoning damage, and the target must succeed on a DC 16 Strength
+ save or be pulled up to 10 feet.
+ Command the Line. Up to two allied Krasis within 60 feet can each use their
+ reaction to move up to half their speed and make one weapon attack.
+
+
+Mutation Surge (Recharge 5-6). The commander chooses one effect: gain 20
+temporary hit points; teleport up to 30 feet; or make one additional lattice
+blade attack against each creature within 5 feet.
+REACTIONS
+Calculated Deflection. The commander adds 3 to its AC against one attack that
+would hit it.
+LEGENDARY ACTIONS
+Advance. The commander moves up to half its speed.
+Blade Attack. The commander makes one lattice blade attack.
+Tactical Reversal (Costs 2 Actions). One creature the commander can see
+within 30 feet makes a DC 16 Wisdom save or uses its reaction to move up to 15
+feet in a direction chosen by the commander.
+
+
+Chapter 5 Clue Chain
+Evidence                   What It Reveals             Leads To
+Varin-marked supply        A Silverreach noble         Silverreach
+crates                     network equipped the
+                           siege forces.
+Lieutenant Vale’s          Rabu Shin’s agents          Future Krasis
+testimony                  convert captives and test   commanders
+                           regenerative warfare.
+Tactical journal           The siege measured          Rabu Shin’s military
+                           fortification response      trials
+                           rather than seeking
+                           conquest.
+Amphibious relay entry     A major active node is      Marrowfen
+                           operating in marsh
+                           terrain.
+Urban compliance           Silverreach is not          House Varin conspiracy
+report                     merely funding the
+                           project; it is a planned
+                           test site.
+
+
+Treasure Summary
+Reward                    Source                      Notes
+750 gp                    High Bastion war chest      Awarded after the siege.
++1 armor or +1 shield     Ironpeak Armory             One party reward,
+                                                      selected with DM
+                                                      approval.
+Bastion Defender’s Mark   Captain Stonehand           Narrative favor with
+                                                      military authorities.
+Wyvern poison, up to 2    Mountain Wyvern             Only if the creature is
+doses                                                 slain and harvested.
+Commander lattice core    Krasis Commander            Campaign key;
+                                                      advantage on one relay-
+                                                      disruption check.

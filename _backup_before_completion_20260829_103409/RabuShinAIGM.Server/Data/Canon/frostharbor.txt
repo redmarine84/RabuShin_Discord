@@ -1,0 +1,649 @@
+Chapter 9
+                    FROSTHARBOR
+                        FROZEN EVOLUTION
+                Recommended Level 9 • Advancement to Level 10
+
+ DM NOTE. Chapter Purpose. Frostharbor is the culmination of Rabu Shin’s
+ environmental calibration program. The characters discover that the northern
+ experiments are no longer trials but final synchronization tests. By destroying the glacial
+ lattice core, they gain the coordinates and key needed to reach Sunspire and learn that
+ Rabu Shin has transferred his consciousness beyond a single body.
+
+
+                                Frostharbor settlement map
+
+
+Frostharbor
+Frostharbor rests where black cliffs meet the frozen northern sea. Its homes are
+built from dark timber, whale bone, and stone quarried from beneath the ice.
+Fishing vessels spend most of the year locked in the harbor, and the people survive
+through seal hunting, ice mining, and stubborn preparation. Every roof is steep,
+every doorway is reinforced, and every resident knows how quickly warmth can
+become life or death.
+
+
+For the past month, the ice has behaved with impossible precision. Cracks form in
+repeating geometric patterns. Frozen ships rise from beneath the harbor intact.
+Hunting beasts move in coordinated packs, and a pale green light flashes beneath
+the glacier shelf during storms. The entire region is being used as the final cold-
+resistance test for the Krasis lattice network.
+
+  ARRIVAL IN FROSTHARBOR
+  The northern wind strikes like a blade. Snow races sideways across the road, and
+  the harbor beyond lies trapped beneath a white plain of ice. Ship masts protrude
+  from the frozen sea like the ribs of a buried beast. Then a deep crack rolls
+  through the harbor. The sound is too even, too measured. A line of green light
+  travels beneath the ice, turns at a perfect angle, and vanishes beneath the distant
+  glacier.
+
+
+Starting the Chapter
+The party reaches Frostharbor with the access cipher recovered in Duskmire
+Crossing and evidence that Doctor Cael Veyr shipped activation compounds north.
+The cipher identifies a receiving station hidden beneath the Lighthouse of the Pale
+Beam. Captain Elska Rimeborn meets the party at the southern gate and
+immediately asks for help: three hunters vanished near a newly opened fissure,
+and the lighthouse has not shown its true white signal in four nights.
+• The Frost Cipher. The code recovered from Cael opens sealed doors within the
+   glacial research vault.
+• Missing Hunters. Families offer 600 gp for the return of the glacier scouts, dead
+  or alive.
+• The Green Lighthouse. Harbor pilots believe the altered beacon is drawing
+   creatures toward the town.
+• The Frozen Emissary. House Varin records identify an unnamed “northern
+   emissary” who completed the glacial phase and reported directly to Rabu Shin.
+
+Extreme Cold
+Outside heated structures, a creature exposed to the weather for 1 hour must
+succeed on a DC 13 Constitution saving throw or gain one level of exhaustion. Cold-
+weather clothing grants advantage. A creature with resistance or immunity to cold
+damage automatically succeeds. During whiteouts, visibility is limited to 60 feet
+and ranged weapon attacks beyond 30 feet are made with disadvantage.
+
+ DM NOTE. Do not use the weather only as attrition. Warm shelters, local guides, magical
+ fire, and good planning should let the characters control the risk. The cold should create
+ urgency and atmosphere rather than simply consume resources.
+
+
+Keyed Locations in Frostharbor
+1. Frost Winds Inn. A crowded inn built around a communal stone hearth.
+Proprietor Torv Blackhelm knows every hunter and sailor in town and keeps a
+board of missing names above the fireplace.
+2. The Winter Hearth. A public hall, shrine, and emergency shelter overseen by
+Sister Ylsa. The hearth flame has recently begun leaning toward the glacier even
+when no doors are open.
+3. Frozen Docks. Ships sit locked in ice. Dockworkers have found old vessels rising
+from below, their hulls preserved but their interiors stripped clean.
+4. Icebound Tavern. Sailors gather here to trade rumors. A survivor named Varek
+claims something beneath the ice spoke through his teeth.
+5. Compass Rose Market. Fur traders, ice miners, and shipwrights sell cold-weather
+gear. Several merchants unknowingly received green-glass heating stones seeded
+with lattice fragments.
+6. Brightmane Apothecary. Healer Lysa Brightmane treats frostbite and strange
+crystalline lesions. She can identify the difference between natural cold injury and
+biomantic reinforcement.
+7. Lighthouse of the Pale Beam. The beacon stands on a rocky promontory. Its
+crystal has been modified to broadcast lattice pulses across the harbor.
+8. Glacier Shelf. A newly opened fissure leads to the buried Glacial Vault, where the
+final cold-calibration core is preparing to transmit its results to Aetherfall.
+
+Important NPCs
+               NPC                Role and Manner                 What They Know
+
+ Captain Elska Rimeborn      Harbor commander; direct,       The ice cracks in response to
+                             exhausted, fiercely             the lighthouse beam.
+                             protective.
+
+ Torv Blackhelm              Innkeeper and retired           The missing hunters
+                             hunter; warm but                followed green tracks onto
+                             suspicious.                     the glacier.
+
+ Sister Ylsa                 Keeper of the Winter         The town’s sacred flame
+                             Hearth; quiet and observant. bends toward a buried
+                                                          magical source.
+
+ Lysa Brightmane             Apothecary; precise,            Victims show deliberate cold
+                             compassionate, scientifically   adaptation, not disease.
+                             minded.
+
+ Keeper Orin Vale            Lighthouse keeper; guilt-       A masked mage altered the
+                             ridden and partially            beacon and threatened his
+                             enthralled.                     family.
+
+ Vaelgor the White           Frostbound Diabolist and        The final synchronization is
+                             glacial overseer.               complete and Rabu Shin is
+
+
+        NPC                Role and Manner               What They Know
+
+                                                   no longer localized.
+
+
+Frostharbor Rumors
+              d8                                      Rumor
+
+1                                   A ship frozen beneath the harbor for sixty
+                                    years rose with warm lanterns burning
+                                    inside.
+
+2                                   The lighthouse flashes green only when no
+                                    one is watching it directly.
+
+3                                   A white bear with wings carried a hunter
+                                    away without leaving blood on the snow.
+
+4                                   The glacier is hollow and something
+                                    enormous is breathing inside it.
+
+5                                   Brightmane Apothecary is hiding people
+                                    whose bones have turned to crystal.
+
+6                                   The ice cracks in the same pattern as the
+                                    strange sigils seen in Silverreach.
+
+7                                   A foreign mage paid children to collect
+                                    shards from newly opened crevasses.
+
+8                                   The northern lights formed a face above the
+                                    harbor three nights ago.
+
+
+Part 1: The Harbor That Cracks Inward
+  THE FROZEN DOCKS
+  The dock planks disappear beneath wind-polished ice. Sailors work with axes
+  and heated iron, but every trench they cut closes behind them in smooth, glassy
+  sheets. Farther out, a dark hull rises slowly through the frozen harbor. No ropes
+  pull it. No current moves it. The ice simply lifts the ship into the world.
+
+
+The newly surfaced vessel is the Northstar, lost forty-two years ago. Its hull is
+intact, but every bunk and storage locker has been emptied. Investigation DC 15
+reveals no sign of decay inside. Arcana DC 16 identifies a preservation field linked
+to a pulse beneath the harbor. A set of fresh boot prints leads from the vessel
+toward the lighthouse, though the ship was under solid ice until an hour ago.
+
+Encounter: Predators Beneath the Ice
+While the party investigates, two Winter Wolves burst through weakened ice and
+attack. They fight with unnatural coordination, attempting to drive characters onto
+marked sections of the harbor. At initiative count 20, one marked 10-foot square
+fractures. A creature standing there must succeed on a DC 14 Dexterity saving
+throw or fall into freezing water.
+A creature in the water takes 7 (2d6) cold damage at the start of each turn.
+Climbing out requires 15 feet of movement and a successful DC 12 Athletics check
+unless aided. After the battle, Nature or Arcana DC 15 reveals tiny green crystal
+slivers embedded behind each wolf’s ears. The slivers transmit commands from
+the lighthouse.
+
+The Raised Ship
+The Northstar’s captain’s cabin contains a frost-sealed journal. Warming it slowly
+reveals the final entry: “The light changed. The crew followed it north across the
+ice. I stayed because I heard another voice beneath it.” A hidden compartment
+contains a silver navigational disk worth 250 gp and a map showing an older
+tunnel beneath the lighthouse.
+
+
+Part 2: The Pale Beam
+The Lighthouse of the Pale Beam can be approached openly, by scaling the icy cliff,
+or through the flooded maintenance tunnel shown on the Northstar map. Keeper
+Orin Vale has barricaded himself in the lantern room. Three Lattice Thralls guard
+the lower floors, using Veteran statistics with resistance to cold damage and green
+crystalline scarring.
+
+
+Lighthouse Areas
+1. Entry Hall. The inner walls are coated with frost despite a burning stove. A DC 14
+Investigation check finds drag marks leading toward the cellar.
+2. Keeper’s Quarters. Letters reveal that Orin’s daughter was abducted by the
+glacial overseer. Orin obeyed to keep her alive.
+3. Maintenance Cellar. A lattice amplifier has been installed around the original
+beacon conduit. Destroying it requires three successful DC 15 Arcana, Athletics, or
+thieves’ tools checks before two failures. Each failure releases a pulse dealing 7
+(2d6) lightning damage to the acting character.
+4. Spiral Stair. Crystalline ice grows across the steps. Characters moving faster than
+half speed must succeed on a DC 13 Acrobatics check or fall prone and slide 20 feet.
+5. Lantern Room. The original white beacon crystal is encased in green lattice
+growth. Orin stands beside it holding a flare pistol, terrified and desperate.
+
+  THE ALTERED LIGHT
+  The beacon turns above you, but its light is no longer white. A narrow green
+  beam sweeps across the frozen sea, and each time it passes, distant cracks
+  answer like drums. Keeper Orin grips the brass railing with bloodless fingers. “I
+  tried to stop it,” he says. “It knows when I lie.”
+
+
+Saving Keeper Orin
+Orin is not hostile unless attacked. Persuasion DC 15, presenting evidence of the
+party’s victories, or promising to rescue his daughter convinces him to help. He
+explains that a pale mage called Vaelgor entered through a fissure in the glacier
+and used the lighthouse to synchronize every lattice fragment in the region. Orin’s
+daughter, Tessa, was taken into the vault as leverage.
+If the party destroys or purifies the amplifier, the command pulses stop. All
+characters gain inspiration, and Captain Rimeborn can send four scouts to support
+one later encounter. The beacon crystal also yields a Pale Prism, which can
+suppress one environmental pulse in the glacial vault as a reaction.
+
+
+Part 3: Frozen Side Quests
+The following quests can be completed before the party enters the glacier. Each
+provides information, allies, or resources for the final assault.
+
+The White-Eyed Seal
+A seal with luminous white eyes repeatedly approaches the docks carrying scraps
+of red cloth. Following it leads to a trapped hunter beneath a shelf of ice. Rescuing
+the hunter requires a DC 14 group Athletics or Survival check. Success reveals the
+
+
+location of a safe crevasse entrance and grants advantage on the first navigation
+check in the glacier.
+
+The Frozen Fishing Fleet
+Three fishing boats are being dragged beneath the ice by a Water Weird altered to
+deal cold instead of bludgeoning damage. Freeing the boats earns 400 gp in trade
+goods and the loyalty of the harbor crews. Once during the final escape, those
+crews can provide ropes and anchors that convert one failed group check into a
+success.
+
+Black Ice Contamination
+Children collecting heating stones have fallen ill. The stones contain dormant
+lattice splinters. Locating and destroying the shipment requires Investigation DC 15
+and a confrontation with four smugglers using Bandit statistics. Lysa Brightmane
+rewards the party with four potions of cold resistance.
+
+The Icebound Relic
+Sister Ylsa asks the characters to recover the Sunsteel Brazier from a shrine
+swallowed by the glacier. The shrine is guarded by two Ice Mephits and a Helmed
+Horror. Returning the brazier allows the Winter Hearth to bless the party. Each
+character gains 10 temporary hit points upon entering the Glacial Vault.
+
+The Missing Hunters
+The hunters are trapped in an abandoned ice-mining camp where a Polar Wyvern
+Krasis circles overhead. The creature retreats toward the glacier if reduced below
+half its hit points. Saving the hunters provides a detailed sketch of the vault
+entrance and confirms that Tessa Vale is alive inside.
+
+
+Part 4: Crossing the Glacier
+  THE GLACIER SHELF
+  The glacier rises before you like a frozen mountain range. Across its face, cracks
+  form a perfect spiral hundreds of feet wide. At the spiral’s center, a vertical
+  fissure glows with pale green light. Snow falls toward it instead of down,
+  vanishing into the opening as if the ice itself were inhaling.
+
+
+Reaching the fissure requires three group checks. The party must earn two
+successes before two failures. Useful skills include Survival DC 15 to choose a
+route, Athletics DC 14 to cross a crevasse, Perception DC 15 to spot unstable ice, and
+Arcana DC 16 to predict lattice pulses. A failure deals 10 (3d6) cold damage to each
+character and alerts the vault guardians.
+
+
+Encounter: Polar Wyvern Krasis
+At the final ridge, a Polar Wyvern Krasis attacks from a whiteout. It uses the storm
+to isolate one target, then attempts to drag that creature toward a crevasse. If the
+party previously rescued the hunters, they receive warning and cannot be
+surprised. The creature bears a metal collar engraved with the words “GLACIAL
+STRAIN: VIABLE.”
+
+
+Part 5: The Glacial Vault
+The vault is an ancient research complex encased in blue ice and reinforced with
+black metal. Green crystalline conduits run through the walls like veins. Unless the
+lighthouse amplifier was destroyed, Vaelgor knows the party’s exact location and
+all vault encounters begin with enemies prepared.
+
+Vault Features
+• Ceilings are 20 feet high unless noted otherwise.
+• Walls are magically reinforced ice with AC 17, 30 hit points per 10-foot section,
+  immunity to cold and psychic damage, and vulnerability to fire damage.
+• Bright green conduits provide dim light. Destroying a conduit section ends one
+   nearby environmental effect but deals 5 (1d10) force damage to creatures within
+   5 feet.
+• At initiative count 20 during major encounters, the core emits a Glacial Pulse
+  unless the party uses the Pale Prism or has disabled the associated relay.
+
+1. Calibration Gate
+The Frost Cipher from Duskmire opens the circular gate without triggering its
+defenses. Without the cipher, the party must succeed on three DC 17 Arcana or
+thieves’ tools checks. Each failed check activates a freezing ray: +8 to hit, 13 (3d8)
+cold damage.
+
+2. Hall of Preserved Failures
+  PRESERVED ITERATIONS
+  Shapes stand within the walls of clear ice: wolves with too many lungs,
+  humanoids plated in white chitin, and winged bears frozen mid-roar. Small brass
+  plaques identify each body by number, climate, and survival time. The final
+  alcove is empty. Its plaque reads: “ITERATION 47 - RELEASED FOR FIELD
+  VALIDATION.”
+
+
+The empty alcove belonged to the Polar Wyvern Krasis. Searching the chamber
+finds research notes describing how cold suppresses unstable mutation but
+
+
+strengthens successful grafts. A DC 16 Medicine check reveals several subjects
+were still alive when frozen.
+
+3. Thermal Inversion Room
+This chamber extracts heat from living creatures and stores it in crystal batteries.
+Crossing requires a DC 15 Constitution saving throw. On a failure, a creature takes
+14 (4d6) cold damage and has its speed reduced by 10 feet for 10 minutes. The
+machine can be disabled with a DC 16 Arcana check or destroyed. Three intact
+thermal batteries are worth 150 gp each and can each be shattered to deal 10 fire
+damage to all creatures in a 10-foot radius.
+
+4. Captive Gallery
+Tessa Vale and the missing glacier scouts are restrained in upright crystal pods.
+Two Frostbound Wardens guard them, using Gladiator statistics with resistance to
+cold damage. Freeing all captives before combat ends requires three actions and
+DC 14 Arcana or thieves’ tools checks. Tessa knows Vaelgor can teleport between
+three rune circles in the core chamber.
+
+5. Relay Observatory
+A crystal projection shows nodes throughout Vael Turog. Greymoor Hollow,
+Stonewake Port, Emberfall, Lunareth, High Bastion, Marrowfen, Silverreach, and
+Duskmire are marked as disrupted. Frostharbor flashes “FINAL CALIBRATION.”
+Sunspire and Aetherfall remain bright.
+Studying the projection for 10 minutes and succeeding on a DC 17 Arcana check
+identifies the relay protocol. In the final battle, one character can use an action at a
+control pedestal to make a DC 16 Arcana check. On a success, Vaelgor loses his
+regeneration until the end of the next round.
+
+6. The Glacial Lattice Core
+  THE FINAL CALIBRATION
+  The vault opens into a cavern large enough to hold a cathedral. A crystalline
+  array hangs inside the glacier, each branch connected to a frozen creature, a
+  metal pylon, or a vein of green light. At the center floats a tall figure wrapped in
+  black robes and white armor. Frost burns glow green across his face. “Thermal
+  extremes verified,” he says. “Structural integrity stable. Ascension threshold
+  reached.”
+
+
+Vaelgor’s Purpose
+Vaelgor the White is a former Frostharbor mage who embraced Rabu Shin’s work
+after losing his family to plague. He believes directed evolution can end suffering
+
+
+and sees the glacial trials as necessary proof. He is willing to speak before combat
+and offers the party a place in the ascension. He does not surrender the core.
+A character who appeals to Vaelgor’s lost family and succeeds on a DC 19
+Persuasion check causes him to hesitate. He begins combat without his Frost
+Mantle temporary hit points. Presenting rescued victims or proof of House Varin’s
+exploitation grants advantage on the check.
+
+Boss Encounter: Frostbound Diabolist
+Vaelgor fights alongside two Ice Mephits. He uses walls, teleportation circles, and
+forced movement to separate the party. The three relay pylons around the
+chamber have AC 16, 25 hit points, immunity to cold, poison, and psychic damage,
+and vulnerability to thunder damage. Destroying a pylon weakens both Vaelgor
+and the core.
+
+             Pylons Remaining                                   Effect
+
+ 3                                          Vaelgor regenerates 10 hit points at the start
+                                            of his turn and has three legendary actions.
+
+ 2                                          Regeneration falls to 5 hit points; Vaelgor
+                                            has two legendary actions.
+
+ 1                                          Regeneration ends; Vaelgor has one
+                                            legendary action.
+
+ 0                                          Vaelgor loses Glacial Step and the core
+                                            begins collapsing.
+
+
+Glacial Pulses
+At initiative count 20, roll on the following table. Do not repeat the same result
+twice in a row.
+
+                    d6                                          Pulse
+
+ 1                                          Whiteout. The chamber is heavily obscured
+                                            until initiative count 20 next round.
+
+ 2                                          Ice Eruption. Three 10-foot squares become
+                                            jagged ice; creatures there make DC 15 Dex
+                                            saves or take 10 (3d6) piercing damage.
+
+ 3                                          Cold Wave. All creatures except Vaelgor
+                                            make DC 15 Con saves or take 10 (3d6) cold
+                                            damage.
+
+ 4                                          Gravity Tilt. Creatures make DC 15 Dex
+                                            saves or slide 20 feet toward the central pit.
+
+ 5                                          Regenerative Surge. Vaelgor or one pylon
+                                            regains 15 hit points.
+
+
+                    d6                                       Pulse
+
+ 6                                         Lattice Echo. One character hears Rabu Shin
+                                           and must succeed on a DC 15 Wis save or
+                                           lose reactions until the next turn.
+
+
+Destroying the Core
+When Vaelgor falls or all pylons are destroyed, the core becomes unstable. The
+party has 5 rounds to shut it down before the glacier fractures. Each round, one
+character adjacent to the core can attempt a DC 17 Arcana, Athletics, or thieves’
+tools check. The party needs four successes before three failures. The Frost Cipher
+grants one automatic success. A failed check deals 10 (3d6) cold or force damage to
+the acting character.
+If the party succeeds, the core shuts down in a controlled cascade and the captives
+can escape safely. If the party fails, the core still collapses, but every character
+must make a DC 16 Dexterity saving throw, taking 28 (8d6) bludgeoning and cold
+damage on a failure, or half as much on a success.
+
+Rabu Shin’s Projection
+  THE ARCHITECT SPEAKS
+  The fractured core freezes in mid-collapse. Green light spreads across the cavern
+  wall, forming the outline of a robed figure made from intersecting lines. Rabu
+  Shin regards you with calm curiosity. “You misunderstand,” he says. “I am not
+  destroying your world. I am removing its weaknesses.” The projection turns
+  toward the dead core. “The body was merely a laboratory. I no longer require
+  one.”
+
+
+Coordinates appear beneath the projection: Sunspire, identified as the origin
+laboratory, and Aetherfall, identified as the Ascension Nexus. The data confirms
+Rabu Shin has encoded his consciousness into the lattice network. Destroying
+individual laboratories can delay him, but only the Aetherfall engine can collapse
+the distributed mind completely.
+
+Escape from the Glacier
+The vault begins to break apart after the projection ends. Run the escape as a
+group challenge requiring three successes before two failures. Athletics,
+Acrobatics, Survival, and Arcana are appropriate at DC 15. Rescued hunters,
+harbor crews, the Pale Prism, or the Sunsteel Brazier can each convert one failure
+into a success. On failure, each character takes 14 (4d6) damage and loses one
+nonmagical item chosen by the player beneath the ice.
+
+
+Chapter Conclusion
+With the glacial core destroyed, the harbor ice stops moving in geometric patterns.
+The lighthouse returns to a steady white beam, trapped vessels settle safely, and
+the unnatural command over northern predators ends. Frostharbor begins a slow
+recovery, though the scars within the glacier will remain for generations.
+The party now possesses the Sunspire coordinates, the Ascension Protocol, and
+proof that Rabu Shin exists as a distributed consciousness. Captain Rimeborn
+provides a ship and winter supplies, while Sister Ylsa urges the characters to seek
+the origin of the network before Aetherfall completes synchronization.
+
+Milestone Advancement
+Characters advance to Level 10 when they defeat Vaelgor, destroy or shut down
+the Glacial Lattice Core, rescue at least some of the captives, and witness Rabu
+Shin’s projection.
+
+Rewards
+                   Reward                                      Description
+
+ Pale Prism                                   Once per long rest, the bearer can use a
+                                              reaction to gain resistance to cold, lightning,
+                                              or force damage from one effect.
+
+ Winter’s Mercy                               A +1 weapon blessed at the Winter Hearth.
+                                              Against aberrations, it deals an extra 1d4
+                                              radiant damage.
+
+ Vaelgor’s Sigil Key                          Opens one sealed door or bypasses one
+                                              magical lock within Sunspire.
+
+ Frostharbor Gratitude                        The party receives 1,200 gp in coin, pearls,
+                                              and trade goods if the town and captives
+                                              survive.
+
+ Ascension Protocol                           A story document revealing how
+                                              consciousness is transmitted to Aetherfall.
+
+
+Failure and Escalation
+If the party abandons Frostharbor, the glacial core completes transmission. Within
+three days, the northern ice shelf fractures and trade collapses. Within seven days,
+cold-adapted Krasis spread south. In the Aetherfall finale, Rabu Shin begins with
+an additional legendary resistance and all cold-based Krasis gain 10 temporary hit
+points.
+If Vaelgor escapes, he appears in Sunspire as an additional guardian or warns
+Rabu Shin of the party’s tactics. If the core is destroyed but the captives die,
+Frostharbor survives yet regards the party with grief rather than celebration.
+
+
+Frostharbor Creature Appendix
+Polar Wyvern Krasis
+Large monstrosity, unaligned
+
+ Armor Class 17 (natural armor) | Hit Points 178 (17d10 + 85) | Speed 40 ft., fly 80 ft.
+ STR 21 (+5) DEX 14 (+2) CON 20 (+5) INT 6 (-2) WIS 14 (+2) CHA 8 (-1)
+ Saving Throws Dex +6, Con +9, Wis +6
+ Skills Perception +6, Stealth +6
+ Damage Resistances cold; Condition Immunities frightened
+ Senses darkvision 120 ft., passive Perception 16 | Languages understands Draconic
+ but cannot speak | Challenge 9 (5,000 XP)
+ Ice Camouflage. The krasis has advantage on Dexterity (Stealth) checks made
+ in snowy or icy terrain.
+ Snow Regeneration. At the start of its turn while touching snow or ice, the
+ krasis regains 10 hit points. It does not regenerate if it took fire or radiant
+ damage since the end of its last turn.
+ Flyby. The krasis does not provoke opportunity attacks when it flies out of an
+ enemy’s reach.
+ Crystalline Death. When the krasis dies, jagged ice erupts. Creatures within 10
+ feet must make a DC 16 Dexterity saving throw, taking 10 (3d6) piercing
+ damage on a failure, or half on a success.
+ Actions
+ Multiattack. The krasis makes three attacks: one with its Bite, one with its
+ Claws, and one with its Sting.
+ Bite. Melee Weapon Attack: +9 to hit, reach 10 ft., one target. Hit: 16 (2d10 + 5)
+ piercing damage plus 4 (1d8) cold damage.
+ Claws. Melee Weapon Attack: +9 to hit, reach 5 ft., one target. Hit: 14 (2d8 + 5)
+ slashing damage.
+ Sting. Melee Weapon Attack: +9 to hit, reach 10 ft., one target. Hit: 12 (2d6 + 5)
+ piercing damage plus 21 (6d6) poison damage. The target must succeed on a DC
+ 16 Constitution saving throw or have its speed halved until the end of its next
+ turn.
+ Glacial Breath (Recharge 5-6). The krasis exhales freezing crystal in a 60-foot
+ cone. Each creature in that area must make a DC 17 Constitution saving throw,
+ taking 45 (10d8) cold damage on a failed save, or half as much on a successful
+ one. A creature that fails has its speed reduced to 0 until the end of its next
+ turn.
+ Reactions
+ Wing Deflection. The krasis adds 3 to its AC against one ranged attack that
+ would hit it. To do so, it must see the attacker and be flying.
+
+
+Frostbound Diabolist
+Medium humanoid (human), lawful evil
+
+ Armor Class 19 (ice-forged plate) | Hit Points 190 (20d8 + 100) | Speed 30 ft.
+ STR 18 (+4) DEX 14 (+2) CON 20 (+5) INT 19 (+4) WIS 16 (+3) CHA 18 (+4)
+ Saving Throws Con +10, Int +9, Wis +8, Cha +9
+ Skills Arcana +9, Insight +8, Perception +8
+ Damage Resistances cold, fire; Damage Immunities poison; Condition Immunities
+ poisoned
+ Senses darkvision 120 ft., passive Perception 18 | Languages Common, Draconic,
+ Infernal, telepathy 60 ft. | Challenge 11 (7,200 XP)
+ Magic Resistance. The diabolist has advantage on saving throws against spells
+ and other magical effects.
+ Frost Mantle. At the start of combat, the diabolist gains 25 temporary hit
+ points. While any of these remain, a creature that hits him with a melee attack
+ takes 5 cold damage.
+ Glacial Regeneration. The diabolist regains 10 hit points at the start of his turn
+ while at least three relay pylons remain. Fire or radiant damage suppresses this
+ trait until the start of his next turn.
+ Glacial Step. As a bonus action, the diabolist teleports between visible ice or
+ rune circles within 40 feet.
+ Spellcasting. The diabolist is a 12th-level spellcaster (spell save DC 17, +9 to hit
+ with spell attacks). At will: ray of frost, mage hand, minor illusion. 3/day each:
+ counterspell, ice storm, lightning bolt, slow. 1/day each: cone of cold, wall of ice,
+ chain lightning.
+ Actions
+ Multiattack. The diabolist makes two Ice Glaive attacks or one Ice Glaive attack
+ and uses Hellfrost Spear.
+ Ice Glaive. Melee Weapon Attack: +9 to hit, reach 10 ft., one target. Hit: 13 (2d8
+ + 4) slashing damage plus 9 (2d8) cold damage.
+ Hellfrost Spear. Ranged Spell Attack: +9 to hit, range 120 ft., one target. Hit: 22
+ (4d10) cold and necrotic damage, and the target cannot regain hit points until
+ the start of the diabolist’s next turn.
+ Blizzard Cage (Recharge 5-6). The diabolist creates a 20-foot-radius storm
+ centered on a point within 90 feet. The area is heavily obscured and difficult
+ terrain until the end of his next turn. A creature entering or starting its turn
+ there takes 10 (3d6) cold damage.
+ Fracture Ice. The diabolist targets a 15-foot square of ice within 90 feet.
+ Creatures there must make a DC 17 Dexterity saving throw or take 14 (4d6)
+ bludgeoning damage and fall prone.
+ Reactions
+ Frozen Rebuke. When hit by a creature within 30 feet, the diabolist forces it to
+ make a DC 17 Constitution saving throw. On a failure, it takes 9 (2d8) cold
+
+
+damage and cannot take reactions until the end of its next turn.
+Legendary Actions
+The creature can take 3 legendary actions, choosing from the options below.
+Only one option can be used at a time and only at the end of another creature’s
+turn. It regains spent legendary actions at the start of its turn.
+Glacial Step. The diabolist uses Glacial Step.
+Ice Glaive. The diabolist makes one Ice Glaive attack.
+Cold Pulse (Costs 2 Actions). Creatures within 15 feet make a DC 17
+Constitution saving throw, taking 10 (3d6) cold damage on a failure, or half on a
+success.
+Cast a Spell (Costs 3 Actions). The diabolist casts a spell of 3rd level or lower.
+
+
+Chapter 9 Clue Chain
+             Clue                     Where Found                   What It Reveals
+
+Green crystal slivers          Winter wolves at Frozen      The lighthouse broadcasts
+                               Docks                        commands to altered
+                                                            creatures.
+
+Northstar journal              Raised ship                  The changed beam drew the
+                                                            old crew toward the glacier.
+
+Orin’s letters                 Lighthouse quarters          Vaelgor controls the keeper
+                                                            through Tessa’s captivity.
+
+Iteration plaques              Hall of Preserved Failures   The Polar Wyvern is a
+                                                            deliberate field test.
+
+Relay projection               Vault observatory            Frostharbor is the final
+                                                            calibration; Sunspire and
+                                                            Aetherfall remain active.
+
+Ascension Protocol             Glacial core                 Rabu Shin transferred his
+                                                            consciousness into the lattice
+                                                            network.
+
+
+Transition to Sunspire
+ SOUTHWARD TO THE ORIGIN
+ For the first time in weeks, the lighthouse casts a clean white beam across the
+ harbor. Beyond it, the northern sky clears, and the stars return. Among the data
+ recovered from the glacier is a single route marked in Rabu Shin’s own hand: a
+ line stretching south across Vael Turog to the buried towers of Sunspire. Beside it
+
+
+  is one word. “Origin.”
+
+
+The next chapter leads the characters to Sunspire, where they will enter Rabu
+Shin’s first complete laboratory, recover the Ascension Engine blueprint, and learn
+how to reach Aetherfall before the final synchronization begins.

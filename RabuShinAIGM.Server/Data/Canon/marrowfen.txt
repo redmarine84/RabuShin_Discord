@@ -1,0 +1,526 @@
+CHAPTER 6
+                     MARROWFEN
+                 THE HEART OF THE FEN
+   Recommended Levels 7-8 • Starting Level 7 • Hybrid Milestone Advancement
+Chapter Purpose. Marrowfen reveals that Rabu Shin’s operation has advanced
+beyond isolated experiments. Beneath the marsh lies an automated production
+laboratory and a relay core transmitting results to Aetherfall. The characters must
+navigate a failing ecosystem, uncover a submerged facility, survive amphibious
+Krasis prototypes, and destroy the Swamp Hydra Krasis before the fen is converted
+into a breeding basin. Characters should reach 8th level after collapsing the
+laboratory and securing its relay data.
+
+
+                             Marrowfen settlement map
+
+
+Marrowfen
+Marrowfen is a stubborn settlement raised on stilts above black water. Narrow
+boardwalks link crooked homes, smokehouses, shrines, and docks. The people
+know every current and every patch of safe ground. Lately, however, familiar
+waterways have begun moving against the wind, entire pools have drained
+overnight, and the swamp’s usual rot has been replaced by a sterile metallic odor.
+                                ARRIVAL IN MARROWFEN
+   The road dissolves into a plank walkway above endless reeds and black water.
+   Lanterns burn as dim yellow smudges in the mist. No frogs call. No insects
+   hum. Beneath the boards, a ripple travels against the current and stops
+   directly below you. A fisherman watches from a leaning porch. “It ain’t the
+   swamp that’s wrong,” he mutters. “It’s what’s under it.”
+
+
+Starting the Chapter
+ • The Amphibious Relay. The Krasis Commander’s journal identifies a major
+    active relay in marsh terrain southeast of High Bastion.
+ • A Plea from the Fen Watch. Ranger Nessa Reed arrives with reports of geometric
+   drainage channels and missing patrols.
+ • Trade Contamination. Stonewake merchants report barrels of Marrowfen water
+    that crystallize when exposed to moonlight.
+ • The Varin Manifest. A Silverreach shipping record lists pumps, glass tanks, and
+    alchemical preservatives delivered to Marrowfen under a false charity seal.
+ Chapter Flow: The party gathers rumors in Marrowfen, investigates artificial drainage
+ and disappearances, and locates a half-submerged laboratory during the lowest tide. The
+ laboratory becomes a compact dungeon featuring containment chambers, pumping
+ machinery, hybrid creatures, and a transmitting relay. The finale pits the party against
+ the Swamp Hydra Krasis while the facility floods and collapses.
+
+
+Keyed Locations in Marrowfen
+1. The Bog Lantern Inn. A crowded stilt-house inn run by Sella Mirewick. Its
+common room serves as tavern, meeting hall, and emergency shelter.
+2. Fen Watch Tower. A raised ranger station overlooking the widest channels.
+Maps show water loss in precise geometric wedges.
+3. Mire Dock. Flat-bottomed skiffs leave from this sagging pier. Boats have begun
+scraping against metal structures beneath the mud.
+4. Sunken Chapel. An old stone shrine exposed by falling water levels. Its altar
+bears lattice-like spiral carvings.
+5. Crooked Reed Market. A floating market of herb sellers, fishers, and trappers.
+Several stalls display pale fish with reinforced gills.
+
+
+6. The Sinking Basin. A broad patch of marsh collapsing around a newly exposed
+cylindrical structure.
+7. The Submerged Laboratory. A sealed Krasis facility containing pumps, vats,
+specimen pens, and the relay core.
+8. The Blackwater Spillway. A drainage trench that carries contaminated water
+toward the open fen.
+
+Important NPCs
+ NPC                        Roleplaying Notes           What They Know
+ Sella Mirewick             Dry humor, practical,       Night fog glows green
+                            protective of locals.       and several guests
+                                                        vanished after following
+                                                        lights over the water.
+ Ranger Nessa Reed          Focused, suspicious of      The water is being
+                            outsiders, speaks in        pumped through
+                            clipped observations.       channels cut beneath
+                                                        the mud.
+ Brother Cale Moss          Gentle priest of the        The exposed altar
+                            Sunken Chapel, troubled     predates Marrowfen but
+                            by recurring dreams.        its newest runes match
+                                                        the lattice.
+ Old Jorr Fenhook           One-eyed boatman who        He saw a metal tower
+                            exaggerates everything      rise during low tide and
+                            except danger.              heard something with
+                                                        many throats beneath it.
+ Apothecary Velka Silt      Clinical, curious,          Local animals show
+                            morally cautious.           surgical grafting rather
+                                                        than natural mutation.
+
+
+Rumors in the Bog Lantern
+ d6                                       Rumor
+ 1                                        The fen is shrinking because
+                                          something beneath it drinks the
+                                          water.
+ 2                                        Crocodiles drag prey toward the
+                                          Sinking Basin but never eat it.
+ 3                                        A tower surfaced during the last
+                                          moonless night.
+ 4                                        Lights move beneath the water in
+                                          straight lines.
+ 5                                        The Sunken Chapel bell rings even
+
+
+                         though its rope rotted years ago.
+6                        A merchant paid in Silverreach coin
+                         for every living swamp creature he
+                         could buy.
+
+
+Part 1: The Fen That Drains
+                               THE ARTIFICIAL CHANNELS
+   Beyond the last house, the marsh opens into a field of cracked mud. Reeds lie
+   flat in rows as straight as spear shafts. Water trickles into narrow cuts that
+   should not exist, all flowing toward a dark depression in the distance. Every
+   forty-seven heartbeats, the channels pulse and deepen.
+
+
+Nessa asks the characters to survey three drainage sites. Treat this as a 4-success-
+before-2-failure skill challenge. Useful skills include Investigation to identify tool
+marks, Survival to trace hidden channels, Nature to understand the damaged
+ecosystem, Arcana to sense lattice resonance, and Athletics to cross collapsing
+mud. A failure causes a character to sink waist-deep and take 1d6 acid damage
+from contaminated water.
+ • Success identifies the Sinking Basin as the convergence point and reveals that
+    the pumps activate during the lowest tide.
+ • One failure alerts two Flesh-Grafted Crocodiles, which stalk the party during the
+   next investigation scene.
+ • Two failures cause a boardwalk collapse in town, injuring civilians and reducing
+    local confidence in the party.
+
+Fenlight Disappearances
+Three residents vanished after pursuing pale green lights. Following the lights
+leads to a shallow pool where an Ooze-Ghoul Hybrid imitates drowned voices. A
+DC 15 Insight check notices that each plea repeats with identical pauses. Defeating
+the hybrid reveals stitched identification tags from the missing residents and a
+brass token marked with a laboratory chamber number.
+
+The Sunken Chapel
+                                  THE EXPOSED SHRINE
+   Mud covers the chapel floor in a smooth black sheet. At the far end, a stone
+   altar rises above the water. Old devotional carvings spiral around its sides, but
+   newer cuts interrupt them: sharp, precise angles glowing faintly green. The bell
+   above you rings once. No wind moves.
+
+
+Brother Cale explains that the shrine was built atop something older. Investigation
+DC 15 uncovers a metal conduit behind the altar. Arcana DC 16 identifies it as a
+signal repeater connected to the laboratory. Destroying or disabling it prevents the
+facility from tracking the party’s approach and removes one environmental pulse
+from the final battle.
+ A Choice, Not a Puzzle: The altar is sacred to Marrowfen. Smashing it is fast but
+ damages the community’s trust. Careful removal requires one hour and a successful DC
+
+
+ 15 thieves’ tools or mason’s tools check.
+
+
+Part 2: The Sinking Basin
+                               THE LABORATORY EMERGES
+   Mist parts over a widening sinkhole. Black water circles a cylinder of stone,
+   iron, and pale tissue rising from the mud. Pipes flex like roots along its sides,
+   drinking from the fen. A round hatch sits ten feet above the waterline.
+   Something large rolls beneath the surface, leaving three wakes where one body
+   should be.
+
+
+The laboratory can be entered through the upper hatch, a cracked pump conduit,
+or a submerged maintenance grate. Each route changes the first encounter.
+ Route                           Check or Cost               Result
+ Upper Hatch                     DC 16 thieves’ tools or     Quiet entry into the
+                                 Arcana                      intake gallery.
+ Pump Conduit                    DC 14 Athletics; 2d6        Entry through
+                                 bludgeoning on failure      machinery; the party
+                                                             can disable one pump
+                                                             immediately.
+ Maintenance Grate               Swim 60 feet; DC 14         Entry into specimen
+                                 Constitution save           holding; failure causes
+                                                             one level of exhaustion.
+
+
+Perimeter Encounter
+Two Flesh-Grafted Crocodiles guard the basin. They remain submerged until a
+creature reaches the tower or enters the water. One attempts to grapple and tow
+prey toward an intake pipe. Characters who observed their tracks earlier have
+advantage on initiative. If reduced below half hit points, a crocodile retreats
+through the maintenance grate and warns the laboratory.
+
+
+Part 3: The Submerged Laboratory
+The interior is dry, warm, and unnaturally clean. Pale tubes pulse behind glass
+walls. Brass plates identify chambers in precise Elvish script. Unless noted
+otherwise, ceilings are 12 feet high, doors are watertight, and dim green crystals
+provide light.
+
+1. Intake Gallery
+Three pumps pull water and organic matter from the fen. A character can disable
+each pump with a DC 15 Arcana, Athletics, or thieves’ tools check. Each disabled
+pump slows flooding during the boss battle and restores part of the marsh after the
+chapter.
+
+2. Specimen Receiving
+Hooks, cages, and numbered tables hold captured swamp life. Two giant frogs and
+a restrained young crocodile can be freed. A ledger shows that subjects were
+selected for lung capacity, toxin resistance, and regenerative response.
+
+3. Production Chamber
+Six glass vats contain incomplete hybrids. Two Ooze-Ghoul Hybrids emerge when
+the central console is touched. Breaking a vat creates a 10-foot pool of corrosive
+slime that deals 2d6 acid damage to a creature entering it for the first time on a
+turn.
+
+4. Pump Control Walkway
+A narrow bridge crosses churning machinery. At initiative count 20, unsecured
+creatures make a DC 13 Dexterity save or slide 10 feet toward the gears. Shutting
+down the machinery removes this hazard and weakens the final relay pulse.
+
+5. Surgical Archive
+Crystal slates record successful grafts. Medicine DC 15 reveals that many subjects
+were alive and conscious. One file bears House Varin authorization codes and
+another references “surface stress testing.”
+
+6. Flooded Containment
+Waist-deep water conceals a bound Water Weird and the remains of failed
+specimens. Destroying the binding pillar frees the weird, which attacks the nearest
+creature unless calmed with Primordial or a DC 16 Animal Handling check
+enhanced by magic.
+
+
+7. Relay Antechamber
+Three rotating rings project maps of Emberfall, Lunareth, High Bastion, and
+Frostharbor. Arcana DC 18 confirms that the laboratory is transmitting data rather
+than merely collecting it.
+
+8. Heart Chamber
+The Swamp Hydra Krasis rests around a crystalline relay core suspended over
+black water. Its necks are threaded through the machinery like living cables.
+ Resting in the Laboratory: A short rest is possible after the production chamber if the
+ party seals both doors. A long rest allows the relay to finish a transmission, granting the
+ Swamp Hydra Krasis 20 temporary hit points and causing Rabu Shin to learn one
+ character’s damage resistances.
+
+
+Optional Marrowfen Quests
+The Bog Hag’s Bargain
+A reclusive green hag named Mother Brindle offers a vial that suppresses Krasis
+regeneration for 1 minute. Her price is a cherished memory willingly described by
+one character. She does not steal the memory; she wants the story and later
+repeats it to unsettle the character. Refusing her bargain has no mechanical
+penalty.
+
+Mire Rot
+Contaminated water causes fever and blackened veins among residents. Velka
+needs three ingredients gathered from dangerous locations. Completing the task
+grants four antitoxin doses and prevents civilian deaths during the laboratory
+collapse.
+
+Floating Bones
+Human bones arranged in geometric rafts drift through the eastern channel. The
+remains belong to laboratory victims. Returning their identification tags to families
+earns Marrowfen’s trust and reveals that one victim worked for a Silverreach
+shipping house.
+
+Fenfire Beacon
+A watch beacon has been replaced by a lattice transmitter. Disabling it before
+entering the laboratory prevents reinforcements: otherwise one additional Ooze-
+Ghoul Hybrid arrives during the final battle on round 3.
+
+The White-Eyed Gar
+A huge mutated fish circles the market docks. It is frightened rather than
+aggressive. Calming and relocating it requires a 3-success skill challenge using
+Animal Handling, Nature, Survival, or magic. Success earns a charm from local
+fishers that allows one character to breathe underwater for 1 hour.
+
+
+Part 4: The Heart of the Fen
+                                THE SWAMP HYDRA KRASIS
+     The final door opens onto a cavernous chamber filled with black water. A
+     crystal relay turns above the pool, shedding green light across dozens of tubes.
+     One by one, massive heads rise from the surface. Their jaws are crocodilian,
+     their eyes human, and translucent glands pulse along their throats. The central
+     head opens its mouth, and Rabu Shin’s voice speaks through it: “Amphibious
+     strain viable. Begin surface stress testing.”
+
+
+Battlefield Features
+ • Black Water. The pool is 4 feet deep and difficult terrain for creatures without a
+   swim speed.
+ • Relay Core. AC 17, 45 hit points, immune poison and psychic. Destroying it ends
+   relay pulses but causes the chamber to begin collapsing.
+ • Pump Columns. Each intact pump column grants the hydra 5 additional hit
+    points whenever its Bog Regeneration activates. A column has AC 15 and 20 hit
+    points.
+ • Suspended Walkways. A creature shoved from a walkway falls 10 feet into the
+    pool and lands prone.
+ • Containment Valves. A character can open a valve with an action and DC 15
+    Athletics check, creating a 20-foot line of rushing water that pushes creatures 15
+    feet.
+
+Relay Pulse
+At initiative count 20, roll a d4. If the party disabled the chapel repeater, ignore the
+first pulse. If all intake pumps were disabled, roll only on results 1-2.
+ d4                                             Relay Effect
+ 1                                              Flood Surge. Water rises 1 foot and all
+                                                creatures in the pool make a DC 14
+                                                Strength save or fall prone.
+ 2                                              Psychic Resonance. Each non-Krasis
+                                                creature makes a DC 15 Wisdom save
+                                                or takes 2d6 psychic damage and
+                                                cannot take reactions until its next
+                                                turn.
+ 3                                              Regenerative Command. The hydra
+                                                immediately regains 15 hit points.
+ 4                                              Structural Failure. Debris strikes a 10-
+                                                foot square; creatures there make a
+                                                DC 15 Dexterity save or take 3d8
+
+
+                                            bludgeoning damage.
+
+
+Hydra Tactics
+The Swamp Hydra Krasis begins by spreading its heads across several targets. It
+uses Devouring Drag on isolated characters and positions itself near pump
+columns. When reduced below half hit points, it ruptures its acid glands, making
+the water lightly obscured and hazardous. It understands the relay core’s
+importance and uses a reaction to intercept attacks against it when possible.
+
+Collapsing the Laboratory
+When the hydra and relay core are destroyed, the facility begins to collapse. The
+party has 6 rounds to escape. Each round, one character must lead the group
+through a hazard using Athletics, Acrobatics, Survival, Arcana, or tools. Three total
+successes allow everyone to escape safely. Each failure deals 2d6 damage to every
+character and costs one recovered item or rescued creature.
+                                 THE HEART BREAKS
+   The relay fractures with a sound like a glass cathedral breaking underwater.
+   Green light races through every tube. The walls convulse. Beyond the chamber,
+   swamp water punches through the corridors in a roaring black wave.
+   Somewhere above, the whole tower begins to sink.
+
+
+Aftermath
+With the pumps destroyed, water returns gradually to the drained channels. Fish
+and insects reappear over the following weeks, though scars remain around the
+Sinking Basin. The recovered relay data proves that the Krasis network is
+automated, distributed, and linked to Frostharbor and Aetherfall.
+                             WHAT THE RELAY REVEALS
+   At dawn, the last piece of the laboratory slips beneath the recovering marsh.
+   Sella watches the water cover it and exhales. Nessa holds up a crystal slate
+   still pulsing with coordinates. “This thing was talking to somewhere,” she says.
+   Two points burn on the display: one beneath the northern ice, and one
+   impossibly high above the world.
+
+
+Rewards
+ • Marrowfen grants the party 900 gp gathered from trade guilds and grateful
+   families.
+ • Velka provides four greater healing potions if Mire Rot was completed, or two
+   otherwise.
+
+
+• The party recovers a Relay Crystal keyed to Aetherfall. Once, it can grant
+   advantage on all Arcana checks made during one encounter involving a lattice
+   device.
+• Hydra acid glands yield up to three doses of potent acid, each dealing 4d6 acid
+  damage when thrown as an improvised weapon.
+• Each character receives the Fen-Walker Token, granting advantage on one
+  Survival check made in swamp terrain.
+
+Milestone Advancement
+Characters advance to 8th level after destroying the relay core, defeating the
+Swamp Hydra Krasis, and preventing the laboratory from converting Marrowfen
+into a permanent production basin.
+
+If the Laboratory Survives
+• The marsh continues draining and becomes a sterile basin filled with breeding
+   vats.
+• Trade between Stonewake and the eastern settlements collapses.
+• Rabu Shin deploys amphibious Krasis in a later chapter.
+• The final Aetherfall encounter begins with one additional active relay node.
+
+Transition to Silverreach
+                                THE MONEY TRAIL
+  Among the recovered shipping manifests is a sequence of payments bearing the
+  crest of House Varin. Pumps, preservatives, living specimens, and guards were
+  purchased through charitable accounts in Silverreach. The final entry reads:
+  “Urban integration funding approved.” Marrowfen was not the destination. It
+  was the supply chain.
+
+
+Chapter 6 Creature Appendix
+Flesh-Grafted Crocodile
+Large beast (aberrant), unaligned
+ Armor Class 15 (grafted hide) | Hit Points 76 (8d10+32) | Speed 30 ft.,
+ swim 40 ft.
+ STR 19 (+4) DEX 12 (+1) CON 18 (+4) INT 4 (-3) WIS 12 (+1) CHA 5 (-3)
+ Skills. Perception +4, Stealth +4
+ Damage Resistances. acid
+ Senses. darkvision 60 ft., passive Perception 14
+ Challenge. 4 (1,100 XP)
+ Hold Breath. The crocodile can hold its breath for 30 minutes.
+ Directed Hunter. The crocodile has advantage on Wisdom (Perception) checks
+ and attack rolls against a creature carrying a lattice shard.
+ Grafted Carapace. The first time each round the crocodile takes nonmagical
+ slashing or piercing damage, reduce that damage by 5.
+ ACTIONS
+ Multiattack. The crocodile makes one bite attack and one tail attack.
+ Bite. Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 17 (2d12+4)
+ piercing damage, and the target is grappled (escape DC 15). Until this grapple
+ ends, the target is restrained and the crocodile cannot bite another target.
+ Tail. Melee Weapon Attack: +7 to hit, reach 10 ft., one target not grappled by
+ the crocodile. Hit: 13 (2d8+4) bludgeoning damage, and the target must succeed
+ on a DC 15 Strength save or fall prone.
+ Acid Spit (Recharge 5-6). The crocodile spits acid in a 30-foot line that is 5 feet
+ wide. Creatures in the line make a DC 15 Dexterity save, taking 18 (4d8) acid
+ damage on a failure, or half on a success.
+
+
+Ooze-Ghoul Hybrid
+Medium undead (aberrant), chaotic evil
+ Armor Class 14 (natural armor) | Hit Points 85 (10d8+40) | Speed 30 ft.,
+ climb 20 ft.
+ STR 16 (+3) DEX 14 (+2) CON 18 (+4) INT 6 (-2) WIS 11 (+0) CHA 7 (-2)
+ Saving Throws. Con +7
+ Damage Resistances. acid, necrotic
+ Condition Immunities. poisoned
+ Senses. darkvision 60 ft., passive Perception 10
+ Challenge. 4 (1,100 XP)
+
+
+ Corrosive Flesh. A creature that hits the hybrid with a melee attack while
+ within 5 feet takes 3 (1d6) acid damage.
+ Reanimation. When reduced to 0 hit points, the hybrid makes a DC 12
+ Constitution save. On a success, it drops to 1 hit point instead. Radiant damage
+ prevents this trait until the end of its next turn.
+ Amorphous. The hybrid can move through a space as narrow as 1 inch wide
+ without squeezing.
+ ACTIONS
+ Multiattack. The hybrid makes two claw attacks.
+ Claw. Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 9 (1d10+4)
+ slashing damage plus 4 (1d8) acid damage.
+ Slime Grasp. Melee Weapon Attack: +6 to hit, reach 10 ft., one target. Hit: 8
+ (1d8+4) bludgeoning damage, and the target is grappled (escape DC 14).
+ Putrid Eruption (Recharge 5-6). Each creature within 15 feet makes a DC 15
+ Constitution save, taking 18 (4d8) necrotic damage and becoming poisoned
+ until the end of its next turn on a failure, or half damage without being
+ poisoned on a success.
+
+
+Swamp Hydra Krasis
+Huge monstrosity (aberrant), chaotic evil
+ Armor Class 17 (lattice scales) | Hit Points 230 (20d12+100) | Speed 30 ft.,
+ swim 40 ft.
+ STR 22 (+6) DEX 12 (+1) CON 21 (+5) INT 8 (-1) WIS 14 (+2) CHA 10 (+0)
+ Saving Throws. Str +10, Con +9, Wis +6
+ Skills. Perception +10
+ Damage Resistances. acid, poison
+ Condition Immunities. poisoned
+ Senses. darkvision 90 ft., passive Perception 20
+ Challenge. 10 (5,900 XP)
+ Multiple Heads. The hydra has five heads. While it has more than one head, it
+ has advantage on saves against blinded, charmed, deafened, frightened,
+ stunned, and unconscious.
+ Reactive Heads. For each head beyond one, the hydra gets an extra reaction
+ usable only for opportunity attacks.
+ Severed Heads. Whenever the hydra takes 25 or more damage in a single turn,
+ one head dies. At the end of its next turn, two heads regrow unless it took fire
+ or radiant damage since the head died. It regains 15 hit points for each head
+ regrown.
+ Bog Regeneration. The hydra regains 10 hit points at the start of its turn while
+ standing in swamp water. This trait does not function if it took radiant damage
+
+
+since its last turn.
+Acidic Blood. When a creature within 5 feet deals slashing or piercing damage
+to the hydra, that creature takes 5 acid damage.
+ACTIONS
+Multiattack. The hydra makes as many bite attacks as it has heads.
+Bite. Melee Weapon Attack: +10 to hit, reach 10 ft., one target. Hit: 12 (1d12+6)
+piercing damage plus 4 (1d8) acid damage.
+Tendril Sweep. Each creature of the hydra’s choice within 15 feet makes a DC
+17 Strength save, taking 13 (2d6+6) bludgeoning damage and falling prone on a
+failure, or half damage on a success.
+Devouring Drag. One creature grappled by the hydra is pulled up to 20 feet
+and submerged. The target takes 18 (4d8) bludgeoning damage and cannot
+breathe until the grapple ends.
+Death Bloom. When the hydra is reduced to 0 hit points, its glands rupture.
+Creatures within 20 feet make a DC 16 Dexterity save, taking 21 (6d6) acid
+damage on a failure, or half on a success.
+REACTIONS
+Relay Interception. When the relay core is targeted by an attack and the hydra
+is within 15 feet of it, the hydra moves up to 10 feet and becomes the target
+instead.
+
+
+Chapter 6 Clue Chain
+Evidence                      What It Reveals             Leads To
+Geometric drainage            The environmental           Sinking Basin
+channels                      damage is engineered
+                              and timed.
+Numbered victim tags          Residents were              Submerged laboratory
+                              harvested as laboratory
+                              subjects.
+House Varin                   Silverreach financed        House Varin conspiracy
+authorization codes           equipment and
+                              personnel.
+Relay maps and                The lattice network is      Frostharbor and
+transmission logs             distributed and             Aetherfall
+                              automated.
+Urban integration             The next phase will         Silverreach
+protocol                      target a wealthy
+                              population center.
+
+
+Treasure Summary
+Reward                       Source                      Notes
+900 gp                       Marrowfen guilds            Awarded after the
+                                                         laboratory is destroyed.
+2-4 greater healing          Velka Silt                  Quantity depends on
+potions                                                  completing Mire Rot.
+Relay Crystal                Relay antechamber           One encounter of
+                                                         advantage on lattice-
+                                                         related Arcana checks.
+Up to 3 potent acid doses    Swamp Hydra Krasis          4d6 acid damage when
+                                                         thrown.
+Fen-Walker Tokens            Marrowfen council           One-use advantage on a
+                                                         swamp Survival check.

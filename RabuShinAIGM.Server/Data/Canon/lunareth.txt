@@ -1,0 +1,638 @@
+CHAPTER 4
+                         LUNARETH
+           THE THEORY OF PERFECTION
+   Recommended Levels 5-6 • Starting Level 5 • Hybrid Milestone Advancement
+Chapter Purpose. Lunareth reveals Rabu Shin’s origin as a brilliant biomancer
+whose research was once supported by the Argent Conclave. The characters
+investigate sealed archives, a pollen-borne mutation crisis, and a destabilized ley
+junction beneath the city. Their search culminates in a battle against a Runebound
+Savant and a Krasis Treant grown from a failed imitation of Rabu Shin’s lattice
+theory. Characters should reach 6th level after securing the original thesis,
+stabilizing Lunareth’s leyline, and forcing the Conclave to acknowledge its role in
+the threat.
+
+
+                              Lunareth settlement map
+
+
+Lunareth
+Lunareth is an elven city hidden within an ancient forest where silver bridges
+curve between colossal trees and crystalline spires rise through the canopy. The
+city’s magic is disciplined, elegant, and deeply woven into living things. Lanterns
+drift on invisible ley currents. Buildings grow from shaped trunks without
+harming them. Song, scholarship, and ritual govern daily life. Yet the harmony has
+begun to fracture. Gardens display impossible symmetry. Roots move beneath
+paved paths. Several scholars have disappeared, and the Argent Conclave has
+sealed portions of its own archive.
+                                  ARRIVAL AT LUNARETH
+   The forest road narrows beneath branches so immense they hide the sky. Pale
+   lights drift between the trunks like slow-moving stars. Ahead, silver walkways
+   arc from tree to tree, and towers of crystal rise through leaves shining with
+   moonlit color despite the afternoon sun. The beauty lasts until the wind
+   changes. A cloud of golden pollen rolls across the lower bridge. Every guard
+   nearby pulls a cloth over their mouth. One of them points a spear toward you
+   and calls, “Do not breathe deeply.”
+
+
+Starting the Chapter
+ • The Emberfall Inscription. The phrase “photosynthetic aggression viable”
+    appears on a secondary crystal recovered from the crucible and points toward
+    Lunareth’s living arcane systems.
+ • A Scholar’s Request. A messenger from the Argent Conclave asks the party to
+   deliver its recovered lattice fragments for examination, but insists they enter
+   through a guarded side gate.
+ • The Pollen Plague. Travelers along the forest road have fallen ill after breathing
+    luminous pollen drifting from Lunareth.
+ • A Missing Correspondent. Miner Elra carries a letter from her sister, an
+   apprentice gardener in Lunareth who stopped writing after reporting that the
+   trees had begun speaking in equations.
+ Chapter Flow: The party first deals with the pollen emergency and learns the city is
+ hiding a magical failure. Investigation among the Conclave, gardens, bridges, and
+ archives identifies a secret circle of young arcanists led by Seredhel. The final descent
+ beneath the Whispering Archive combines a living-forest dungeon, a corrupted ley
+ chamber, and a two-stage confrontation with Seredhel and the Krasis Treant.
+
+
+Keyed Locations in Lunareth
+1. Greenwood Hearth Inn — A warm inn grown around a living oak. Its
+proprietor, Meriel Dawnbranch, keeps a list of missing scholars and frightened
+travelers.
+2. The Argent Conclave — Lunareth’s governing academy. Archmage Vaelis
+controls access to research records and conceals the Conclave’s former support of
+Rabu Shin.
+3. The Whispering Archive — A layered library carved beneath a crystal-rooted
+tree. Its restricted vault contains Rabu Shin’s original thesis and the entrance to the
+damaged ley junction.
+4. Sylvaris Gardens — Experimental gardens tended by Archdruid Sylvaris. Plants
+here are becoming perfectly symmetrical, armored, and aggressively responsive to
+magic.
+5. The Spire of Reflection — A leyline focus tower where mirrors show possible
+magical outcomes. Its reflections now move before the people they imitate.
+6. Silver Bridge Network — Graceful bridges carried by magic between trees and
+towers. Several suffer brief gravity reversals when the hidden experiment pulses.
+7. Moonpetal Market — A quiet market for spell components, living crafts, and
+herbal remedies. It becomes the center of the pollen-plague relief effort.
+8. The Singing Grove — A sacred grove whose trees normally harmonize with the
+moon. The song has changed into a repeating mathematical sequence.
+9. Hollow Sentinel — An ancient guardian tree at the eastern boundary.
+Something has hollowed its trunk and placed a lattice seed inside.
+10. The Ley Chamber — A sealed complex beneath the Archive where Seredhel’s
+circle attempted to reproduce directed evolution through arcane lattice
+structuring.
+
+People of Lunareth
+Archmage Vaelis — A composed elven archmage whose clipped answers conceal
+guilt. She funded Rabu Shin’s earliest work and now fears public panic more than
+private shame.
+Archdruid Sylvaris — The guardian of Lunareth’s living systems. Patient,
+observant, and increasingly furious that the Conclave hid biomantic experiments
+from him.
+Seredhel Amastacia — A gifted young arcanist who believes suppressing Rabu
+Shin’s research condemned countless people to preventable disease and weakness.
+Meriel Dawnbranch — The practical proprietor of Greenwood Hearth. She knows
+which scholars vanished, who returned changed, and which guards have been
+bribed.
+Ilyra Fenwhisper — An apprentice gardener infected by lattice pollen. She hears
+the plants repeating fragments of Rabu Shin’s thesis.
+
+
+Warden Caladrel — Commander of the Silver Bridge Watch. Loyal to Lunareth,
+but willing to defy the Conclave if shown proof that citizens are in danger.
+
+Rumors in Lunareth
+ d6                                           Rumor
+ 1                                            The Conclave sealed an archive
+                                              because a book began growing roots.
+ 2                                            Golden pollen grants vivid dreams,
+                                              then leaves black veins beneath the
+                                              skin.
+ 3                                            The bridges have dropped three
+                                              people upward into the canopy.
+ 4                                            A dead scholar was seen walking into
+                                              the Singing Grove at moonrise.
+ 5                                            Rabu Shin was not exiled for failure;
+                                              he was exiled because his theory
+                                              worked.
+ 6                                            Something enormous moves beneath
+                                              Sylvaris Gardens whenever spells are
+                                              cast.
+
+
+Part 1: Pollen Plague
+                                  THE GOLDEN BREATH
+     Moonpetal Market has become a field hospital. Elves lie beneath awnings with
+     damp cloths over their faces. Golden dust clings to their hair and eyelashes. A
+     young gardener arches against a cot as bark-like ridges rise along her
+     forearms. Across the square, flowering vines turn their blossoms toward her
+     as though listening.
+
+
+The plague is an adaptive reaction, not a disease. Lattice-tainted pollen carries a
+magical command that alters creatures exposed to it. Archdruid Sylvaris asks the
+party to stabilize the victims while he traces the pollen to Sylvaris Gardens.
+
+Stabilizing the Victims
+Run a skill challenge requiring five successes before three failures. Each character
+can contribute once with a particular skill unless circumstances change.
+ • Arcana DC 14 identifies the pollen as a transmutation carrier linked to a
+   repeating ley pulse.
+ • Medicine DC 13 slows the victims’ breathing and prevents further pollen
+   absorption.
+ • Nature DC 14 produces a neutralizing wash from moonpetal sap and bitterroot.
+
+
+• Religion DC 15 uses a cleansing rite to separate the victims’ natural life force
+  from the imposed pattern.
+• Survival DC 13 seals the market and redirects the drifting pollen with wet canvas
+   and controlled fires.
+• Lesser restoration counts as one automatic success, to a maximum of two
+  successes.
+ Success and Failure: On success, all victims stabilize and Ilyra can speak clearly. On
+ failure, three victims transform into vine-bound thralls and attack using scout statistics
+ with a 10-foot thorn lash that deals 1d6 piercing damage. The surviving victims stabilize
+ after the combat, but Ilyra suffers disadvantage on checks made to recall the experiment.
+
+
+                                    ILYRA’S WARNING
+   Ilyra’s pupils narrow into leaf-shaped slits. “There are words under the song,”
+   she whispers. “Evolution is inefficient because it relies on randomness. He said
+   the forest could be taught to choose.” Her fingers tighten around your wrist.
+   “Someone answered him.”
+
+
+Part 2: Sylvaris Gardens
+                                    PERFECT GROWTH
+   The garden gates stand open. Beyond them, every hedge is the same height,
+   every blossom has the same number of petals, and every branch turns at the
+   same precise angle. There is no wind, yet the leaves move together. From
+   somewhere deeper within comes the padded rhythm of many feet moving as
+   one.
+
+
+Six Vine-Wolf Krasis prowl the gardens. They are wolves fused with vine blights:
+silent, coordinated predators able to disappear among foliage. They attempt to
+isolate one character at a time and drag victims toward the central root basin.
+
+Garden Encounter Features
+• Living Hedges. Five-foot hedge squares provide half cover. A creature can force
+  through one by spending 10 feet of movement.
+• Grasping Roots. At initiative count 20, one 10-foot square becomes restraining
+  roots. Creatures there make a DC 13 Strength save or become restrained until
+  the next count 20.
+• Pollen Pods. AC 12, 5 hit points. When damaged, a pod bursts in a 10-foot radius;
+   creatures make a DC 13 Constitution save or become poisoned until the end of
+   their next turn.
+
+
+ • Moonwell. A creature adjacent to the central pool can use an action and succeed
+   on a DC 14 Nature or Arcana check to suppress the garden’s lair effect for one
+   round.
+Clue in the Root Basin. A crystal seed is wrapped in roots beneath the water. It
+bears Seredhel’s personal sigil and a partial activation phrase: “Directed
+adaptation, localized trial seven.”
+
+
+Part 3: The Sealed Truth
+The party now has enough evidence to confront the Argent Conclave. Vaelis
+initially claims the garden event is an isolated student error. Persuasion,
+intimidation, or presenting the Emberfall and garden fragments forces her to
+reveal the truth.
+                                    VAELIS CONFESSES
+   Vaelis closes every door with a gesture. The room darkens until only the
+   crystal shard between you gives light. “Rabu Shin was the most precise mind
+   Lunareth produced in three centuries,” she says. “We funded him. We praised
+   him. Then he demonstrated that a living creature could be rewritten without
+   consent, and half the Conclave asked how quickly the method could be scaled.”
+   She looks away. “We did not destroy his work. We buried it.”
+
+
+Rabu Shin’s Original Thesis
+ • Natural evolution is slow because it depends on random variation and
+   generational death.
+ • Arcane lattice structures can identify environmental pressure and impose a
+   useful adaptation immediately.
+ • A sufficiently complex relay can preserve an adaptation pattern and reproduce
+   it across distant populations.
+ • The subject’s will is treated as interference rather than an essential component.
+ • The final theoretical stage transfers consciousness into the lattice, allowing the
+    designer to guide every active node at once.
+ The Ethical Divide: The mathematics is internally coherent. Characters who study the
+ thesis understand why brilliant scholars were tempted by it. The horror is not that the
+ research is nonsense; it is that its promised benefits require surrendering bodily
+ autonomy and permitting one mind to define perfection for everyone.
+
+
+Investigation in the City
+ Location                       Clue                            Check
+ Spire of Reflection            A mirror shows                  Arcana DC 15
+
+
+                             Seredhel entering the
+                             Archive several hours
+                             before he physically
+                             arrived.
+ Silver Bridges              Gravity pulses originate    Investigation DC 14
+                             beneath the Whispering
+                             Archive.
+ Singing Grove               The trees repeat a six-     Nature or Performance
+                             part numerical              DC 14
+                             sequence used as an
+                             access key.
+ Hollow Sentinel             A lattice seed contains a   Investigation DC 13
+                             map of the lower
+                             archive tunnels.
+ Greenwood Hearth            Meriel identifies three     Persuasion DC 12
+                             missing apprentices who
+                             met secretly with
+                             Seredhel.
+
+
+Optional Quests in Lunareth
+The Singing Grove
+The grove’s sacred harmony has become a compulsion. Characters who enter must
+make a DC 13 Wisdom save or repeat their last movement on their next turn. Two
+animated trees attack while a third tree sustains the song. Calming the grove with
+a DC 15 Performance, Nature, or Religion check avoids combat and provides the
+six-part access sequence.
+
+Hollow Sentinel
+The ancient boundary guardian has been hollowed from within by a lattice seed.
+The party can remove it through a three-success skill challenge using Athletics DC
+15, Nature DC 13, Arcana DC 14, or woodcarver’s tools DC 12. Failure awakens the
+Sentinel as a weakened treant with 90 hit points. Success earns Sylvaris’s Ironleaf
+Charm, granting advantage on one saving throw against being restrained or
+transformed.
+
+Moonlit Duel
+Warden Caladrel challenges a character to a ceremonial duel after the Conclave
+accuses the party of provoking unrest. This is a nonlethal contest to three
+successful attack rolls or combat maneuvers. Winning earns the Bridge Watch’s
+support; honorable loss earns Caladrel’s respect. Cheating turns the Watch against
+the party during the Archive assault.
+
+
+Whispering Brook
+A brook outside the city repeats the voices of missing scholars. Following the
+correct voice requires three DC 13 Insight or Survival checks. The trail leads to a
+hidden cache containing two potions of greater healing, Seredhel’s field notes, and
+a warning that the ley chamber has developed “root cognition.”
+
+Broken Wardstone
+A defensive wardstone flickers beside the eastern road. Repairing it requires 50 gp
+in components and a DC 15 Arcana check. If repaired, the ward suppresses
+reinforcements during the final confrontation. If ignored, two additional Vine-Wolf
+Krasis arrive at the beginning of round 4.
+
+
+Part 4: Beneath the Whispering Archive
+                                  THE LOWER ARCHIVE
+     The restricted archive ends at a circular door grown from white roots and
+     bands of silver metal. When the six-part sequence is spoken, the roots
+     withdraw like fingers. Warm air rises from below, carrying the scent of wet
+     earth, old parchment, and something sweet enough to make your teeth ache.
+     Far beneath, a voice lectures to an unseen class.
+
+
+Dungeon Features
+ • Light. Pale roots glow with dim silver light unless a room states otherwise.
+ • Ceilings. Corridors are 10 feet high. Ley chambers rise 30 to 50 feet.
+ • Living Walls. Fire damage dealt to a wall causes roots in the room to thrash; all
+   creatures adjacent to a wall make a DC 12 Dexterity save or take 3 (1d6)
+   bludgeoning damage.
+ • Ley Pulse. At initiative count 20 during combat, roll on the Ley Instability table
+   unless the local focus crystal has been disabled.
+ • Archive Records. A character spending 10 minutes searching a room can make a
+   DC 14 Investigation check to find one useful research note or one incriminating
+   record.
+
+Ley Instability
+ d4                                           Effect
+ 1                                            Amplification. Until the next count 20,
+                                              spells deal +2 damage per damage die,
+                                              to a maximum of +10.
+ 2                                            Gravity Shift. Each creature makes a
+                                              DC 13 Dexterity save or falls prone
+                                              and slides 10 feet toward the nearest
+                                              wall.
+ 3                                            Psychic Resonance. Each creature
+                                              concentrating on a spell makes a DC
+                                              12 Constitution save or takes 5 (1d10)
+                                              psychic damage.
+ 4                                            Spell Misfire. The next spell cast
+                                              before count 20 requires a d6 roll; on
+                                              a 1, its target is determined randomly
+                                              among eligible creatures.
+
+
+Area 1: Hall of Living Catalogues
+                                      CATALOGUED
+
+
+   Shelves rise from floor to ceiling, each grown from a single pale tree. Books
+   open as you pass. Ink crawls across their pages to form your names, followed
+   by measurements of your height, weight, scars, and heartbeat. At the far end,
+   two suits of silver armor turn their empty helmets toward you.
+
+
+Two animated armors and one helmed horror guard the hall. They demand that all
+“unregistered specimens” submit to measurement. A character can deactivate one
+construct with an action and a DC 15 Arcana check while adjacent to a catalogue
+lectern.
+Record Found. The hall contains funding approvals signed by Vaelis and six other
+Conclave members. The last entry records Rabu Shin’s expulsion and notes that his
+complete thesis was never recovered.
+
+Area 2: Chamber of Failed Symmetry
+                                 THE EARLY PROTOTYPE
+   Glass cylinders line the room. Inside them float branches, animal limbs, and
+   organs arranged in flawless mirrored pairs. One cylinder is broken. Wet
+   footprints lead from it to a figure standing motionless beside the wall—a body
+   of stitched flesh whose crystal-lined joints bend with impossible smoothness.
+
+
+A flesh golem attacks when any character approaches the far door. Its appearance
+is altered, but it uses the standard flesh golem statistics. Lightning does not heal it;
+force damage does. A control console can be disabled with three successful DC 14
+Arcana or thieves’ tools checks. Each success reduces the golem’s current and
+maximum hit points by 10.
+
+Area 3: The Rotating Root Bridge
+A narrow bridge crosses a shaft filled with slowly rotating roots. Gravity turns
+ninety degrees every round at initiative count 20. Creatures not secured to the
+bridge make a DC 13 Dexterity save or fall 20 feet onto a different surface, taking 7
+(2d6) bludgeoning damage. A focus crystal halfway across can be destroyed (AC 13,
+15 hit points) to stabilize gravity.
+
+Area 4: Apprentice Refuge
+Two frightened apprentices, Lethariel and Oswin, have barricaded themselves in a
+records room. They helped Seredhel begin the experiment but fled when the
+leyline started answering questions. They reveal that Seredhel intends to merge
+the root network with Rabu Shin’s copied pattern, creating a self-correcting
+organism beneath Lunareth.
+ Roleplaying the Apprentices: They are guilty, terrified, and useful. If treated with
+ compassion, they provide the counter-sigil that suppresses the final chamber’s lair action
+ for the first two rounds. Threats gain the information but cause them to flee and warn no
+
+
+ one of the unstable escape route.
+
+
+Part 5: The Blooming Horror
+                                     THE LEY CHAMBER
+   The last door opens onto a cavern filled with roots thicker than towers. A
+   silver leyline hangs in the air like a river of lightning. Beneath it stands
+   Seredhel, one hand pressed to a crystal lectern. Behind him, an immense tree
+   pulls its roots free of the earth. Wolf skulls, antlers, and elven faces are
+   trapped within its bark. Green light opens across its trunk like a single
+   enormous eye.
+
+
+Seredhel’s Appeal
+                               THE RUNEBOUND SAVANT
+   “Look at what we waste,” Seredhel says, his voice trembling with exhaustion
+   rather than fear. “Children born sick. Harvests lost to a single season. Lives
+   spent waiting for chance to produce what magic can provide tonight. Rabu
+   Shin’s crime was not discovery. It was refusing to let cowards bury it.” The
+   roots behind him tighten around the leyline. “Help me guide this, or stand
+   aside while I prove that perfection need not ask permission.”
+
+
+The characters can attempt to talk Seredhel down before combat. Three successful
+DC 16 Persuasion, Insight, Arcana, or History checks before two failures cause him
+to hesitate. If Ilyra, the rescued apprentices, or Vaelis is present, one appropriate
+argument grants advantage. On success, Seredhel does not fight during round 1
+and reveals how to disable the lectern. He still refuses to abandon the experiment
+unless the Krasis Treant is defeated.
+
+Final Encounter: Seredhel and the Krasis Treant
+ • Enemies. Seredhel, the Runebound Savant, and one Krasis Treant. Add two Vine-
+   Wolf Krasis for a party of five or more characters.
+ • Crystal Lectern. AC 15, 30 hit points, immune to poison and psychic damage. A
+    creature adjacent to it can use an action and make a DC 16 Arcana check; three
+    successes disable it. Each failed check triggers a Ley Instability effect.
+ • Leyline Arc. At initiative count 20, the treant chooses a 30-foot line between two
+   roots. Creatures in the line make a DC 14 Dexterity save or take 10 (3d6)
+   lightning damage.
+ • Root Platforms. Three raised root masses provide half cover. The treant can
+   destroy one with a successful Slam, removing the cover.
+
+
+ • Counter-Sigil. If the apprentices provided it, the treant cannot use Regenerative
+    Photosynthesis or the leyline arc during the first two rounds.
+ • Seredhel’s Surrender. When reduced below 20 hit points, Seredhel surrenders if
+    the lectern is disabled or if the treant has been destroyed. Otherwise he fights
+    until incapacitated.
+
+Ending the Experiment
+When the lectern is disabled or the treant falls, the ley chamber begins collapsing.
+The party must earn four successes before two failures to stabilize the leyline or
+evacuate safely. Appropriate checks include Arcana DC 16, Nature DC 15, Athletics
+DC 14, Survival DC 13, or the use of a recovered lattice fragment. On failure, each
+character takes 14 (4d6) force damage during the escape, and part of the
+Whispering Archive is destroyed.
+                            RABU SHIN’S CONFIRMATION
+   The silver current bends toward the broken lectern. For one heartbeat, every
+   root in the cavern becomes transparent, revealing green geometric light
+   running through the forest for miles. A calm voice speaks from no single place:
+   “Plant-host compatibility confirmed. Photosynthetic aggression viable.” Then
+   the pattern snaps, and the trees scream.
+
+
+Chapter Conclusion
+With the ley junction stabilized, the pollen loses its glow and the city’s living
+structures slowly return to natural growth. The Argent Conclave can no longer
+deny its connection to Rabu Shin. Public reaction depends on how the characters
+handled Vaelis and Seredhel.
+
+Consequences
+ • If the party exposes the Conclave publicly, Vaelis resigns and Lunareth begins a
+    painful inquiry into arcane ethics. The characters gain strong support from
+    Sylvaris and ordinary citizens.
+ • If the party keeps the scandal private, the Conclave supplies information,
+    spellcasting services, and discreet travel assistance, but several guilty members
+    retain power.
+ • If Seredhel survives, he can become a remorseful expert, a prisoner whose
+    testimony divides the city, or a recurring rival convinced the party destroyed
+    humanity’s best hope.
+ • If the leyline was not stabilized, portions of Lunareth remain affected by
+    random gravity shifts and aggressive plant growth during future visits.
+
+
+Rewards
+• Conclave Stipend. 600 gp divided among the party for ending the crisis and
+   recovering the thesis.
+• Moonleaf Mantle. One character receives a cloak woven by Sylvaris. While
+  wearing it, the character has advantage on Dexterity (Stealth) checks made in
+  forests and can cast pass without trace once. The cloak regains this property at
+  dawn.
+• Ironleaf Charm. Awarded for saving Hollow Sentinel; it can be broken as a
+   reaction to succeed automatically on one saving throw against being restrained,
+   paralyzed, or transformed.
+• Rabu Shin’s Thesis. A unique campaign document required to understand later
+  relay nodes. Studying it during a long rest grants advantage on the next Arcana
+  check involving a Krasis lattice device.
+• Milestone. Characters advance to 6th level after the ley chamber is secured, the
+  thesis is recovered, and Lunareth formally recognizes the continental threat.
+
+The Road to High Bastion
+                             A FORTRESS UNDER STUDY
+   Before dawn, Warden Caladrel arrives at Greenwood Hearth carrying a steel
+   message tube dented by claw marks. Inside is a military report from High
+   Bastion. Supply patrols are vanishing. Watchtowers have been sabotaged in
+   mirrored patterns. Creatures wearing bone and chitin armor have begun
+   testing the fortress walls, then retreating before the defenders can respond. At
+   the bottom, one sentence is underlined twice: “They are learning our
+   formations.”
+
+
+The report includes a safe route through the eastern mountains and a request from
+Captain Valric Stonehand for anyone carrying evidence of the lattice network. The
+next chapter begins as the party approaches High Bastion beneath the sound of
+warning horns.
+
+
+Chapter 4 Creature Appendix
+Vine-Wolf Krasis
+Medium plant, unaligned
+ Armor Class 14 (natural armor) | Hit Points 39 (6d8 + 12) | Speed 40 ft.
+ STR 15 (+2) DEX 15 (+2) CON 14 (+2) INT 5 (-3) WIS 13 (+1) CHA 6 (-2) | CR
+ 2 (450 XP)
+ Skills. Perception +3, Stealth +4.
+ Damage Resistances. Poison; bludgeoning and piercing from nonmagical
+ attacks while the Krasis is in dense vegetation.
+ Senses. Darkvision 60 ft., passive Perception 13.
+ Languages. Understands Sylvan but cannot speak.
+ False Appearance. While motionless among ordinary plants, the Krasis is
+ indistinguishable from tangled roots and brush.
+ Pack Tactics. The Krasis has advantage on an attack roll against a creature if at
+ least one of the Krasis’s allies is within 5 feet of the creature and the ally is not
+ incapacitated.
+ Rootbound Pounce. If the Krasis moves at least 20 feet straight toward a
+ creature and hits it with a Bite on the same turn, the target must succeed on a
+ DC 13 Strength save or fall prone. If the target falls prone, the Krasis can make
+ one Thorn Lash attack against it as a bonus action.
+ ACTIONS
+ Bite. Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 9 (2d6 + 2)
+ piercing damage.
+ Thorn Lash. Melee Weapon Attack: +4 to hit, reach 10 ft., one target. Hit: 7
+ (1d10 + 2) piercing damage, and the target is grappled (escape DC 13). Until the
+ grapple ends, the target is restrained and the Krasis cannot lash another target.
+ Pollen Cough (Recharge 5-6). The Krasis exhales pollen in a 15-foot cone. Each
+ creature there must succeed on a DC 12 Constitution save or be poisoned until
+ the end of its next turn.
+
+
+Runebound Savant
+Medium humanoid (elf), neutral
+ Armor Class 15 (mage armor) | Hit Points 88 (16d8 + 16) | Speed 30 ft.
+ STR 9 (-1) DEX 14 (+2) CON 12 (+1) INT 18 (+4) WIS 13 (+1) CHA 15 (+2) |
+ CR 6 (2,300 XP)
+ Saving Throws. Int +7, Wis +4.
+ Skills. Arcana +10, History +7, Nature +7.
+ Senses. Darkvision 60 ft., passive Perception 11.
+
+
+ Languages. Common, Elvish, Sylvan.
+ Fey Ancestry. The savant has advantage on saving throws against being
+ charmed, and magic cannot put him to sleep.
+ Lattice Ward. At the start of each of his turns while within 30 feet of an active
+ lattice device, the savant gains 5 temporary hit points.
+ Spellcasting. The savant is a 9th-level spellcaster (spell save DC 15, +7 to hit
+ with spell attacks). Cantrips: fire bolt, mage hand, minor illusion, thorn whip.
+ 1st level (4 slots): mage armor, magic missile, shield. 2nd level (3 slots): misty
+ step, scorching ray, web. 3rd level (3 slots): counterspell, lightning bolt, plant
+ growth. 4th level (3 slots): blight, greater invisibility. 5th level (1 slot): hold
+ monster.
+ ACTIONS
+ Runic Dagger. Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range
+ 20/60 ft., one target. Hit: 5 (1d4 + 3) piercing damage plus 7 (2d6) force damage.
+ Lattice Pulse (Recharge 5-6). Each creature of the savant’s choice within 20
+ feet must make a DC 15 Constitution save, taking 18 (4d8) force damage on a
+ failed save, or half as much on a success. One plant creature in the area instead
+ regains 18 hit points.
+ REACTIONS
+ Adaptive Countermeasure. When the savant takes acid, cold, fire, lightning,
+ or thunder damage, he gains resistance to that damage type until the start of
+ his next turn.
+
+
+Krasis Treant
+Huge plant (Krasis), lawful evil
+ Armor Class 16 (natural armor) | Hit Points 168 (16d12 + 64) | Speed 30
+ ft.
+ STR 23 (+6) DEX 8 (-1) CON 19 (+4) INT 12 (+1) WIS 16 (+3) CHA 11 (+0) |
+ CR 9 (5,000 XP)
+ Saving Throws. Con +8, Wis +7.
+ Damage Resistances. Bludgeoning and piercing from nonmagical attacks.
+ Damage Vulnerabilities. Fire.
+ Condition Immunities. Charmed, frightened.
+ Senses. Darkvision 120 ft., tremorsense 60 ft., passive Perception 13.
+ Languages. Common, Druidic, Elvish, Sylvan.
+ False Appearance. While motionless, the treant is indistinguishable from an
+ immense diseased tree.
+ Regenerative Photosynthesis. At the start of its turn, the treant regains 10 hit
+ points if it is in bright light or within 30 feet of an active leyline. This trait does
+ not function until the end of its next turn after it takes fire or radiant damage.
+
+
+Siege Monster. The treant deals double damage to objects and structures.
+Root Network. The ground within 20 feet of the treant is difficult terrain for its
+enemies.
+ACTIONS
+Multiattack. The treant makes two Slam attacks.
+Slam. Melee Weapon Attack: +10 to hit, reach 10 ft., one target. Hit: 19 (3d8 + 6)
+bludgeoning damage.
+Crystalline Root. Melee Weapon Attack: +10 to hit, reach 20 ft., one target. Hit:
+15 (2d8 + 6) bludgeoning damage, and the target must succeed on a DC 16
+Strength save or be pulled up to 15 feet and restrained. The target can use an
+action to repeat the save, ending the effect on a success.
+Pollen of Correction (Recharge 5-6). The treant releases luminous pollen in a
+30-foot radius. Each nonplant creature in the area must make a DC 16
+Constitution save. On a failure, a creature takes 18 (4d8) poison damage and is
+poisoned for 1 minute. It can repeat the save at the end of each turn. On a
+success, it takes half damage and is not poisoned.
+Animate Growth (1/Day). The treant animates up to two ordinary trees or
+large root masses within 60 feet. Each uses awakened tree statistics and
+remains animated for 1 hour or until the treant dies.
+REACTIONS
+Adaptive Bark. When hit by a weapon attack, the treant gains a +2 bonus to AC
+against further attacks made with the same kind of weapon until the start of its
+next turn.
+
+
+Chapter 4 Clue Chain
+Discovery                   Meaning                      Leads To
+Lattice-tainted pollen      The transformation is        Sylvaris Gardens
+                            being transmitted
+                            through Lunareth’s
+                            living systems.
+Seredhel’s crystal seed     A local arcanist             Argent Conclave
+                            deliberately activated
+                            the garden trial.
+Original thesis             Rabu Shin’s theory           Whispering Archive
+                            predates the current
+                            attacks and was once
+                            funded by Lunareth.
+Relay calculations          The lattice network is       High Bastion and later
+                            designed for remote,         nodes
+                            distributed control.
+
+
+Rabu Shin’s                   Lunareth was a plant-       Continental pattern
+confirmation                  host compatibility trial.
+
+
+Chapter 4 Treasure Summary
+Reward                        Source                      Use
+600 gp                        Argent Conclave             Chapter payment
+Moonleaf Mantle               Archdruid Sylvaris          Forest stealth and one
+                                                          use of pass without trace
+Ironleaf Charm                Hollow Sentinel             Automatic success
+                                                          against one restraint or
+                                                          transformation effect
+2 potions of greater          Whispering Brook cache      Consumable healing
+healing
+Rabu Shin’s Thesis            Restricted Archive          Campaign clue and
+                                                          advantage on one
+                                                          lattice-related Arcana
+                                                          check per study
