@@ -1,4 +1,3 @@
-public sealed record DiceRollRequest(int Count, int Sides, int Modifier, bool Advantage, bool Disadvantage);
 public sealed record CreateDiscordCampaignRequest(string CampaignName);
 public sealed record JoinDiscordCampaignRequest(string JoinCode);
 public sealed record RandomCharacterRequest(string? CharacterName, string Species, string ClassName);
@@ -19,3 +18,4 @@ public sealed record CampaignMessageRequest(string Message);
 public sealed record JournalRequest(string Category, string Title, string EntryText);
 public sealed record OpenAiKeyRequest(string ApiKey);
 public sealed record GameMasterRequest(string Message);
+public sealed record InventoryQuantityRequest(int Quantity);
