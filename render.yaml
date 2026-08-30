@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: rabushin-aigm
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /game-api/health
+    autoDeploy: true
+    envVars:
+      # PUBLIC values used by the Vite production build.
+      - key: VITE_DISCORD_CLIENT_ID
+        value: "1542881575820202004"
+      - key: VITE_PUBLIC_SITE_BASE_URL
+        value: "https://redmarine84.github.io/AppDownload.github.io/rabushin"
+
+      # Runtime secrets. Render will prompt you to supply these.
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__SecretKey
+        sync: false
+      - key: Security__ApiKeyEncryptionKey
+        sync: false
+
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DOTNET_ENVIRONMENT
+        value: Production
