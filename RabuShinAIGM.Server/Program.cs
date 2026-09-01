@@ -600,6 +600,28 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
                       state.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
                       state.CurrentTurnCharacterId == state.ViewerCharacterId;
 
+        // BUILD 5 FIX - BROWSER TACTICAL TOKEN JSON
+        // The model uses snake_case JsonPropertyName attributes for Supabase input.
+        // Explicitly project to camelCase for client/main.js.
+        var clientTokens = tokens.Select(token => new
+        {
+            tokenId = token.TokenId,
+            entityType = token.EntityType,
+            characterId = token.CharacterId,
+            combatMonsterId = token.CombatMonsterId,
+            displayName = token.DisplayName,
+            monsterName = token.MonsterName,
+            gridX = token.GridX,
+            gridY = token.GridY,
+            movementSpentFt = token.MovementSpentFt,
+            speedFt = token.SpeedFt,
+            currentHp = token.CurrentHp,
+            maxHp = token.MaxHp,
+            armorClass = token.ArmorClass,
+            defeated = token.Defeated,
+            hasPortrait = token.HasPortrait
+        }).ToList();
+
         return Results.Ok(new
         {
             success = true,
@@ -616,7 +638,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             viewerSpeed = Math.Max(0, state.ViewerSpeed),
             viewerMovementRemaining = Math.Max(0, state.ViewerMovementRemaining),
             canMove,
-            tokens
+            tokens = clientTokens
         });
     }
     catch (UnauthorizedAccessException ex)
@@ -640,7 +662,20 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move", async 
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var playerId = await service.GetOrCreatePlayerAsync(user);
         var result = await service.MoveOwnCombatTokenAsync(playerId, campaignId, move.GridX, move.GridY);
-        return Results.Ok(new { success = true, move = result });
+        // BUILD 5 FIX - BROWSER TACTICAL MOVE JSON
+        return Results.Ok(new
+        {
+            success = true,
+            move = new
+            {
+                tokenId = result.TokenId,
+                gridX = result.GridX,
+                gridY = result.GridY,
+                moveCostFt = result.MoveCostFt,
+                movementSpentFt = result.MovementSpentFt,
+                movementRemainingFt = result.MovementRemainingFt
+            }
+        });
     }
     catch (UnauthorizedAccessException)
     {
