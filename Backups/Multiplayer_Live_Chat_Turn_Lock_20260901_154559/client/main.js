@@ -20,20 +20,6 @@ let tacticalZoom = 1;
 let tacticalLastSignature = '';
 let tacticalShowTerrainDebug = false; // VISUALS BUILD 5.1 - TERRAIN CLIENT
 
-// MULTIPLAYER LIVE CHAT + AI GM TURN LEASE
-let activeGameTab = 'gm';
-let conversationLiveSyncTimer = null;
-let conversationLiveSyncBusy = false;
-let gmTurnCountdownTimer = null;
-let gmTurnState = null;
-let gmTurnToken = null;
-let gmTurnAcquirePending = false;
-let gmTurnSubmitting = false;
-let gmTurnDraft = '';
-let campaignChatDraft = '';
-let gmMessageSignature = '';
-let chatMessageSignature = '';
-
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -194,12 +180,6 @@ async function showCampaignLauncher() {
   tacticalSelectedTokenId = null;
   tacticalLastSignature = '';
   stopTacticalCombatPolling();
-  stopConversationLiveSync();
-  activeGameTab = 'gm';
-  gmTurnState = null;
-  gmTurnToken = null;
-  gmTurnDraft = '';
-  campaignChatDraft = '';
   currentCombatData = null;
   currentLocalMapData = null;
   currentWorldMapData = null;
@@ -366,94 +346,18 @@ function populateSelect(selector, values) {
   select.innerHTML = (values || []).map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
 }
 
-function primaryRaceName(species) {
-  const value=String(species||'').trim();
-  return value.startsWith('Half ')?value.substring(5).trim():value;
-}
-
-function isTortleRace(species){return primaryRaceName(species).toLowerCase()==='tortle';}
-
-function racialOptionsHtml(prefix,species,data){
-  const heritage=primaryRaceName(species);
-  const fixed=data?.racialRules?.fixedBonuses?.[heritage]||null;
-  const half=String(species||'').startsWith('Half ');
-  const halfNote=half?`<p class="racial-note">Ability increases come from your ${escapeHtml(heritage)} half. Your selected second heritage is stored separately for merged racial traits.</p>`:'';
-  if(isTortleRace(species)){
-    const t=data?.racialRules?.tortle||{};
-    const abilityOptions=(data?.racialRules?.abilityNames||['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
-    const skills=(t.natureSkills||['Animal Handling','Medicine','Nature','Perception','Stealth','Survival']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
-    return `${halfNote}<div class="racial-rule-card"><b>Tortle Racial Choices</b><small>Natural Armor (base AC 17), 1d6 claws, Hold Breath, Nature's Intuition, and Shell Defense are applied automatically.</small>
-      <div class="form-grid racial-choice-grid">
-        <div><label>Ability Increase Pattern</label><select id="${prefix}TortlePattern" class="input"><option value="21">+2 / +1</option><option value="111">+1 / +1 / +1</option></select></div>
-        <div><label>Size</label><select id="${prefix}TortleSize" class="input"><option>Medium</option><option>Small</option></select></div>
-        <div><label id="${prefix}AbilityALabel">+2 Ability</label><select id="${prefix}AbilityA" class="input">${abilityOptions}</select></div>
-        <div><label>+1 Ability</label><select id="${prefix}AbilityB" class="input">${abilityOptions}</select></div>
-        <div id="${prefix}AbilityCBox" hidden><label>+1 Ability</label><select id="${prefix}AbilityC" class="input">${abilityOptions}</select></div>
-        <div><label>Nature's Intuition</label><select id="${prefix}TortleSkill" class="input">${skills}</select></div>
-        <div><label>Additional Language</label><input id="${prefix}TortleLanguage" class="input" value="${escapeHtml(t.defaultLanguage||'Aquan')}"></div>
-      </div></div>`;
-  }
-  if(fixed){
-    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
-    return `${halfNote}<div class="racial-rule-card"><b>Automatic Racial Ability Increase</b><small>${escapeHtml(text)}</small></div>`;
-  }
-  return `${halfNote}<div class="racial-rule-card"><b>Racial Traits</b><small>No additional ability-score adjustment is defined by this compatibility ruleset for ${escapeHtml(heritage)}. Existing race mechanics remain in effect.</small></div>`;
-}
-
-function wireRacialOptions(prefix,species,data){
-  const host=document.querySelector(`#${prefix}RacialOptions`); if(!host)return;
-  host.innerHTML=racialOptionsHtml(prefix,species,data);
-  if(!isTortleRace(species))return;
-  const pattern=document.querySelector(`#${prefix}TortlePattern`);
-  const updatePattern=()=>{
-    const three=pattern.value==='111';
-    document.querySelector(`#${prefix}AbilityCBox`).hidden=!three;
-    document.querySelector(`#${prefix}AbilityALabel`).textContent=three?'+1 Ability':'+2 Ability';
-  };
-  pattern.onchange=updatePattern; updatePattern();
-  const a=document.querySelector(`#${prefix}AbilityA`),b=document.querySelector(`#${prefix}AbilityB`),c=document.querySelector(`#${prefix}AbilityC`);
-  a.value='Strength'; b.value='Wisdom'; c.value='Constitution';
-}
-
-function collectRacialOptions(prefix,species){
-  if(!isTortleRace(species))return {racialAbilityChoices:null,tortleSize:null,tortleNatureSkill:null,tortleLanguage:null};
-  const pattern=document.querySelector(`#${prefix}TortlePattern`).value;
-  const a=document.querySelector(`#${prefix}AbilityA`).value,b=document.querySelector(`#${prefix}AbilityB`).value,c=document.querySelector(`#${prefix}AbilityC`).value;
-  const selected=pattern==='111'?[a,b,c]:[a,b];
-  if(new Set(selected).size!==selected.length)throw new Error('Each Tortle ability increase must use a different ability score.');
-  const racialAbilityChoices={};
-  if(pattern==='111'){racialAbilityChoices[a]=1;racialAbilityChoices[b]=1;racialAbilityChoices[c]=1;}
-  else {racialAbilityChoices[a]=2;racialAbilityChoices[b]=1;}
-  return {racialAbilityChoices,tortleSize:document.querySelector(`#${prefix}TortleSize`).value,tortleNatureSkill:document.querySelector(`#${prefix}TortleSkill`).value,tortleLanguage:document.querySelector(`#${prefix}TortleLanguage`).value.trim()};
-}
-
-function configureHalfRace(prefix,species,data){
-  const box=document.querySelector(`#${prefix}HalfBox`),select=document.querySelector(`#${prefix}Half`);
-  if(String(species||'').startsWith('Half ')){
-    const primary=primaryRaceName(species);
-    const choices=(data.baseSpecies||[]).filter(v=>String(v).toLowerCase()!==primary.toLowerCase());
-    select.innerHTML=choices.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-    box.hidden=false;
-  } else {box.hidden=true;select.innerHTML='';}
-}
-
 async function showCharacterCreator(campaignId) {
   const main = document.querySelector('#mainContent');
   main.innerHTML = `
     <div class="creator">
-      <div class="section-title"><div><h2>Create Your Character</h2><p>One character per player in this campaign. Racial bonuses are applied after the base ability scores you enter.</p></div><button id="creatorBack" class="button">Back</button></div>
+      <div class="section-title"><div><h2>Create Your Character</h2><p>One character per player in this campaign.</p></div><button id="creatorBack" class="button">Back</button></div>
       <div class="tabs"><button id="randomTab" class="tab active">Random Build</button><button id="manualTab" class="tab">Manual Sheet</button></div>
       <section class="panel creator-panel">
         <div id="creatorLoading" class="loading">Loading character options...</div>
         <div id="randomCreator" hidden>
-          <h3>Random Build</h3><p>Choose species and class. RabuShin generates the base character, then applies any selected racial options.</p>
+          <h3>Random Build</h3><p>Choose species and class. RabuShin generates the rest using the VB.NET game rules.</p>
           <label>Character Name</label><input id="randomName" class="input" placeholder="Leave blank for a generated name">
-          <div class="form-grid">
-            <div><label>Species / Race</label><select id="randomSpecies" class="input"></select></div>
-            <div id="randomHalfBox" hidden><label>Other Half</label><select id="randomHalf" class="input"></select></div>
-            <div><label>Class</label><select id="randomClass" class="input"></select></div>
-          </div>
-          <div id="randomRacialOptions" class="racial-options"></div>
+          <div class="form-grid"><div><label>Species / Race</label><select id="randomSpecies" class="input"></select></div><div><label>Class</label><select id="randomClass" class="input"></select></div></div>
           <button id="randomCreate" class="button primary wide">Generate Character</button>
         </div>
         <div id="manualCreator" hidden>
@@ -462,14 +366,12 @@ async function showCharacterCreator(campaignId) {
             <div><label>Name</label><input id="manualName" class="input"></div>
             <div><label>Level</label><input id="manualLevel" class="input" type="number" min="1" max="20" value="1"></div>
             <div><label>Species / Race</label><select id="manualSpecies" class="input"></select></div>
-            <div id="manualHalfBox" hidden><label>Other Half</label><select id="manualHalf" class="input"></select></div>
+            <div id="halfBox" hidden><label>Other Half</label><select id="manualHalf" class="input"></select></div>
             <div><label>Class</label><select id="manualClass" class="input"></select></div>
             <div><label>Background</label><select id="manualBackground" class="input"></select></div>
             <div><label>Alignment</label><select id="manualAlignment" class="input"></select></div>
           </div>
-          <div id="manualRacialOptions" class="racial-options"></div>
-          <h4 class="subhead">Base Ability Scores</h4>
-          <p class="muted racial-score-hint">Enter scores before racial increases. Fixed racial bonuses are automatic; flexible bonuses are chosen above.</p>
+          <h4 class="subhead">Ability Scores</h4>
           <div class="ability-entry-grid">${manualAbilityInput('STR','mStr')}${manualAbilityInput('DEX','mDex')}${manualAbilityInput('CON','mCon')}${manualAbilityInput('INT','mInt')}${manualAbilityInput('WIS','mWis')}${manualAbilityInput('CHA','mCha')}</div>
           <h4 class="subhead">Character Details</h4>
           <label>Appearance</label><textarea id="mAppearance" class="input textarea"></textarea>
@@ -488,34 +390,32 @@ async function showCharacterCreator(campaignId) {
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
     populateSelect('#manualSpecies', data.species); populateSelect('#manualClass', data.classes);
     populateSelect('#manualBackground', data.backgrounds); populateSelect('#manualAlignment', data.alignments);
-    document.querySelector('#randomSpecies').value = data.species.includes('Human')?'Human':data.species[0]; document.querySelector('#randomClass').value = data.classes.includes('Fighter')?'Fighter':data.classes[0];
-    document.querySelector('#manualSpecies').value = data.species.includes('Human')?'Human':data.species[0]; document.querySelector('#manualClass').value = data.classes.includes('Fighter')?'Fighter':data.classes[0];
+    document.querySelector('#randomSpecies').value = 'Human'; document.querySelector('#randomClass').value = 'Fighter';
+    document.querySelector('#manualSpecies').value = 'Human'; document.querySelector('#manualClass').value = 'Fighter';
     if (data.backgrounds.includes('Soldier')) document.querySelector('#manualBackground').value = 'Soldier';
-    if (data.alignments.includes('True Neutral')) document.querySelector('#manualAlignment').value = 'True Neutral';
+    if (data.alignments.includes('Neutral')) document.querySelector('#manualAlignment').value = 'Neutral';
     document.querySelector('#creatorLoading').hidden = true; document.querySelector('#randomCreator').hidden = false;
 
     const randomTab = document.querySelector('#randomTab'), manualTab = document.querySelector('#manualTab');
     randomTab.onclick = () => { randomTab.classList.add('active'); manualTab.classList.remove('active'); document.querySelector('#randomCreator').hidden=false; document.querySelector('#manualCreator').hidden=true; };
     manualTab.onclick = () => { manualTab.classList.add('active'); randomTab.classList.remove('active'); document.querySelector('#manualCreator').hidden=false; document.querySelector('#randomCreator').hidden=true; };
 
-    const refreshRaceUi=(prefix)=>{
-      const species=document.querySelector(`#${prefix}Species`).value;
-      configureHalfRace(prefix,species,data);
-      wireRacialOptions(prefix,species,data);
+    const manualSpecies = document.querySelector('#manualSpecies');
+    const updateHalf = () => {
+      const halfBox = document.querySelector('#halfBox');
+      if (manualSpecies.value.startsWith('Half ')) {
+        const primary = manualSpecies.value.substring(5);
+        const choices = data.baseSpecies.filter(v => v.toLowerCase() !== primary.toLowerCase());
+        document.querySelector('#manualHalf').innerHTML = choices.map(v=>`<option>${escapeHtml(v)}</option>`).join('');
+        halfBox.hidden=false;
+      } else { halfBox.hidden=true; document.querySelector('#manualHalf').innerHTML=''; }
     };
-    document.querySelector('#manualSpecies').onchange=()=>refreshRaceUi('manual');
-    document.querySelector('#randomSpecies').onchange=()=>refreshRaceUi('random');
-    refreshRaceUi('manual');refreshRaceUi('random');
+    manualSpecies.onchange = updateHalf; updateHalf();
 
     document.querySelector('#randomCreate').onclick = async () => {
       const btn=document.querySelector('#randomCreate'); btn.disabled=true; btn.textContent='Generating...';
       try {
-        const species=document.querySelector('#randomSpecies').value;
-        const racial=collectRacialOptions('random',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/characters/random`,{method:'POST',body:JSON.stringify({
-          characterName:document.querySelector('#randomName').value.trim(),species,
-          secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
-          className:document.querySelector('#randomClass').value,...racial})});
+        const result=await api(`/game-api/campaigns/${campaignId}/characters/random`,{method:'POST',body:JSON.stringify({characterName:document.querySelector('#randomName').value.trim(),species:document.querySelector('#randomSpecies').value,className:document.querySelector('#randomClass').value})});
         await showStartingEquipment(campaignId,result.character);
       } catch(error){ document.querySelector('#creatorError').textContent=error.message; btn.disabled=false; btn.textContent='Generate Character'; }
     };
@@ -525,13 +425,12 @@ async function showCharacterCreator(campaignId) {
       const name=document.querySelector('#manualName').value.trim(); if(!name){document.querySelector('#creatorError').textContent='Character name is required.';return;}
       const btn=document.querySelector('#manualCreate');btn.disabled=true;btn.textContent='Creating...';
       try {
-        const species=document.querySelector('#manualSpecies').value;
-        const racial=collectRacialOptions('manual',species);
+        const species=manualSpecies.value;
         const result=await api(`/game-api/campaigns/${campaignId}/characters/manual`,{method:'POST',body:JSON.stringify({
           characterName:name,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
-          appearance:document.querySelector('#mAppearance').value.trim(),personality:document.querySelector('#mPersonality').value.trim(),backstory:document.querySelector('#mBackstory').value.trim(),notes:document.querySelector('#mNotes').value.trim(),...racial
+          appearance:document.querySelector('#mAppearance').value.trim(),personality:document.querySelector('#mPersonality').value.trim(),backstory:document.querySelector('#mBackstory').value.trim(),notes:document.querySelector('#mNotes').value.trim()
         })});
         await showStartingEquipment(campaignId,result.character);
       } catch(error){document.querySelector('#creatorError').textContent=error.message;btn.disabled=false;btn.textContent='Create Character';}
@@ -598,11 +497,6 @@ async function showSpellSelection(campaignId, character) {
 async function enterCampaign(campaignId) {
   try {
     currentCampaignId=campaignId;
-    activeGameTab='gm';
-    gmTurnState=null;
-    gmTurnToken=null;
-    gmTurnDraft='';
-    campaignChatDraft='';
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
     renderGameShell();
     renderGameMasterTab();
@@ -627,10 +521,7 @@ function renderGameShell() {
 }
 
 function switchGameTab(tab,button) {
-  document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));
-  button?.classList.add('active');
-  stopConversationLiveSync();
-  activeGameTab=tab;
+  document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));button?.classList.add('active');
   if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
@@ -642,217 +533,6 @@ function timelineDisplayText(value) {
 function timelineHtml(messages, emptyText='No messages yet.') {
   if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
   return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(timelineDisplayText(m.messageText)).replaceAll('\n','<br>')}</div></div>`).join('');
-}
-
-
-function messageListSignature(messages) {
-  const list=messages||[];
-  if(!list.length)return '0';
-  const last=list[list.length-1];
-  return `${list.length}:${last.messageId||0}:${last.createdAt||''}`;
-}
-
-function updateLiveTimeline(elementId,messages,emptyText,signatureName,force=false) {
-  const timeline=document.querySelector(`#${elementId}`);
-  if(!timeline)return;
-  const signature=messageListSignature(messages);
-  const previous=signatureName==='gm'?gmMessageSignature:chatMessageSignature;
-  if(!force&&signature===previous)return;
-  timeline.innerHTML=timelineHtml(messages,emptyText);
-  timeline.scrollTop=timeline.scrollHeight;
-  if(signatureName==='gm')gmMessageSignature=signature;
-  else chatMessageSignature=signature;
-}
-
-function stopConversationLiveSync() {
-  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
-  conversationLiveSyncTimer=null;
-  conversationLiveSyncBusy=false;
-  if(gmTurnCountdownTimer)clearInterval(gmTurnCountdownTimer);
-  gmTurnCountdownTimer=null;
-}
-
-function normalizeGmTurnState(state) {
-  const normalized={
-    active:!!state?.active,
-    processing:!!state?.processing,
-    isOwner:!!state?.isOwner,
-    ownerPlayerId:state?.ownerPlayerId||null,
-    ownerName:String(state?.ownerName||''),
-    lockToken:state?.lockToken||null,
-    remainingSeconds:Math.max(0,Number(state?.remainingSeconds)||0),
-    expiresAt:state?.expiresAt||null,
-    _deadlineMs:null
-  };
-  if(normalized.active&&!normalized.processing&&normalized.remainingSeconds>0)
-    normalized._deadlineMs=Date.now()+normalized.remainingSeconds*1000;
-  return normalized;
-}
-
-function currentGmTurnSeconds() {
-  if(!gmTurnState?.active||gmTurnState.processing)return 0;
-  if(gmTurnState._deadlineMs)
-    return Math.max(0,Math.ceil((gmTurnState._deadlineMs-Date.now())/1000));
-  return Math.max(0,Number(gmTurnState.remainingSeconds)||0);
-}
-
-function setGmTurnState(state) {
-  gmTurnState=normalizeGmTurnState(state);
-  gmTurnToken=gmTurnState.isOwner?gmTurnState.lockToken:null;
-  updateGmTurnUi();
-}
-
-function updateGmTurnUi() {
-  const status=document.querySelector('#gmTurnStatus');
-  const input=document.querySelector('#gmInput');
-  const send=document.querySelector('#sendGm');
-  if(!status||!input||!send)return;
-
-  const message=input.value.trim();
-  const state=gmTurnState;
-  status.className='gm-turn-status';
-
-  if(!state) {
-    status.classList.add('checking');
-    status.innerHTML='<span>Checking shared GM turn...</span>';
-    input.disabled=true;
-    send.disabled=true;
-    return;
-  }
-
-  if(state.active&&state.processing) {
-    const who=state.ownerName||'Another player';
-    status.classList.add('processing');
-    status.innerHTML=`<span>RabuShin is responding to <b>${escapeHtml(who)}</b>...</span>`;
-    input.disabled=true;
-    send.disabled=true;
-    return;
-  }
-
-  const seconds=currentGmTurnSeconds();
-  if(state.active&&seconds<=0) {
-    gmTurnState={active:false,processing:false,isOwner:false,ownerName:'',lockToken:null,remainingSeconds:0,_deadlineMs:null};
-    gmTurnToken=null;
-    status.classList.add('expired');
-    status.innerHTML='<span>Turn expired — continue typing to claim a new 30-second turn.</span>';
-    input.disabled=false;
-    send.disabled=!message||gmTurnSubmitting;
-    return;
-  }
-
-  if(state.active&&state.isOwner) {
-    status.classList.add('own');
-    status.innerHTML=`<span>Your turn — send before time expires</span><b class="gm-turn-countdown">00:${String(seconds).padStart(2,'0')}</b>`;
-    input.disabled=gmTurnSubmitting;
-    send.disabled=!message||gmTurnSubmitting;
-    return;
-  }
-
-  if(state.active) {
-    const who=state.ownerName||'Another player';
-    status.classList.add('locked');
-    status.innerHTML=`<span><b>${escapeHtml(who)}</b> is typing</span><b class="gm-turn-countdown">00:${String(seconds).padStart(2,'0')}</b>`;
-    input.disabled=true;
-    send.disabled=true;
-    return;
-  }
-
-  status.classList.add('idle');
-  status.innerHTML='<span>AI Game Master input available — begin typing to claim 30 seconds.</span>';
-  input.disabled=false;
-  // A saved draft may acquire the lease when Send is clicked.
-  send.disabled=!message||gmTurnSubmitting;
-}
-
-async function acquireGmTurnForDraft() {
-  const input=document.querySelector('#gmInput');
-  if(!input||!currentCampaignId||!input.value.trim())return false;
-  if(gmTurnSubmitting)return false;
-  if(gmTurnState?.active&&gmTurnState.isOwner&&gmTurnToken&&currentGmTurnSeconds()>0)return true;
-  if(gmTurnAcquirePending)return false;
-
-  gmTurnAcquirePending=true;
-  try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/gm/turn/acquire`,{method:'POST'});
-    setGmTurnState(result.turnState);
-    if(!result.turnState?.isOwner) {
-      const who=result.turnState?.ownerName||'Another player';
-      document.querySelector('#gmError').textContent=`${who} currently has the AI Game Master turn.`;
-      return false;
-    }
-    document.querySelector('#gmError').textContent='';
-    return true;
-  } catch(error) {
-    document.querySelector('#gmError').textContent=error.message;
-    return false;
-  } finally {
-    gmTurnAcquirePending=false;
-    updateGmTurnUi();
-  }
-}
-
-async function refreshGmLive(force=false) {
-  if(activeGameTab!=='gm'||!currentCampaignId||conversationLiveSyncBusy)return;
-  conversationLiveSyncBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/gm`);
-    currentGameData.gmMessages=data.messages||[];
-    updateLiveTimeline('gmTimeline',currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.','gm',force);
-    setGmTurnState(data.turnState);
-  } catch(error) {
-    const errorBox=document.querySelector('#gmError');
-    if(errorBox&&!gmTurnSubmitting)errorBox.textContent=`Live sync: ${error.message}`;
-  } finally {
-    conversationLiveSyncBusy=false;
-  }
-}
-
-function scheduleGmLiveSync() {
-  if(activeGameTab!=='gm')return;
-  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
-  conversationLiveSyncTimer=setTimeout(async()=>{
-    await refreshGmLive(false);
-    if(activeGameTab==='gm')scheduleGmLiveSync();
-  },1000);
-}
-
-function startGmLiveSync() {
-  stopConversationLiveSync();
-  gmMessageSignature=messageListSignature(currentGameData?.gmMessages||[]);
-  gmTurnCountdownTimer=setInterval(updateGmTurnUi,250);
-  void refreshGmLive(true);
-  scheduleGmLiveSync();
-}
-
-async function refreshChatLive(force=false) {
-  if(activeGameTab!=='chat'||!currentCampaignId||conversationLiveSyncBusy)return;
-  conversationLiveSyncBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/chat`);
-    currentGameData.chatMessages=data.messages||[];
-    updateLiveTimeline('chatTimeline',currentGameData.chatMessages,'No campaign chat messages yet.','chat',force);
-  } catch(error) {
-    const errorBox=document.querySelector('#chatError');
-    if(errorBox)errorBox.textContent=`Live sync: ${error.message}`;
-  } finally {
-    conversationLiveSyncBusy=false;
-  }
-}
-
-function scheduleChatLiveSync() {
-  if(activeGameTab!=='chat')return;
-  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
-  conversationLiveSyncTimer=setTimeout(async()=>{
-    await refreshChatLive(false);
-    if(activeGameTab==='chat')scheduleChatLiveSync();
-  },1000);
-}
-
-function startChatLiveSync() {
-  stopConversationLiveSync();
-  chatMessageSignature=messageListSignature(currentGameData?.chatMessages||[]);
-  void refreshChatLive(true);
-  scheduleChatLiveSync();
 }
 
 function worldMapPercent(value,total) {
@@ -1358,15 +1038,8 @@ function scrollGmToBottom() {
 }
 
 function renderGameMasterTab() {
-  const existingInput=document.querySelector('#gmInput');
-  if(existingInput)gmTurnDraft=existingInput.value;
-
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP ${currentGameData.character.currentHp}/${currentGameData.character.maxHp} • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
-
-  const input=document.querySelector('#gmInput');
-  input.value=gmTurnDraft;
-
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div class="composer"><textarea id="gmInput" class="input" placeholder="What do you do?"></textarea><button id="sendGm" class="button primary">Send</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP ${currentGameData.character.currentHp}/${currentGameData.character.maxHp} • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
   const gmRefreshButton=document.querySelector('#refreshGm');
   if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
     const mapButton=document.createElement('button');
@@ -1377,7 +1050,6 @@ function renderGameMasterTab() {
   }
   const openWorldMapButton=document.querySelector('#openWorldMap');
   if(openWorldMapButton)openWorldMapButton.onclick=openWorldMap;
-
   const localMapRefreshButton=document.querySelector('#refreshGm');
   const localMapButtonHost=localMapRefreshButton?.parentElement;
   if(localMapButtonHost&&!document.querySelector('#openSettlementMap')) {
@@ -1400,65 +1072,13 @@ function renderGameMasterTab() {
   if(settlementMapButton)settlementMapButton.onclick=()=>openCampaignLocalMap('settlement');
   if(encounterMapButton)encounterMapButton.onclick=()=>openCampaignLocalMap('encounter');
   void refreshLocalMapButtons();
-
-  document.querySelector('#refreshGm').onclick=()=>refreshGmLive(true);
-
-  input.addEventListener('input',()=>{
-    gmTurnDraft=input.value;
-    updateGmTurnUi();
-    if(input.value.trim()&&(!gmTurnState?.active||(!gmTurnState.isOwner&&currentGmTurnSeconds()<=0)))
-      void acquireGmTurnForDraft();
-  });
-  input.addEventListener('focus',()=>{
-    if(input.value.trim()&&!gmTurnState?.active)void acquireGmTurnForDraft();
-  });
-
+  document.querySelector('#refreshGm').onclick=async()=>{const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;renderGameMasterTab();};
   document.querySelector('#sendGm').onclick=async()=>{
-    const message=input.value.trim();
-    if(!message||gmTurnSubmitting)return;
-
-    if(!gmTurnState?.isOwner||!gmTurnToken||currentGmTurnSeconds()<=0) {
-      const acquired=await acquireGmTurnForDraft();
-      if(!acquired)return;
-    }
-
-    const token=gmTurnToken;
-    gmTurnSubmitting=true;
-    gmTurnState={...(gmTurnState||{}),active:true,processing:true,isOwner:true,ownerName:(currentDiscordUser?.global_name||currentDiscordUser?.username||'You'),lockToken:token};
-    updateGmTurnUi();
-    document.querySelector('#gmError').textContent='';
-
-    try {
-      await api(`/game-api/campaigns/${currentCampaignId}/gm`,{
-        method:'POST',
-        headers:{'X-RabuShin-GM-Turn-Token':token},
-        body:JSON.stringify({message})
-      });
-      gmTurnDraft='';
-      input.value='';
-
-      try {
-        const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-        currentGameData.inventory=inv.inventory||[];
-        if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
-      } catch(refreshError) {
-        console.warn('Inventory refresh after GM turn failed:',refreshError);
-      }
-
-      await refreshWorldMapCampaignLocation();
-    } catch(error) {
-      document.querySelector('#gmError').textContent=error.message;
-      if(error.data?.needsApiKey)showNotice('Open Settings and enter your OpenAI API key.',true);
-      if(error.data?.turnExpired)gmTurnToken=null;
-    } finally {
-      gmTurnSubmitting=false;
-      await refreshGmLive(true);
-      updateGmTurnUi();
-    }
+    const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;
+    const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
+      try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } await refreshWorldMapCampaignLocation(); renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
   };
-
-  scrollGmToBottom();
-  startGmLiveSync();
+ scrollGmToBottom();
 }
 
 function clearPortraitCache(characterId = null) {
@@ -1569,94 +1189,11 @@ function showPartyMemberDetails(member) {
 }
 
 function statBox(name,score){return `<div class="stat"><span>${name}</span><b>${score}</b><small>${formatSigned(abilityMod(score))}</small></div>`;}
-
-const alignmentLadder=['Lawful Good','Neutral Good','Chaotic Good','Lawful Neutral','True Neutral','Chaotic Neutral','Lawful Evil','Neutral Evil','Chaotic Evil'];
-function normalizedAlignment(value){return String(value||'').trim().toLowerCase()==='neutral'?'True Neutral':String(value||'True Neutral');}
-function alignmentGaugeMarkup(state){
-  const alignment=normalizedAlignment(state?.alignment);
-  const balance=Math.max(-8,Math.min(8,Number(state?.alignmentDeedBalance)||0));
-  const direction=balance<0?'Good':balance>0?'Evil':'Balanced';
-  const progress=Math.abs(balance);
-  const marker=((balance+9)/18)*100;
-  const stageIndex=Math.max(0,alignmentLadder.findIndex(a=>a.toLowerCase()===alignment.toLowerCase()));
-  return `<div class="alignment-gauge-card">
-    <div class="alignment-gauge-heading"><div><span>Alignment Gauge</span><b>${escapeHtml(alignment)}</b></div><small>${progress}/9 ${direction==='Balanced'?'toward either side':`toward ${direction}`}</small></div>
-    <div class="alignment-stage-row">${alignmentLadder.map((a,i)=>`<span class="${i===stageIndex?'current':''}" title="${escapeHtml(a)}">${escapeHtml(a.split(' ').map(w=>w[0]).join(''))}</span>`).join('')}</div>
-    <div class="alignment-meter"><span class="alignment-good-label">GOOD</span><div class="alignment-meter-track"><i style="left:${marker}%"></i></div><span class="alignment-evil-label">EVIL</span></div>
-    <div class="alignment-counts"><span>Good deeds: <b>${Number(state?.goodDeeds)||0}</b></span><span>Evil deeds: <b>${Number(state?.evilDeeds)||0}</b></span><span>9 net deeds = 1 stage</span></div>
-  </div>`;
-}
-
-function racialTraitsMarkup(featureState){
-  const data=featureState?.racialTraits||{};
-  const traits=Array.isArray(data.racialTraits)?data.racialTraits:[];
-  const bonuses=data.racialAbilityBonuses&&typeof data.racialAbilityBonuses==='object'
-    ?Object.entries(data.racialAbilityBonuses).map(([k,v])=>`${k} +${v}`):[];
-  const extras=[];
-  if(featureState?.secondaryHeritage)extras.push(`Other half: ${featureState.secondaryHeritage}`);
-  if(data.size)extras.push(`Size: ${data.size}`);
-  if(data.natureIntuitionSkill)extras.push(`Nature's Intuition: ${data.natureIntuitionSkill}`);
-  if(data.extraLanguage)extras.push(`Language: ${data.extraLanguage}`);
-  if(bonuses.length)extras.push(`Ability increases: ${bonuses.join(', ')}`);
-  if(!traits.length&&!extras.length)return '<p class="muted">No stored racial trait metadata for this character yet.</p>';
-  return `<div class="racial-detail-list">${extras.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}${traits.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div>`;
-}
-
-async function loadCharacterFeatureSummary(){
-  const host=document.querySelector('#alignmentGaugeHost'); if(!host||!currentCampaignId)return;
-  try{
-    const state=await api(`/game-api/campaigns/${currentCampaignId}/character/features`);
-    if(currentGameData?.character){currentGameData.character.alignment=state.alignment;currentGameData.character.backgroundName=state.background;}
-    if(host.isConnected)host.innerHTML=alignmentGaugeMarkup(state);
-  }catch(error){if(host.isConnected)host.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`;}
-}
-
-async function showCharacterDetails(){
-  try{
-    const state=await api(`/game-api/campaigns/${currentCampaignId}/character/features`);
-    const overlay=document.createElement('div');overlay.className='modal-overlay';
-    const render=(editing=false)=>{
-      overlay.innerHTML=`<div class="modal character-details-modal"><button class="modal-close" id="closeCharacterDetails" aria-label="Close">×</button>
-        <h3>Character Details</h3>${alignmentGaugeMarkup(state)}
-        ${editing?`<div class="character-details-form">
-          <label>Background</label><input id="detailBackground" class="input" value="${escapeHtml(state.background||'')}">
-          <label>Appearance</label><textarea id="detailAppearance" class="input textarea">${escapeHtml(state.appearance||'')}</textarea>
-          <label>Personality</label><textarea id="detailPersonality" class="input textarea">${escapeHtml(state.personality||'')}</textarea>
-          <label>Backstory</label><textarea id="detailBackstory" class="input textarea detail-long">${escapeHtml(state.backstory||'')}</textarea>
-          <label>Notes</label><textarea id="detailNotes" class="input textarea detail-long">${escapeHtml(state.notes||'')}</textarea>
-          <div id="characterDetailError" class="error"></div><div class="modal-actions"><button id="cancelCharacterEdit" class="button">Cancel</button><button id="saveCharacterDetails" class="button primary">Save Changes</button></div>
-        </div>`:`<div class="character-detail-sections">
-          <section><h4>Background</h4><p>${escapeHtml(state.background||'Not entered.')}</p></section>
-          <section><h4>Appearance</h4><p>${escapeHtml(state.appearance||'Not entered.').replaceAll('\n','<br>')}</p></section>
-          <section><h4>Personality</h4><p>${escapeHtml(state.personality||'Not entered.').replaceAll('\n','<br>')}</p></section>
-          <section><h4>Backstory</h4><p>${escapeHtml(state.backstory||'Not entered.').replaceAll('\n','<br>')}</p></section>
-          <section><h4>Notes</h4><p>${escapeHtml(state.notes||'Not entered.').replaceAll('\n','<br>')}</p></section>
-          <section><h4>Racial Traits</h4>${racialTraitsMarkup(state)}</section>
-          <div class="modal-actions"><button id="editCharacterDetails" class="button primary">Edit</button></div>
-        </div>`}</div>`;
-      overlay.querySelector('#closeCharacterDetails').onclick=()=>overlay.remove();
-      if(editing){
-        overlay.querySelector('#cancelCharacterEdit').onclick=()=>render(false);
-        overlay.querySelector('#saveCharacterDetails').onclick=async()=>{
-          const btn=overlay.querySelector('#saveCharacterDetails');btn.disabled=true;btn.textContent='Saving...';
-          try{
-            const payload={background:overlay.querySelector('#detailBackground').value.trim(),appearance:overlay.querySelector('#detailAppearance').value.trim(),personality:overlay.querySelector('#detailPersonality').value.trim(),backstory:overlay.querySelector('#detailBackstory').value.trim(),notes:overlay.querySelector('#detailNotes').value.trim()};
-            await api(`/game-api/campaigns/${currentCampaignId}/character/details`,{method:'PUT',body:JSON.stringify(payload)});
-            Object.assign(state,payload);if(currentGameData?.character)currentGameData.character.backgroundName=payload.background;
-            showNotice('Character details saved.');render(false);loadCharacterFeatureSummary();
-          }catch(error){overlay.querySelector('#characterDetailError').textContent=error.message;btn.disabled=false;btn.textContent='Save Changes';}
-        };
-      }else overlay.querySelector('#editCharacterDetails').onclick=()=>render(true);
-    };
-    render(false);document.body.appendChild(overlay);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
-  }catch(error){showNotice(error.message,true);}
-}
-
 function renderCharacterTab(){
   const c=currentGameData.character,party=currentGameData.party||[],view=document.querySelector('#gameView');
   const self=party.find(p=>p.characterId===c.characterId);
   const hasPortrait=Boolean(c.hasPortrait||self?.hasPortrait);
-  view.innerHTML=`<div class="view-heading"><div><h3>Character Sheet & Party</h3><p class="muted">Add your portrait, view your alignment gauge and details, or click any party member to view their character card.</p></div><div class="row gap"><button id="characterDetails" class="button small">Background & Details</button><button id="refreshParty" class="button small">Refresh Party</button></div></div>
+  view.innerHTML=`<div class="view-heading"><div><h3>Character Sheet & Party</h3><p class="muted">Add your portrait, then click any party member to view their character card.</p></div><button id="refreshParty" class="button small">Refresh Party</button></div>
     <div class="character-grid visual-character-grid">
       <section class="panel character-sheet-panel">
         <div class="character-sheet-layout">
@@ -1672,7 +1209,6 @@ function renderCharacterTab(){
             <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
             <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
-            <div id="alignmentGaugeHost" class="alignment-gauge-host"><div class="loading mini">Loading alignment...</div></div>
           </div>
         </div>
       </section>
@@ -1684,13 +1220,11 @@ function renderCharacterTab(){
       </section>
     </div>`;
   document.querySelector('#refreshParty').onclick=refreshPartyData;
-  document.querySelector('#characterDetails').onclick=showCharacterDetails;
   document.querySelector('#uploadPortrait').onclick=()=>document.querySelector('#portraitFile').click();
   document.querySelector('#portraitFile').onchange=e=>uploadCharacterPortrait(e.target.files?.[0]);
   const remove=document.querySelector('#removePortrait');if(remove)remove.onclick=removeCharacterPortrait;
   document.querySelectorAll('[data-party-index]').forEach(button=>button.onclick=()=>showPartyMemberDetails(party[Number(button.dataset.partyIndex)]));
   hydratePortraits(view);
-  void loadCharacterFeatureSummary();
 }
 
 async function refreshPartyData() {
@@ -1795,12 +1329,9 @@ function prefillGameMasterMessage(message) {
   const input=document.querySelector('#gmInput');
   if(!input)return;
   input.value=message;
-  gmTurnDraft=message;
   input.focus();
   const end=input.value.length;
   input.setSelectionRange?.(end,end);
-  updateGmTurnUi();
-  void acquireGmTurnForDraft();
 }
 
 function renderSpellbookTab() {
@@ -1829,33 +1360,11 @@ function renderJournalTab(){const entries=currentGameData.journal||[];document.q
 }
 async function refreshJournal(){const d=await api(`/game-api/campaigns/${currentCampaignId}/journal`);currentGameData.journal=d.entries;renderJournalTab();}
 
-function renderChatTab(){
-  const existingInput=document.querySelector('#chatInput');
-  if(existingInput)campaignChatDraft=existingInput.value;
-  document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><input id="chatInput" class="input" placeholder="Message the party"><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
-  const input=document.querySelector('#chatInput');
-  input.value=campaignChatDraft;
-  input.addEventListener('input',()=>campaignChatDraft=input.value);
-  document.querySelector('#refreshChat').onclick=()=>refreshChatLive(true);
-  document.querySelector('#sendChat').onclick=async()=>{
-    const message=input.value.trim();
-    if(!message)return;
-    const send=document.querySelector('#sendChat');
-    send.disabled=true;
-    try {
-      await api(`/game-api/campaigns/${currentCampaignId}/chat`,{method:'POST',body:JSON.stringify({message})});
-      campaignChatDraft='';
-      input.value='';
-      await refreshChatLive(true);
-    } catch(e) {
-      document.querySelector('#chatError').textContent=e.message;
-    } finally {
-      send.disabled=false;
-    }
-  };
-  startChatLiveSync();
+function renderChatTab(){document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><input id="chatInput" class="input" placeholder="Message the party"><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
+  document.querySelector('#refreshChat').onclick=refreshChat;
+  document.querySelector('#sendChat').onclick=async()=>{const input=document.querySelector('#chatInput'),message=input.value.trim();if(!message)return;try{await api(`/game-api/campaigns/${currentCampaignId}/chat`,{method:'POST',body:JSON.stringify({message})});input.value='';await refreshChat();}catch(e){document.querySelector('#chatError').textContent=e.message;}};
 }
-async function refreshChat(){await refreshChatLive(true);}
+async function refreshChat(){const d=await api(`/game-api/campaigns/${currentCampaignId}/chat`);currentGameData.chatMessages=d.messages;renderChatTab();}
 
 function renderSettingsTab(){
   document.querySelector('#gameView').innerHTML=`
