@@ -81,6 +81,16 @@ AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The inventory Use button prepares an action but does not pre-consume the item; if the use is successfully resolved and should consume the item, call remove_inventory_item exactly once.
 - Never invent successful state changes. Use the tool result as the source of truth and narrate only after a successful tool response.
 
+WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
+- The server-supplied WORLD MAP STATE below is authoritative and shared by the entire campaign.
+- Locations marked HIDDEN are not known well enough for fast travel. Do not reveal their names, positions, routes, or existence merely because they appear in campaign canon or in your private world knowledge.
+- When the party definitively learns the name and usable directions/location of a settlement through a quest, NPC, discovered clue, or direct visit, call discover_world_location exactly once for that settlement before treating it as available on the World Map.
+- Do not call discover_world_location for a vague rumor that does not provide enough information to locate the settlement.
+- A [WORLD MAP TRAVEL REQUEST] always comes from a destination already revealed by the server. Resolve the journey normally, including travel complications, random encounters, weather, or interruptions when appropriate.
+- If the party actually arrives at the selected destination, call travel_to_world_location before narrating arrival. If the journey is interrupted, do not call travel_to_world_location until arrival actually occurs.
+- Never update the campaign's location by narration alone. The travel_to_world_location tool is the authoritative location change.
+- The current settlement is always considered discovered.
+
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
 
@@ -137,6 +147,24 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         }
 
+        var worldMapState = await GetWorldMapStateAsync(campaign.CampaignId);
+        inputBuilder.AppendLine();
+        inputBuilder.AppendLine("WORLD MAP STATE (SERVER-AUTHORITATIVE / CAMPAIGN-WIDE):");
+        if (worldMapState.Count == 0)
+        {
+            inputBuilder.AppendLine("(World Map state is unavailable.)");
+        }
+        else
+        {
+            foreach (var location in worldMapState)
+            {
+                if (location.Discovered)
+                    inputBuilder.AppendLine($"- DISCOVERED: {location.LocationName}{(location.IsCurrent ? " — CURRENT LOCATION" : string.Empty)}");
+                else
+                    inputBuilder.AppendLine($"- HIDDEN: {location.LocationKey}");
+            }
+        }
+
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -153,7 +181,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildDiceTool(),
             BuildAdjustGoldTool(),
             BuildAddInventoryItemTool(),
-            BuildRemoveInventoryItemTool()
+            BuildRemoveInventoryItemTool(),
+            BuildDiscoverWorldLocationTool(),
+            BuildTravelToWorldLocationTool()
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
@@ -256,6 +286,27 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var summary = $"Removed {quantity} × {itemName} ({reason}); {remaining} remaining";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "remove_inventory_item", itemName, quantityRemoved = quantity, quantityRemaining = remaining, reason };
+                        break;
+                    }
+                    case "discover_world_location":
+                    {
+                        var args = DeserializeArguments<DiscoverWorldLocationToolArguments>(call.ArgumentsJson, "world map discovery");
+                        var locationName = CleanWorldLocationName(args.LocationName);
+                        var reason = CleanReason(args.Reason, "Discovered through play");
+                        var discovered = await DiscoverWorldLocationAsync(campaign.CampaignId, locationName, reason);
+                        var summary = $"World Map discovered: {discovered} ({reason})";
+                        stateAudits.Add(new GameMasterStateAudit("WorldMap", summary));
+                        toolResult = new { authoritative = true, action = "discover_world_location", locationName = discovered, reason };
+                        break;
+                    }
+                    case "travel_to_world_location":
+                    {
+                        var args = DeserializeArguments<TravelWorldLocationToolArguments>(call.ArgumentsJson, "world map travel");
+                        var locationName = CleanWorldLocationName(args.LocationName);
+                        var arrived = await TravelToWorldLocationAsync(campaign.CampaignId, locationName);
+                        var summary = $"Campaign location changed to {arrived}";
+                        stateAudits.Add(new GameMasterStateAudit("WorldMap", summary));
+                        toolResult = new { authoritative = true, action = "travel_to_world_location", currentLocation = arrived };
                         break;
                     }
                     default:
@@ -446,6 +497,49 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
     }
 
+    private static object BuildDiscoverWorldLocationTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "discover_world_location",
+            description = "Reveal a Vael Turog settlement on the shared campaign World Map after the party definitively learns its name and usable location/directions through play. Do not use for vague rumors or hidden campaign knowledge.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    locationName = new { type = "string", description = "Canonical settlement name learned by the party." },
+                    reason = new { type = "string", description = "Short player-visible reason such as Directions from Mayor Harlowe or quest clue." }
+                },
+                required = new[] { "locationName", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildTravelToWorldLocationTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "travel_to_world_location",
+            description = "Commit the campaign's current location after the party actually arrives at a discovered World Map destination. Never call merely when travel begins or while a journey is interrupted.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    locationName = new { type = "string", description = "Canonical discovered settlement that the party has actually reached." }
+                },
+                required = new[] { "locationName" },
+                additionalProperties = false
+            }
+        };
+    }
+
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -529,6 +623,52 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         throw new InvalidOperationException("Supabase returned an invalid remaining inventory quantity.");
     }
 
+    private async Task<List<WorldMapStateRow>> GetWorldMapStateAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_world_map_state",
+            new { p_campaign_id = campaignId },
+            "Unable to load World Map state");
+
+        return JsonSerializer.Deserialize<List<WorldMapStateRow>>(raw, JsonOptions)
+               ?? new List<WorldMapStateRow>();
+    }
+
+    private async Task<string> DiscoverWorldLocationAsync(Guid campaignId, string locationName, string reason)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_discover_world_location",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_location_name = locationName,
+                p_reason = reason
+            },
+            "Unable to reveal World Map location");
+
+        var value = JsonSerializer.Deserialize<string>(raw, JsonOptions);
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException("Supabase returned an invalid World Map discovery result.");
+        return value;
+    }
+
+    private async Task<string> TravelToWorldLocationAsync(Guid campaignId, string locationName)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_travel_to_world_location",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_location_name = locationName
+            },
+            "Unable to update World Map travel location");
+
+        var value = JsonSerializer.Deserialize<string>(raw, JsonOptions);
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException("Supabase returned an invalid World Map travel result.");
+        return value;
+    }
+
     private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
@@ -564,6 +704,15 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var value = (itemName ?? string.Empty).Trim();
         if (value.Length == 0) throw new InvalidOperationException("The Game Master tried to mutate an inventory item without a name.");
         if (value.Length > 120) value = value[..120];
+        return value;
+    }
+
+    private static string CleanWorldLocationName(string? locationName)
+    {
+        var value = (locationName ?? string.Empty).Trim();
+        if (value.Length == 0)
+            throw new InvalidOperationException("The Game Master tried to change World Map state without a location name.");
+        if (value.Length > 80) value = value[..80];
         return value;
     }
 
@@ -698,7 +847,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
         if (stateChanges.Count > 0)
         {
-            sb.AppendLine("SERVER-AUTHORITATIVE CHARACTER UPDATES");
+            sb.AppendLine("SERVER-AUTHORITATIVE STATE UPDATES");
             foreach (var change in stateChanges)
                 sb.Append("• ").Append(change.Summary).AppendLine();
             sb.AppendLine();
@@ -799,6 +948,32 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string ItemName { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class DiscoverWorldLocationToolArguments
+    {
+        public string LocationName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class TravelWorldLocationToolArguments
+    {
+        public string LocationName { get; set; } = string.Empty;
+    }
+
+    private sealed class WorldMapStateRow
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("location_key")]
+        public string LocationKey { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("location_name")]
+        public string LocationName { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("discovered")]
+        public bool Discovered { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_current")]
+        public bool IsCurrent { get; set; }
     }
 }
 

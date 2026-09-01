@@ -9,6 +9,7 @@ let currentCampaignId = null;
 let currentGameData = null;
 let selectedInventoryId = null;
 const portraitObjectUrls = new Map();
+let currentWorldMapData = null; // VISUALS BUILD 2 - WORLD MAP CLIENT
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
@@ -165,6 +166,7 @@ async function showCampaignLauncher() {
   clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
+  currentWorldMapData = null;
   const main = document.querySelector('#mainContent');
   const name = currentDiscordUser?.global_name || currentDiscordUser?.username || 'Player';
   main.innerHTML = `
@@ -488,7 +490,7 @@ async function enterCampaign(campaignId) {
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${escapeHtml(ch.characterName)}</p></div><div class="quick-vitals"><span>HP <b>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>GP <b>${ch.gold}</b></span></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="quick-vitals"><span>HP <b>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>GP <b>${ch.gold}</b></span></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -501,11 +503,127 @@ function switchGameTab(tab,button) {
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
 }
 
+function timelineDisplayText(value) {
+  return String(value ?? '').replace(/^\[WORLD MAP TRAVEL REQUEST\]\s*/i, '');
+}
 function timelineHtml(messages, emptyText='No messages yet.') {
   if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
-  return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(m.messageText).replaceAll('\n','<br>')}</div></div>`).join('');
+  return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(timelineDisplayText(m.messageText)).replaceAll('\n','<br>')}</div></div>`).join('');
 }
 
+function worldMapPercent(value,total) {
+  return `${((Number(value)||0)/(Number(total)||1)*100).toFixed(4)}%`;
+}
+
+async function openWorldMap() {
+  document.querySelector('#worldMapOverlay')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='worldMapOverlay';
+  overlay.className='modal-overlay world-map-overlay';
+  overlay.innerHTML=`<div class="world-map-modal">
+    <div class="world-map-header"><div><h2>Vael Turog World Map</h2><p class="muted">Loading discovered destinations...</p></div><button id="closeWorldMap" class="modal-close" aria-label="Close">×</button></div>
+    <div class="loading">Loading World Map...</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.querySelector('#closeWorldMap').onclick=()=>overlay.remove();
+  overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
+
+  try {
+    currentWorldMapData=await api(`/game-api/campaigns/${currentCampaignId}/world-map`);
+    renderWorldMapOverlay();
+  } catch(error) {
+    const modal=overlay.querySelector('.world-map-modal');
+    modal.innerHTML=`<div class="world-map-header"><div><h2>Vael Turog World Map</h2><p class="muted">Unable to load map state.</p></div><button id="closeWorldMap" class="modal-close" aria-label="Close">×</button></div><div class="error">${escapeHtml(error.message)}</div>`;
+    document.querySelector('#closeWorldMap').onclick=()=>overlay.remove();
+  }
+}
+
+function renderWorldMapOverlay() {
+  const data=currentWorldMapData;
+  const overlay=document.querySelector('#worldMapOverlay');
+  if(!data||!overlay)return;
+
+  const locations=(data.locations||[]);
+  const hotspots=locations.map((location,index)=>{
+    const style=`left:${worldMapPercent(location.x,data.imageWidth)};top:${worldMapPercent(location.y,data.imageHeight)};width:${worldMapPercent(location.width,data.imageWidth)};height:${worldMapPercent(location.height,data.imageHeight)};`;
+    if(!location.discovered) {
+      return `<div class="world-map-hotspot hidden-location" style="${style}" title="Undiscovered location"><span>?</span></div>`;
+    }
+    return `<button class="world-map-hotspot discovered-location${location.current?' current-location':''}" style="${style}" data-world-map-index="${index}" title="${location.current?'Current location':`Travel to ${escapeHtml(location.name)}`}">
+      <span>${escapeHtml(location.name)}</span>${location.current?'<small>CURRENT</small>':''}
+    </button>`;
+  }).join('');
+
+  overlay.querySelector('.world-map-modal').innerHTML=`
+    <div class="world-map-header">
+      <div><h2>Vael Turog World Map</h2><p>Current location: <b>${escapeHtml(data.currentLocation||'Unknown')}</b></p></div>
+      <div class="row gap"><button id="refreshWorldMap" class="button small">Refresh</button><button id="closeWorldMap" class="modal-close" aria-label="Close">×</button></div>
+    </div>
+    <div class="world-map-stage">
+      <img src="${escapeHtml(data.imageUrl)}" width="${data.imageWidth}" height="${data.imageHeight}" alt="Map of Vael Turog">
+      ${hotspots}
+    </div>
+    <div class="world-map-legend">
+      <span><i class="legend-current"></i> Current Location</span>
+      <span><i class="legend-known"></i> Discovered / Fast Travel</span>
+      <span><i class="legend-hidden"></i> Undiscovered</span>
+    </div>
+    <p class="muted world-map-hint">Undiscovered settlement nameplates remain concealed. Locations become available through campaign progress, quests, NPC information, clues, or direct discovery.</p>`;
+
+  document.querySelector('#closeWorldMap').onclick=()=>overlay.remove();
+  document.querySelector('#refreshWorldMap').onclick=async()=>{
+    try {
+      currentWorldMapData=await api(`/game-api/campaigns/${currentCampaignId}/world-map`);
+      renderWorldMapOverlay();
+    } catch(error) { showNotice(error.message,true); }
+  };
+
+  overlay.querySelectorAll('[data-world-map-index]').forEach(button=>{
+    button.onclick=()=>requestWorldMapTravel(Number(button.dataset.worldMapIndex));
+  });
+}
+
+function requestWorldMapTravel(index) {
+  const location=currentWorldMapData?.locations?.[index];
+  if(!location||!location.discovered)return;
+  if(location.current) {
+    showNotice(`You are already in ${location.name}.`);
+    return;
+  }
+  if(!currentGameData?.openAiConfigured) {
+    showNotice('Add your OpenAI API key in Settings before starting World Map travel.',true);
+    return;
+  }
+
+  showModal(
+    `Travel to ${location.name}`,
+    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve the journey and any encounter, obstacle, weather, or event that happens before arrival.</p>`,
+    'Begin Travel',
+    async()=>{
+      document.querySelector('#modalOverlay')?.remove();
+      document.querySelector('#worldMapOverlay')?.remove();
+      renderGameMasterTab();
+      const input=document.querySelector('#gmInput');
+      const send=document.querySelector('#sendGm');
+      if(!input||!send)throw new Error('AI Game Master controls could not be opened.');
+      input.value=`[WORLD MAP TRAVEL REQUEST] I travel to ${location.name}.`;
+      await send.onclick();
+      await refreshWorldMapCampaignLocation();
+    }
+  );
+}
+
+async function refreshWorldMapCampaignLocation() {
+  try {
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/world-map`);
+    currentWorldMapData=data;
+    if(currentGameData?.campaign&&data.currentLocation)currentGameData.campaign.currentLocation=data.currentLocation;
+    const location=document.querySelector('#gameCurrentLocation');
+    if(location&&data.currentLocation)location.textContent=data.currentLocation;
+  } catch(error) {
+    console.warn('World Map state refresh failed:',error);
+  }
+}
 function scrollGmToBottom() {
     requestAnimationFrame(() => {
         const timeline = document.querySelector('#gmTimeline');
@@ -518,11 +636,21 @@ function scrollGmToBottom() {
 function renderGameMasterTab() {
   const view=document.querySelector('#gameView');
   view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div class="composer"><textarea id="gmInput" class="input" placeholder="What do you do?"></textarea><button id="sendGm" class="button primary">Send</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP ${currentGameData.character.currentHp}/${currentGameData.character.maxHp} • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  const gmRefreshButton=document.querySelector('#refreshGm');
+  if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
+    const mapButton=document.createElement('button');
+    mapButton.id='openWorldMap';
+    mapButton.className='button small';
+    mapButton.textContent='🗺 World Map';
+    gmRefreshButton.parentElement?.insertBefore(mapButton,gmRefreshButton);
+  }
+  const openWorldMapButton=document.querySelector('#openWorldMap');
+  if(openWorldMapButton)openWorldMapButton.onclick=openWorldMap;
   document.querySelector('#refreshGm').onclick=async()=>{const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;renderGameMasterTab();};
   document.querySelector('#sendGm').onclick=async()=>{
     const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;
     const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
-      try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
+      try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } await refreshWorldMapCampaignLocation(); renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
   };
  scrollGmToBottom();
 }

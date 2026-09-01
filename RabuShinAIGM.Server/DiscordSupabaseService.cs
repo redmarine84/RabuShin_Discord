@@ -492,6 +492,16 @@ public sealed class DiscordSupabaseService
     private static string EscapeStoragePath(string path) =>
         string.Join("/", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
 
+    // VISUALS BUILD 2 - WORLD MAP STATE
+    public async Task<List<DiscordWorldMapState>> GetWorldMapStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_world_map_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadListAsync<DiscordWorldMapState>(response, "Unable to load World Map");
+    }
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);
@@ -542,6 +552,14 @@ public sealed class DiscordSupabaseService
     }
 }
 
+public sealed class DiscordWorldMapState
+{
+    [JsonPropertyName("location_key")] public string LocationKey { get; set; } = string.Empty;
+    [JsonPropertyName("location_name")] public string LocationName { get; set; } = string.Empty;
+    [JsonPropertyName("discovered")] public bool Discovered { get; set; }
+    [JsonPropertyName("is_current")] public bool IsCurrent { get; set; }
+    [JsonPropertyName("discovered_at")] public DateTimeOffset? DiscoveredAt { get; set; }
+}
 public sealed class DiscordUserInfo
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;

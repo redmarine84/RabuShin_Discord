@@ -520,6 +520,59 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+// VISUALS BUILD 2 - WORLD MAP ENDPOINT
+app.MapGet("/game-api/campaigns/{campaignId:guid}/world-map", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var campaigns = await service.GetCampaignsAsync(playerId);
+        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
+        if (campaign is null)
+            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
+
+        var state = await service.GetWorldMapStateAsync(playerId, campaignId);
+        var byKey = state.ToDictionary(s => s.LocationKey, StringComparer.OrdinalIgnoreCase);
+
+        var locations = WorldMapCatalog.Locations.Select((location, index) =>
+        {
+            byKey.TryGetValue(location.Key, out var mapState);
+            var discovered = mapState?.Discovered == true;
+            var current = mapState?.IsCurrent == true;
+
+            return new
+            {
+                id = $"world-{index}",
+                name = discovered ? location.Name : null,
+                locationKey = discovered ? location.Key : null,
+                x = location.X,
+                y = location.Y,
+                width = location.Width,
+                height = location.Height,
+                discovered,
+                current
+            };
+        });
+
+        return Results.Ok(new
+        {
+            success = true,
+            imageUrl = WorldMapCatalog.ImageUrl,
+            imageWidth = WorldMapCatalog.ImageWidth,
+            imageHeight = WorldMapCatalog.ImageHeight,
+            currentLocation = campaign.CurrentLocation,
+            locations
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
 app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
