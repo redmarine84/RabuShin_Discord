@@ -513,17 +513,6 @@ public sealed class DiscordSupabaseService
         var list = await ReadListAsync<DiscordLocalMapState>(response, "Unable to load Settlement/Encounter Map state");
         return list.FirstOrDefault();
     }
-    // VISUALS BUILD 4 - MONSTER COMBAT STATE
-    public async Task<DiscordCombatStateRow?> GetCombatStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_combat_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordCombatStateRow>(response, "Unable to load Combat state");
-        return rows.FirstOrDefault();
-    }
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);

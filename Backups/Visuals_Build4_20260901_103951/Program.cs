@@ -1,4 +1,3 @@
-using System.Text.Json;
 using QuestsOfRabuShinAIGM;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -575,54 +574,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/world-map", async (
     }
 });
 // VISUALS BUILD 3 - LOCAL MAP ENDPOINT
-// VISUALS BUILD 4 - COMBAT ENDPOINT
-app.MapGet("/game-api/campaigns/{campaignId:guid}/combat", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var state = await service.GetCombatStateAsync(playerId, campaignId);
-        var monsters = new List<DiscordCombatMonsterInfo>();
-        if (state is not null && state.Monsters.ValueKind == JsonValueKind.Array)
-            monsters = JsonSerializer.Deserialize<List<DiscordCombatMonsterInfo>>(state.Monsters.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-
-        var codex = MonsterCodexService.Shared;
-        return Results.Ok(new
-        {
-            success = true,
-            active = state?.Active == true,
-            title = state?.Title ?? string.Empty,
-            roundNumber = Math.Max(1, state?.RoundNumber ?? 1),
-            startedAt = state?.StartedAt,
-            monsters = monsters.Select(m =>
-            {
-                var entry = codex.Find(m.MonsterName);
-                var imageUrl = entry?.ImageUrl ?? codex.FindImageUrl(m.MonsterName);
-                return new
-                {
-                    combatMonsterId = m.CombatMonsterId,
-                    monsterName = m.MonsterName,
-                    displayName = m.DisplayName,
-                    currentHp = m.CurrentHp,
-                    maxHp = m.MaxHp,
-                    armorClass = m.ArmorClass,
-                    conditions = m.Conditions,
-                    defeated = m.Defeated,
-                    imageUrl,
-                    subtitle = entry?.Subtitle ?? "Creature",
-                    challengeRating = entry?.ChallengeRating ?? string.Empty,
-                    statBlock = entry?.Details ?? "No Codex stat block is available for this creature.",
-                    source = entry?.Source ?? "Combat state"
-                };
-            })
-        });
-    }
-    catch(Exception ex){ return Results.BadRequest(new { success=false,error=ex.Message }); }
-});
 app.MapGet("/game-api/campaigns/{campaignId:guid}/local-maps", async (
     Guid campaignId,
     HttpRequest request,

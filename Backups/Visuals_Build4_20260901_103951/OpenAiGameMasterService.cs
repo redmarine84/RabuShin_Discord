@@ -98,15 +98,6 @@ SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
 - When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
 - Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
 
-COMBAT VISUAL STATE â€” SERVER-AUTHORITATIVE / MANDATORY:
-- When actual combat begins, call start_combat exactly once before tracking enemy combatants. Starting combat automatically activates the current Encounter Map.
-- After start_combat, call add_combat_monster for every enemy participating in the encounter. Use the exact canonical creature name when known so RabuShin can resolve its Codex art/stat block. Use count for identical enemies.
-- Whenever an enemy takes damage or healing, gains/loses conditions, or is defeated, call update_combat_monster immediately. hpDelta is negative for damage and positive for healing.
-- Keep display names stable after they are returned by add_combat_monster (for example Wolf 1, Wolf 2).
-- Call set_combat_round when a new combat round begins.
-- Call end_combat when the tactical combat is actually over. Ending combat also closes the Encounter Map.
-- Never invent persistent enemy HP/status changes only in narration; commit them through these tools first.
-
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
 
@@ -196,20 +187,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 ? $"- Encounter Map: ACTIVE for {localMapState.CurrentLocation} ({localMapState.EncounterReason})"
                 : "- Encounter Map: INACTIVE");
         }
-        // VISUALS BUILD 4 - MONSTER COMBAT GM
-        var combatState = await GetCombatStateForGmAsync(campaign.CampaignId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("COMBAT STATE (SERVER-AUTHORITATIVE / CAMPAIGN-WIDE):");
-        if (combatState is null || !combatState.Active)
-        {
-            inputBuilder.AppendLine("- Combat: INACTIVE");
-        }
-        else
-        {
-            inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
-            foreach (var enemy in combatState.Monsters)
-                inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Defeated: {enemy.Defeated}");
-        }
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -229,12 +206,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildRemoveInventoryItemTool(),
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
-            BuildSetEncounterMapTool(),
-            BuildStartCombatTool(),
-            BuildAddCombatMonsterTool(),
-            BuildUpdateCombatMonsterTool(),
-            BuildSetCombatRoundTool(),
-            BuildEndCombatTool()
+            BuildSetEncounterMapTool()
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
@@ -370,45 +342,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             : $"Encounter Map closed ({reason})";
                         stateAudits.Add(new GameMasterStateAudit("Map", summary));
                         toolResult = new { authoritative = true, action = "set_encounter_map", active = args.Active, currentLocation = location, reason };
-                        break;
-                    }                    case "start_combat":
-                    {
-                        var args = DeserializeArguments<StartCombatToolArguments>(call.ArgumentsJson, "combat start");
-                        var title = await StartCombatAsync(campaign.CampaignId, args.Title);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Combat started: {title}"));
-                        toolResult = new { authoritative=true, action="start_combat", title };
-                        break;
-                    }
-                    case "add_combat_monster":
-                    {
-                        var args = DeserializeArguments<AddCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster");
-                        var added = await AddCombatMonsterAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Added to combat: {string.Join(", ", added)}"));
-                        toolResult = new { authoritative=true, action="add_combat_monster", monsterName=args.MonsterName, displayNames=added };
-                        break;
-                    }
-                    case "update_combat_monster":
-                    {
-                        var args = DeserializeArguments<UpdateCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster update");
-                        var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
-                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated };
-                        break;
-                    }
-                    case "set_combat_round":
-                    {
-                        var args = DeserializeArguments<SetCombatRoundToolArguments>(call.ArgumentsJson, "combat round");
-                        var round = await SetCombatRoundAsync(campaign.CampaignId, args.RoundNumber);
-                        toolResult = new { authoritative=true, action="set_combat_round", roundNumber=round };
-                        break;
-                    }
-                    case "end_combat":
-                    {
-                        var args = DeserializeArguments<EndCombatToolArguments>(call.ArgumentsJson, "combat end");
-                        var reason = CleanReason(args.Reason, "Encounter resolved");
-                        await EndCombatAsync(campaign.CampaignId, reason);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Combat ended ({reason})"));
-                        toolResult = new { authoritative=true, action="end_combat", reason };
                         break;
                     }                    default:
                         throw new InvalidOperationException($"The Game Master requested unsupported tool '{call.Name}'.");
@@ -662,46 +595,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         };
     }
-    private static object BuildStartCombatTool() => new
-    {
-        type="function", name="start_combat", description="Start authoritative campaign combat and clear stale enemy state. Also activates the current Encounter Map.", strict=true,
-        parameters=new { type="object", properties=new { title=new { type="string", description="Short encounter title." } }, required=new[]{"title"}, additionalProperties=false }
-    };
-
-    private static object BuildAddCombatMonsterTool() => new
-    {
-        type="function", name="add_combat_monster", description="Add one or more enemy monsters to active combat. RabuShin uses its Codex values for HP/AC when available.", strict=true,
-        parameters=new { type="object", properties=new {
-            monsterName=new { type="string", description="Canonical Codex creature name." },
-            displayName=new { type="string", description="Short combat label. Empty string uses monsterName." },
-            count=new { type="integer", minimum=1, maximum=20 },
-            maxHp=new { type="integer", minimum=0, maximum=100000, description="Fallback max HP if the server Codex has no value; use 0 when unknown." },
-            armorClass=new { type="integer", minimum=0, maximum=1000, description="Fallback AC if the server Codex has no value; use 0 when unknown." }
-        }, required=new[]{"monsterName","displayName","count","maxHp","armorClass"}, additionalProperties=false }
-    };
-
-    private static object BuildUpdateCombatMonsterTool() => new
-    {
-        type="function", name="update_combat_monster", description="Persist HP, conditions, and defeated state for one active enemy. hpDelta is negative damage or positive healing.", strict=true,
-        parameters=new { type="object", properties=new {
-            displayName=new { type="string", description="Exact stable display name from COMBAT STATE." },
-            hpDelta=new { type="integer", minimum=-100000, maximum=100000 },
-            conditions=new { type="string", description="Full current condition list after this update; empty string means none." },
-            defeated=new { type="boolean" }
-        }, required=new[]{"displayName","hpDelta","conditions","defeated"}, additionalProperties=false }
-    };
-
-    private static object BuildSetCombatRoundTool() => new
-    {
-        type="function", name="set_combat_round", description="Set the current combat round when a new round begins.", strict=true,
-        parameters=new { type="object", properties=new { roundNumber=new { type="integer", minimum=1, maximum=10000 } }, required=new[]{"roundNumber"}, additionalProperties=false }
-    };
-
-    private static object BuildEndCombatTool() => new
-    {
-        type="function", name="end_combat", description="End authoritative combat, clear enemy combat state, and close the Encounter Map.", strict=true,
-        parameters=new { type="object", properties=new { reason=new { type="string" } }, required=new[]{"reason"}, additionalProperties=false }
-    };
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -862,50 +755,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
         return JsonSerializer.Deserialize<string>(raw, JsonOptions) ?? string.Empty;
     }
-    private async Task<CombatStateForGm?> GetCombatStateForGmAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw=await CallSupabaseRpcAsync("discord_gm_get_combat_state",new { p_campaign_id=campaignId },"Unable to load combat state");
-            var rows=JsonSerializer.Deserialize<List<CombatStateRowRaw>>(raw,JsonOptions);
-            var row=rows?.FirstOrDefault();
-            if(row is null)return null;
-            var monsters=row.Monsters.ValueKind==JsonValueKind.Array ? JsonSerializer.Deserialize<List<CombatMonsterForGm>>(row.Monsters.GetRawText(),JsonOptions)??new() : new();
-            return new CombatStateForGm(row.Active,row.Title,row.RoundNumber,monsters);
-        }
-        catch{return null;}
-    }
-
-    private async Task<string> StartCombatAsync(Guid campaignId,string title)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_start_combat",new { p_campaign_id=campaignId,p_title=CleanReason(title,"Combat Encounter") },"Unable to start combat");
-        return JsonSerializer.Deserialize<string>(raw,JsonOptions)??"Combat Encounter";
-    }
-
-    private async Task<List<string>> AddCombatMonsterAsync(Guid campaignId,AddCombatMonsterToolArguments args)
-    {
-        var name=(args.MonsterName??string.Empty).Trim(); if(name.Length==0)throw new InvalidOperationException("Monster name is required.");
-        var codex=MonsterCodexService.Shared.Find(name);
-        var hp=Math.Max(1,codex?.HitPoints??(args.MaxHp>0?args.MaxHp:1));
-        var ac=Math.Max(0,codex?.ArmorClass??(args.ArmorClass>0?args.ArmorClass:10));
-        var raw=await CallSupabaseRpcAsync("discord_gm_add_combat_monster",new { p_campaign_id=campaignId,p_monster_name=name,p_display_name=(args.DisplayName??string.Empty).Trim(),p_max_hp=hp,p_armor_class=ac,p_count=Math.Clamp(args.Count,1,20) },"Unable to add combat monster");
-        return JsonSerializer.Deserialize<List<string>>(raw,JsonOptions)??new();
-    }
-
-    private async Task<CombatMonsterForGm> UpdateCombatMonsterAsync(Guid campaignId,UpdateCombatMonsterToolArguments args)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_update_combat_monster",new { p_campaign_id=campaignId,p_display_name=(args.DisplayName??string.Empty).Trim(),p_hp_delta=args.HpDelta,p_conditions=args.Conditions??string.Empty,p_defeated=args.Defeated },"Unable to update combat monster");
-        return JsonSerializer.Deserialize<CombatMonsterForGm>(raw,JsonOptions)??throw new InvalidOperationException("Supabase returned invalid combat monster state.");
-    }
-
-    private async Task<int> SetCombatRoundAsync(Guid campaignId,int roundNumber)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_set_combat_round",new { p_campaign_id=campaignId,p_round=Math.Clamp(roundNumber,1,10000) },"Unable to update combat round");
-        return int.TryParse(raw.Trim().Trim('"'),out var value)?value:Math.Max(1,roundNumber);
-    }
-
-    private async Task EndCombatAsync(Guid campaignId,string reason)
-        => _=await CallSupabaseRpcAsync("discord_gm_end_combat",new { p_campaign_id=campaignId,p_reason=reason },"Unable to end combat");
     private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
@@ -1198,14 +1047,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string LocationName { get; set; } = string.Empty;
     }
 
-    private sealed class StartCombatToolArguments { public string Title { get; set; } = string.Empty; }
-    private sealed class AddCombatMonsterToolArguments { public string MonsterName { get; set; } = string.Empty; public string DisplayName { get; set; } = string.Empty; public int Count { get; set; } public int MaxHp { get; set; } public int ArmorClass { get; set; } }
-    private sealed class UpdateCombatMonsterToolArguments { public string DisplayName { get; set; } = string.Empty; public int HpDelta { get; set; } public string Conditions { get; set; } = string.Empty; public bool Defeated { get; set; } }
-    private sealed class SetCombatRoundToolArguments { public int RoundNumber { get; set; } }
-    private sealed class EndCombatToolArguments { public string Reason { get; set; } = string.Empty; }
-    private sealed class CombatStateRowRaw { [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; } [System.Text.Json.Serialization.JsonPropertyName("title")] public string Title { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monsters")] public JsonElement Monsters { get; set; } }
-    private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } }
-    private sealed record CombatStateForGm(bool Active,string Title,int RoundNumber,List<CombatMonsterForGm> Monsters);
     private sealed class SetEncounterMapToolArguments
     {
         public bool Active { get; set; }

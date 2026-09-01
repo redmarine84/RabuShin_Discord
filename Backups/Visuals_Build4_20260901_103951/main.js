@@ -11,7 +11,6 @@ let selectedInventoryId = null;
 const portraitObjectUrls = new Map();
 let currentWorldMapData = null; // VISUALS BUILD 2 - WORLD MAP CLIENT
 let currentLocalMapData = null; // VISUALS BUILD 3 - LOCAL MAP CLIENT
-let currentCombatData = null; // VISUALS BUILD 4 - MONSTER COMBAT CLIENT
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
@@ -168,7 +167,6 @@ async function showCampaignLauncher() {
   clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
-  currentCombatData = null;
   currentLocalMapData = null;
   currentWorldMapData = null;
   const main = document.querySelector('#mainContent');
@@ -500,17 +498,10 @@ function renderGameShell() {
     </nav><section id="gameView" class="game-view"></section></div>`;
   document.querySelector('#backLauncher').onclick=showCampaignLauncher;
   document.querySelectorAll('.game-tab').forEach(btn=>btn.onclick=()=>switchGameTab(btn.dataset.tab,btn));
-  const settingsGameTab=document.querySelector('.game-tab[data-tab="settings"]');
-  if(settingsGameTab&&!document.querySelector('.game-tab[data-tab="combat"]')) {
-    const combatTab=document.createElement('button'); combatTab.className='game-tab'; combatTab.dataset.tab='combat'; combatTab.textContent='âš” Combat';
-    settingsGameTab.parentElement.insertBefore(combatTab,settingsGameTab);
-    combatTab.onclick=()=>switchGameTab('combat',combatTab);
-  }
 }
 
 function switchGameTab(tab,button) {
   document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));button?.classList.add('active');
-  if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
 }
 
@@ -712,53 +703,6 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
   overlay.querySelector('#closeLocalMap').onclick=()=>overlay.remove();
   overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
   applyZoom();
-}
-async function loadCombatState() {
-  currentCombatData=await api(`/game-api/campaigns/${currentCampaignId}/combat`);
-  return currentCombatData;
-}
-
-function monsterImageHtml(monster,cssClass='combat-monster-image') {
-  if(!monster?.imageUrl)return `<div class="${cssClass} monster-image-fallback">${escapeHtml((monster?.monsterName||'?').slice(0,1).toUpperCase())}</div>`;
-  return `<div class="monster-image-shell"><img class="${cssClass}" src="${escapeHtml(monster.imageUrl)}" alt="${escapeHtml(monster.monsterName||'Monster')}"><div class="${cssClass} monster-image-fallback" hidden>${escapeHtml((monster.monsterName||'?').slice(0,1).toUpperCase())}</div></div>`;
-}
-
-async function renderCombatTab() {
-  const view=document.querySelector('#gameView');
-  view.innerHTML='<div class="panel loading"><h3>Combat</h3><p>Loading authoritative combat state...</p></div>';
-  try {
-    const data=await loadCombatState();
-    if(!data.active) {
-      view.innerHTML=`<div class="view-heading"><h3>âš” Combat</h3><button id="refreshCombat" class="button small">Refresh</button></div><section class="panel combat-empty"><h3>No Active Combat</h3><p>When the AI Game Master begins a tactical encounter, enemy portraits and combat statistics will appear here automatically.</p></section>`;
-      document.querySelector('#refreshCombat').onclick=renderCombatTab;
-      return;
-    }
-    const party=currentGameData.party||[];
-    const monsters=data.monsters||[];
-    view.innerHTML=`<div class="view-heading"><div><h3>âš” ${escapeHtml(data.title||'Combat')}</h3><small>Round ${Number(data.roundNumber)||1}</small></div><div class="row gap"><button id="combatEncounterMap" class="button small">Encounter Map</button><button id="refreshCombat" class="button small">Refresh</button></div></div>
-      <section class="combat-party-strip"><h4>Party</h4><div class="combat-party-list">${party.map(p=>`<div class="combat-party-vital"><b>${escapeHtml(p.characterName)}</b><span>HP ${p.currentHp}/${p.maxHp}</span><span>AC ${p.armorClass}</span></div>`).join('')}</div></section>
-      <section class="panel"><h3>Enemies</h3><div class="combat-monster-grid">${monsters.length?monsters.map(m=>`<button class="combat-monster-card ${m.defeated?'defeated':''}" data-monster-id="${escapeHtml(m.combatMonsterId)}">
-        ${monsterImageHtml(m)}
-        <div class="combat-monster-card-body"><h4>${escapeHtml(m.displayName)}</h4>${m.displayName!==m.monsterName?`<small>${escapeHtml(m.monsterName)}</small>`:''}<div class="combat-monster-vitals"><span>HP <b>${m.currentHp}/${m.maxHp}</b></span><span>AC <b>${m.armorClass}</b></span></div><p>${escapeHtml(m.defeated?'Defeated':m.conditions||'No conditions')}</p><span class="view-stat-block">View Image & Stat Block â†’</span></div>
-      </button>`).join(''):'<div class="empty small">Combat is active, but no enemies have been added yet.</div>'}</div></section>`;
-    document.querySelector('#refreshCombat').onclick=renderCombatTab;
-    const encounter=document.querySelector('#combatEncounterMap'); if(encounter)encounter.onclick=()=>openCampaignLocalMap('encounter');
-    document.querySelectorAll('.combat-monster-image').forEach(img=>{if(img.tagName!=='IMG')return;img.onerror=()=>{img.hidden=true;const fb=img.parentElement?.querySelector('.monster-image-fallback');if(fb)fb.hidden=false;};});
-    document.querySelectorAll('.combat-monster-card').forEach(card=>card.onclick=()=>{const monster=monsters.find(m=>String(m.combatMonsterId)===card.dataset.monsterId);if(monster)showMonsterStatViewer(monster);});
-  } catch(error) {
-    view.innerHTML=`<div class="view-heading"><h3>âš” Combat</h3></div><div class="error">Unable to load Combat: ${escapeHtml(error.message)}</div>`;
-  }
-}
-
-function showMonsterStatViewer(monster) {
-  document.querySelector('#monsterStatOverlay')?.remove();
-  const overlay=document.createElement('div'); overlay.id='monsterStatOverlay'; overlay.className='modal-overlay monster-stat-overlay';
-  overlay.innerHTML=`<div class="monster-stat-modal"><div class="monster-stat-header"><div><h2>${escapeHtml(monster.displayName)}</h2><p>${escapeHtml(monster.subtitle||monster.monsterName)}</p></div><button id="closeMonsterStats" class="modal-close" aria-label="Close">Ã—</button></div>
-    <div class="monster-stat-layout"><div class="monster-stat-art">${monsterImageHtml(monster,'monster-stat-image')}<div class="monster-live-vitals"><span>Current HP <b>${monster.currentHp}/${monster.maxHp}</b></span><span>AC <b>${monster.armorClass}</b></span><span>${escapeHtml(monster.defeated?'Defeated':monster.conditions||'No conditions')}</span></div></div>
-    <div class="monster-stat-text"><div class="monster-stat-source">${escapeHtml(monster.source||'')}</div><pre>${escapeHtml(monster.statBlock||'No stat block available.')}</pre></div></div></div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelectorAll('.monster-stat-image').forEach(img=>{if(img.tagName!=='IMG')return;img.onerror=()=>{img.hidden=true;const fb=img.parentElement?.querySelector('.monster-image-fallback');if(fb)fb.hidden=false;};});
-  overlay.querySelector('#closeMonsterStats').onclick=()=>overlay.remove(); overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
 }
 function scrollGmToBottom() {
     requestAnimationFrame(() => {
