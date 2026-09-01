@@ -193,6 +193,113 @@ public sealed class DiscordSupabaseService
         return await ReadGuidResultAsync(response, "Unable to create character");
     }
 
+    public async Task<Guid> CreateCharacterWithFeaturesAsync(
+        Guid playerId,
+        Guid campaignId,
+        PlayerCharacter character,
+        string requestedSpecies,
+        AppliedRacialScores scores,
+        CharacterFeatureProfile features,
+        string appearance,
+        string personality,
+        string backstory,
+        string notes)
+    {
+        static int Mod(int score) => (int)Math.Floor((score - 10) / 2.0);
+
+        var constitutionDelta = Mod(scores.Constitution) - Mod(character.Constitution);
+        var dexterityDelta = Mod(scores.Dexterity) - Mod(character.Dexterity);
+        var wisdomDelta = Mod(scores.Wisdom) - Mod(character.Wisdom);
+        var maxHp = Math.Max(1, character.MaxHitPoints + constitutionDelta * Math.Max(1, character.Level));
+        var currentHp = Math.Max(1, character.CurrentHitPoints + constitutionDelta * Math.Max(1, character.Level));
+        var armorClass = features.NaturalArmorBase.HasValue
+            ? Math.Max(features.NaturalArmorBase.Value, character.ArmorClass + dexterityDelta)
+            : character.ArmorClass + dexterityDelta;
+
+        var characterData = new
+        {
+            character_name = character.CharacterName,
+            species_name = requestedSpecies,
+            class_name = character.ClassName,
+            background_name = character.BackgroundName,
+            alignment = character.Alignment,
+            level = character.Level,
+            experience = character.ExperiencePoints,
+            current_hp = currentHp,
+            max_hp = maxHp,
+            armor_class = armorClass,
+            strength = scores.Strength,
+            dexterity = scores.Dexterity,
+            constitution = scores.Constitution,
+            intelligence = scores.Intelligence,
+            wisdom = scores.Wisdom,
+            charisma = scores.Charisma,
+            initiative = character.Initiative + dexterityDelta,
+            passive_perception = character.PassivePerception + wisdomDelta,
+            proficiency_bonus = character.ProficiencyBonus,
+            speed = character.Speed,
+            size_name = string.IsNullOrWhiteSpace(features.Size) ? character.SizeName : features.Size,
+            gold = character.Gold,
+            appearance = appearance ?? string.Empty,
+            personality = personality ?? string.Empty,
+            backstory = backstory ?? string.Empty,
+            notes = notes ?? string.Empty,
+            features,
+            snapshot = character
+        };
+
+        using var response = await CallRpcAsync("discord_create_character", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_character_data = characterData
+        });
+        var id = await ReadGuidResultAsync(response, "Unable to create character");
+
+        using var featureResponse = await CallRpcAsync("discord_set_character_features", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_character_id = id,
+            p_secondary_heritage = features.SecondaryHeritage,
+            p_appearance = appearance ?? string.Empty,
+            p_personality = personality ?? string.Empty,
+            p_backstory = backstory ?? string.Empty,
+            p_notes = notes ?? string.Empty,
+            p_racial_traits = features
+        });
+        await EnsureSuccessAsync(featureResponse, "Unable to save racial traits and character details");
+        return id;
+    }
+
+    public async Task<DiscordCharacterFeatureState?> GetCharacterFeatureStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_character_features", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var list = await ReadListAsync<DiscordCharacterFeatureState>(response, "Unable to load character details");
+        return list.FirstOrDefault();
+    }
+
+    public async Task UpdateCharacterDetailsAsync(
+        Guid playerId, Guid campaignId, string background, string appearance,
+        string personality, string backstory, string notes)
+    {
+        using var response = await CallRpcAsync("discord_update_character_details", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_background = background ?? string.Empty,
+            p_appearance = appearance ?? string.Empty,
+            p_personality = personality ?? string.Empty,
+            p_backstory = backstory ?? string.Empty,
+            p_notes = notes ?? string.Empty
+        });
+        await EnsureSuccessAsync(response, "Unable to update character details");
+    }
+
     public async Task<DiscordCharacterSetupState?> GetCharacterSetupStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_character_setup_state", new
@@ -595,31 +702,6 @@ public sealed class DiscordSupabaseService
         return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
             ?? throw new InvalidOperationException("Supabase returned an invalid terrain-aware movement result.");
     }
-    // COMBAT BUILD 6.1 - STRICT INITIATIVE / PLAYER END TURN
-    public async Task<List<CombatInitiativeRow>> GetCombatInitiativeAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_combat_initiative", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        return await ReadListAsync<CombatInitiativeRow>(response, "Unable to load combat initiative");
-    }
-
-    public async Task<CombatTurnAdvanceResult> EndPlayerCombatTurnAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_end_player_combat_turn", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var json = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Unable to end combat turn: {json}");
-        return JsonSerializer.Deserialize<CombatTurnAdvanceResult>(json, JsonOptions)
-            ?? throw new InvalidOperationException("Supabase returned an invalid combat turn result.");
-    }
-
     // MULTIPLAYER LIVE CHAT - AI GAME MASTER TURN LEASE
     public async Task<GmTurnStateResult> GetGmTurnStateAsync(Guid playerId, Guid campaignId)
     {
@@ -732,32 +814,6 @@ public sealed class DiscordSupabaseService
     }
 }
 
-public sealed class CombatInitiativeRow
-{
-    [JsonPropertyName("order_position")] public int OrderPosition { get; set; }
-    [JsonPropertyName("entity_type")] public string EntityType { get; set; } = string.Empty;
-    [JsonPropertyName("character_id")] public Guid? CharacterId { get; set; }
-    [JsonPropertyName("combat_monster_id")] public Guid? CombatMonsterId { get; set; }
-    [JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
-    [JsonPropertyName("initiative_roll")] public int InitiativeRoll { get; set; }
-    [JsonPropertyName("initiative_modifier")] public int InitiativeModifier { get; set; }
-    [JsonPropertyName("initiative_total")] public int InitiativeTotal { get; set; }
-    [JsonPropertyName("is_current")] public bool IsCurrent { get; set; }
-    [JsonPropertyName("defeated")] public bool Defeated { get; set; }
-}
-
-public sealed class CombatTurnAdvanceResult
-{
-    [JsonPropertyName("round_number")] public int RoundNumber { get; set; }
-    [JsonPropertyName("wrapped_round")] public bool WrappedRound { get; set; }
-    [JsonPropertyName("current_turn_type")] public string CurrentTurnType { get; set; } = string.Empty;
-    [JsonPropertyName("current_turn_character_id")] public Guid? CurrentTurnCharacterId { get; set; }
-    [JsonPropertyName("current_turn_monster_id")] public Guid? CurrentTurnMonsterId { get; set; }
-    [JsonPropertyName("current_turn_name")] public string CurrentTurnName { get; set; } = string.Empty;
-    [JsonPropertyName("order_position")] public int OrderPosition { get; set; }
-    [JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-}
-
 public sealed class GmTurnStateResult
 {
     [JsonPropertyName("active")] public bool Active { get; set; }
@@ -840,6 +896,22 @@ public sealed class DiscordCharacterInfo
     [JsonPropertyName("equipment_complete")] public bool EquipmentComplete { get; set; }
     [JsonPropertyName("spells_complete")] public bool SpellsComplete { get; set; }
     [JsonPropertyName("character_data")] public JsonElement CharacterData { get; set; }
+}
+
+public sealed class DiscordCharacterFeatureState
+{
+    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+    [JsonPropertyName("background_name")] public string BackgroundName { get; set; } = string.Empty;
+    [JsonPropertyName("alignment")] public string Alignment { get; set; } = string.Empty;
+    [JsonPropertyName("alignment_deed_balance")] public int AlignmentDeedBalance { get; set; }
+    [JsonPropertyName("alignment_good_deeds")] public int AlignmentGoodDeeds { get; set; }
+    [JsonPropertyName("alignment_evil_deeds")] public int AlignmentEvilDeeds { get; set; }
+    [JsonPropertyName("secondary_heritage")] public string SecondaryHeritage { get; set; } = string.Empty;
+    [JsonPropertyName("appearance")] public string Appearance { get; set; } = string.Empty;
+    [JsonPropertyName("personality")] public string Personality { get; set; } = string.Empty;
+    [JsonPropertyName("backstory")] public string Backstory { get; set; } = string.Empty;
+    [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
+    [JsonPropertyName("racial_traits")] public JsonElement RacialTraits { get; set; }
 }
 
 public sealed class DiscordCharacterSetupState

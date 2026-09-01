@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 public sealed class OpenAiGameMasterService
 {
@@ -99,25 +98,21 @@ SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
 - When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
 - Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
 
-COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
-- When actual combat begins, call start_combat exactly once, then add_combat_monster for EVERY enemy participating in the encounter. Keep returned display names stable (for example Wolf 1, Wolf 2).
-- BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server rolls every character and monster initiative and persists the complete order.
-- Once strict initiative exists, NEVER choose or jump to another combatant manually. The current turn is the server's source of truth.
-- If initialize_combat_initiative makes an ENEMY the current combatant, immediately resolve that enemy's complete turn and then call advance_combat_turn. Continue resolving every consecutive enemy in initiative order until a player character's turn is reached or combat ends.
-- On a PLAYER CHARACTER turn, resolve only the player's declared actions. NEVER call advance_combat_turn for that player. Their turn ends only when that player presses the End Turn button.
-- After a player's End Turn request, the server advances initiative before asking you to continue. If the new current turn is an enemy, resolve it completely, call advance_combat_turn, and continue through any consecutive enemies. STOP when the current turn becomes a character.
-- A complete enemy turn means adjudicate legal movement/action/bonus action as appropriate, use server dice for attacks/saves/damage, persist damage to a character with update_character_hp, persist enemy HP/status with update_combat_monster, and then advance.
-- Never narrate persistent HP changes without the matching trusted state tool. hpDelta is negative for damage and positive for healing.
-- Round number advances automatically when strict initiative wraps. Do not manually change rounds during strict initiative.
-- Call end_combat when tactical combat is actually over. Ending combat also closes the Encounter Map.
+COMBAT VISUAL STATE â€” SERVER-AUTHORITATIVE / MANDATORY:
+- When actual combat begins, call start_combat exactly once before tracking enemy combatants. Starting combat automatically activates the current Encounter Map.
+- After start_combat, call add_combat_monster for every enemy participating in the encounter. Use the exact canonical creature name when known so RabuShin can resolve its Codex art/stat block. Use count for identical enemies.
+- Whenever an enemy takes damage or healing, gains/loses conditions, or is defeated, call update_combat_monster immediately. hpDelta is negative for damage and positive for healing.
+- Keep display names stable after they are returned by add_combat_monster (for example Wolf 1, Wolf 2).
+- Call set_combat_round when a new combat round begins.
+- Call end_combat when the tactical combat is actually over. Ending combat also closes the Encounter Map.
+- Never invent persistent enemy HP/status changes only in narration; commit them through these tools first.
 
 TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
-- The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 left-to-right; y=0..19 top-to-bottom. Each square represents 5 feet.
-- Initial token placement MUST use stage_combat_tokens, not arbitrary coordinates. The server chooses safe legal squares from the Build 5.1 terrain masks. By default it avoids buildings, walls, cliffs/ledges, closed doors, difficult terrain and partial obstructions. Set the party terrain allowances true only when the scene explicitly says the party begins in that terrain/cover.
-- Describe the encounter geometry to stage_combat_tokens: for a melee creature that jumps in front of a character, use about 5–10 ft.; for a ranged attacker, choose a starting distance that is within that attack/weapon's legal range and require line of sight. If the fiction explicitly puts an enemy in difficult terrain or cover, allow it in that engagement.
-- A player can move only their own character token and only on their current initiative turn. The server enforces Speed, terrain cost, obstacles, and cumulative movement.
+- The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 from left to right; y=0..19 from top to bottom. Each square represents 5 feet.
+- After combat starts and enemies are added, ensure the first acting combatant has an authoritative turn by calling set_combat_turn. Whenever the active turn changes, call set_combat_turn again BEFORE asking that combatant to act.
+- A player can move only their own character token and only while set_combat_turn identifies that character as the current turn. The server enforces the character's Speed and cumulative movement for that turn.
 - Do not use position_combat_token for a player's voluntary movement. Player voluntary movement comes from the Tactical Combat Map UI.
-- Use position_combat_token for monster movement after combat begins or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
+- Use position_combat_token to place/reposition monster tokens, to establish initial tactical staging when needed, or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
 - VISUALS BUILD 5.1 - TACTICAL TERRAIN GM
 - Monster movement remains GM-authoritative, but normal position_combat_token movement is now validated against the encounter terrain mask and uses terrain-aware path cost.
 - Buildings and walls block normal movement and line of sight. Closed doors block both until opened. Open doors and marked bridge/stair passages are passable.
@@ -126,6 +121,15 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - Use set_tactical_door_state when a combatant opens or closes a nearby marked door. The server finds the nearest marked door to that combatant.
 - Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
 - Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
+
+ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
+- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
+- A morally significant GOOD deed moves the hidden alignment gauge one point toward the good side. A morally significant EVIL deed moves it one point toward the evil side.
+- Exactly 9 net points in one direction changes alignment by one stage and resets the stage progress. Example: True Neutral + 9 good points becomes Lawful Neutral; True Neutral + 9 evil points becomes Chaotic Neutral.
+- Call record_alignment_deed only after a player character definitively performs a morally significant deed. Do not score ordinary politeness, combat against legitimate hostile enemies, routine bargaining, or merely stated intentions.
+- Killing or deliberately harming innocents, cruelty, betrayal for selfish harm, and similarly serious acts normally qualify as evil. Meaningful mercy, self-sacrifice, protection of innocents, and similarly serious altruistic acts normally qualify as good. Judge context fairly.
+- If an action is morally mixed or neutral, do not call the tool. If one resolved player action contains multiple clearly separate significant deeds, you may call it once for each distinct deed.
+- The server, not narration, changes the stored alignment. Never claim the alignment changed unless the tool result says it changed.
 
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
@@ -153,6 +157,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             $"INT {character.Intelligence} ({FormatModifier(AbilityModifier(character.Intelligence))}), " +
             $"WIS {character.Wisdom} ({FormatModifier(AbilityModifier(character.Wisdom))}), " +
             $"CHA {character.Charisma} ({FormatModifier(AbilityModifier(character.Charisma))})");
+        inputBuilder.AppendLine($"ALIGNMENT: {character.Alignment}");
+        var racialTraitSummary = CharacterFeatureRules.BuildGmTraitSummary(character.CharacterData);
+        if (!string.IsNullOrWhiteSpace(racialTraitSummary)) inputBuilder.AppendLine($"RACIAL TRAITS: {racialTraitSummary}");
         inputBuilder.AppendLine("Location/campaign state is managed by RabuShin.");
 
         inputBuilder.AppendLine();
@@ -216,14 +223,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 ? $"- Encounter Map: ACTIVE for {localMapState.CurrentLocation} ({localMapState.EncounterReason})"
                 : "- Encounter Map: INACTIVE");
         }
-        var partyCombatants = await GetPartyCombatantsForGmAsync(campaign.CampaignId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("PARTY COMBAT STATS (SERVER-AUTHORITATIVE):");
-        foreach (var member in partyCombatants)
-        {
-            inputBuilder.AppendLine($"- {member.CharacterName}: Level {member.Level} {member.ClassName}; HP {member.CurrentHp}/{member.MaxHp}; AC {member.ArmorClass}; Speed {member.Speed} ft.; PB +{member.ProficiencyBonus}; STR {member.Strength} ({FormatModifier(AbilityModifier(member.Strength))}), DEX {member.Dexterity} ({FormatModifier(AbilityModifier(member.Dexterity))}), CON {member.Constitution} ({FormatModifier(AbilityModifier(member.Constitution))}), INT {member.Intelligence} ({FormatModifier(AbilityModifier(member.Intelligence))}), WIS {member.Wisdom} ({FormatModifier(AbilityModifier(member.Wisdom))}), CHA {member.Charisma} ({FormatModifier(AbilityModifier(member.Charisma))})");
-        }
-
         // VISUALS BUILD 4 - MONSTER COMBAT GM
         var combatState = await GetCombatStateForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine();
@@ -236,16 +235,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
             foreach (var enemy in combatState.Monsters)
-            {
                 inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Defeated: {enemy.Defeated}");
-                var codexEnemy = MonsterCodexService.Shared.Find(enemy.MonsterName);
-                if (codexEnemy is not null && !string.IsNullOrWhiteSpace(codexEnemy.Details))
-                {
-                    var details = codexEnemy.Details.Length > 6000 ? codexEnemy.Details[..6000] : codexEnemy.Details;
-                    inputBuilder.AppendLine($"  Trusted codex stat block for {enemy.DisplayName}:");
-                    inputBuilder.AppendLine(details);
-                }
-            }
         }
         // VISUALS BUILD 5 - TACTICAL COMBAT GM
         var tacticalState = await GetTacticalCombatStateForGmAsync(campaign.CampaignId);
@@ -263,24 +253,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 : $"- Current turn: {tacticalState.CurrentTurnName} ({tacticalState.CurrentTurnType})");
             foreach (var token in tacticalState.Tokens)
             {
-                inputBuilder.AppendLine($"- {token.DisplayName} [{token.EntityType}] square ({token.GridX},{token.GridY}); HP {token.CurrentHp}/{token.MaxHp}; AC {token.ArmorClass}; movement spent {token.MovementSpentFt} ft.{(token.Defeated ? "; DEFEATED/DOWN" : string.Empty)}");
+                inputBuilder.AppendLine($"- {token.DisplayName} [{token.EntityType}] square ({token.GridX},{token.GridY}); HP {token.CurrentHp}/{token.MaxHp}; movement spent {token.MovementSpentFt} ft.{(token.Defeated ? "; DEFEATED/DOWN" : string.Empty)}");
             }
         }
-        var initiativeState = await GetCombatInitiativeForGmAsync(campaign.CampaignId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("STRICT INITIATIVE ORDER (SERVER-AUTHORITATIVE):");
-        if (initiativeState.Count == 0)
-        {
-            inputBuilder.AppendLine("- Initiative: NOT INITIALIZED");
-        }
-        else
-        {
-            foreach (var entry in initiativeState)
-            {
-                inputBuilder.AppendLine($"- #{entry.OrderPosition}: {entry.DisplayName} ({entry.EntityType}) = {entry.InitiativeRoll}{FormatModifier(entry.InitiativeModifier)} = {entry.InitiativeTotal}{(entry.IsCurrent ? " — CURRENT TURN" : string.Empty)}{(entry.Defeated ? " — DEFEATED" : string.Empty)}");
-            }
-        }
-
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -296,6 +271,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             BuildDiceTool(),
             BuildAdjustGoldTool(),
+            BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
             BuildDiscoverWorldLocationTool(),
@@ -303,12 +279,10 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildSetEncounterMapTool(),
             BuildStartCombatTool(),
             BuildAddCombatMonsterTool(),
-            BuildStageCombatTokensTool(),
-            BuildInitializeCombatInitiativeTool(),
             BuildUpdateCombatMonsterTool(),
-            BuildUpdateCharacterHpTool(),
-            BuildAdvanceCombatTurnTool(),
+            BuildSetCombatRoundTool(),
             BuildEndCombatTool(),
+            BuildSetCombatTurnTool(),
             BuildPositionCombatTokenTool(),
             BuildCheckTacticalLineOfSightTool(),
             BuildSetTacticalDoorStateTool()
@@ -333,7 +307,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         // Allow sequential trusted operations in one GM turn: dice, rewards, loot,
         // purchases, and item removal. Every state mutation is committed to Supabase
         // before the GM receives the tool result and narrates the outcome.
-        for (var step = 0; step < 32; step++)
+        for (var step = 0; step < 12; step++)
         {
             var calls = ExtractToolCalls(raw);
             if (calls.Count == 0)
@@ -389,6 +363,31 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var summary = $"{(args.Delta >= 0 ? "+" : string.Empty)}{args.Delta} GP ({reason}); balance {newGold:0.##} GP";
                         stateAudits.Add(new GameMasterStateAudit("Gold", summary));
                         toolResult = new { authoritative = true, action = "adjust_gold", delta = args.Delta, newGold, reason };
+                        break;
+                    }
+                    case "record_alignment_deed":
+                    {
+                        var args = DeserializeArguments<AlignmentDeedToolArguments>(call.ArgumentsJson, "alignment deed");
+                        var direction = (args.Direction ?? string.Empty).Trim().ToLowerInvariant();
+                        if (direction is not ("good" or "evil"))
+                            throw new InvalidOperationException("Alignment deed direction must be good or evil.");
+                        var reason = CleanReason(args.Reason, direction == "good" ? "Significant good deed" : "Significant evil deed");
+                        var result = await RecordAlignmentDeedAsync(character.CharacterId, campaign.CampaignId, direction, reason);
+                        if (result.Changed)
+                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} → {result.Alignment} ({reason})"));
+                        toolResult = new
+                        {
+                            authoritative = true,
+                            action = "record_alignment_deed",
+                            direction,
+                            reason,
+                            alignment = result.Alignment,
+                            deedBalance = result.AlignmentDeedBalance,
+                            goodDeeds = result.GoodDeeds,
+                            evilDeeds = result.EvilDeeds,
+                            changed = result.Changed,
+                            previousAlignment = result.PreviousAlignment
+                        };
                         break;
                     }
                     case "add_inventory_item":
@@ -464,59 +463,12 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative=true, action="add_combat_monster", monsterName=args.MonsterName, displayNames=added };
                         break;
                     }
-                    case "stage_combat_tokens":
-                    {
-                        var args = DeserializeArguments<StageCombatTokensToolArguments>(call.ArgumentsJson, "initial combat staging");
-                        var result = await StageCombatTokensAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Initial tactical staging completed for {result.Positioned} combatants ({result.Reason})"));
-                        toolResult = new { authoritative=true, action="stage_combat_tokens", result.Positioned, result.Reason, positions=result.Positions };
-                        break;
-                    }
-                    case "initialize_combat_initiative":
-                    {
-                        var candidates = await GetInitiativeCandidatesAsync(campaign.CampaignId);
-                        if (candidates.Count == 0) throw new InvalidOperationException("No combatants are available for initiative.");
-                        var entries = new List<InitiativePersistEntry>();
-                        foreach (var candidate in candidates)
-                        {
-                            var modifier = candidate.EntityType.Equals("monster", StringComparison.OrdinalIgnoreCase)
-                                ? GetMonsterInitiativeModifier(candidate.MonsterName)
-                                : candidate.InitiativeModifier;
-                            var audit = ExecuteAuthoritativeRoll(new DiceToolArguments
-                            {
-                                Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=false,
-                                Reason=$"{candidate.DisplayName} initiative",Dc=0
-                            });
-                            rollAudits.Add(audit);
-                            entries.Add(new InitiativePersistEntry(candidate.EntityType,candidate.CharacterId,candidate.CombatMonsterId,audit.Rolls[0],modifier,audit.Total));
-                        }
-                        var result = await SetCombatInitiativeAsync(campaign.CampaignId, entries);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", "Strict initiative rolled and locked by the server."));
-                        toolResult = result;
-                        break;
-                    }
                     case "update_combat_monster":
                     {
                         var args = DeserializeArguments<UpdateCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster update");
                         var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
                         toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated };
-                        break;
-                    }
-                    case "update_character_hp":
-                    {
-                        var args = DeserializeArguments<UpdateCharacterHpToolArguments>(call.ArgumentsJson, "character HP update");
-                        var result = await UpdateCharacterHpAsync(campaign.CampaignId,args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{result.CharacterName}: HP {result.CurrentHp}/{result.MaxHp} ({(args.HpDelta >= 0 ? "+" : string.Empty)}{args.HpDelta})"));
-                        toolResult = new { authoritative=true, action="update_character_hp", result.CharacterName, result.CurrentHp, result.MaxHp, hpDelta=args.HpDelta, result.Reason };
-                        break;
-                    }
-                    case "advance_combat_turn":
-                    {
-                        var args = DeserializeArguments<AdvanceCombatTurnToolArguments>(call.ArgumentsJson, "combat turn advance");
-                        var result = await AdvanceCombatTurnAsync(campaign.CampaignId,args.Reason);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Initiative advanced ({CleanReason(args.Reason,"turn complete")})"));
-                        toolResult = result;
                         break;
                     }
                     case "set_combat_round":
@@ -703,6 +655,28 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
     }
 
+    private static object BuildAlignmentDeedTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "record_alignment_deed",
+            description = "Record one definitively completed, morally significant good or evil deed on the current character's alignment gauge. Do not use for neutral, trivial, merely intended, or ambiguous actions. The server changes alignment automatically after 9 net deed points toward one side.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    direction = new { type = "string", @enum = new[] { "good", "evil" }, description = "Moral direction of this significant deed." },
+                    reason = new { type = "string", description = "Short factual reason describing the completed deed." }
+                },
+                required = new[] { "direction", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
     private static object BuildAddInventoryItemTool()
     {
         return new
@@ -833,73 +807,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }, required=new[]{"monsterName","displayName","count","maxHp","armorClass"}, additionalProperties=false }
     };
 
-    private static object BuildStageCombatTokensTool() => new
-    {
-        type="function", name="stage_combat_tokens",
-        description="Atomically place all combat tokens on safe Build 5.1 terrain before initiative. The server chooses actual squares; specify each enemy's intended engagement distance/range and target.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                reason=new { type="string", description="Short scene reason, e.g. Wolf leaps onto the Greymoor path or Goblin ambush from bow range." },
-                partyAllowDifficultTerrain=new { type="boolean", description="True only when the fiction explicitly starts the party in water, debris, rough stone, or other difficult terrain." },
-                partyAllowHalfCover=new { type="boolean", description="True only when the fiction explicitly starts the party behind/in a partial obstruction that grants half cover." },
-                engagements=new
-                {
-                    type="array",
-                    items=new
-                    {
-                        type="object",
-                        properties=new
-                        {
-                            combatantName=new { type="string", description="Exact stable enemy display name." },
-                            targetCharacterName=new { type="string", description="Exact party character name this enemy initially engages; empty string uses the first party character." },
-                            distanceFeet=new { type="integer", minimum=5, maximum=95, description="Preferred initial distance. Use 5-10 for adjacent/melee encounters; for ranged attackers choose a sensible distance within weapon/spell range." },
-                            maximumRangeFeet=new { type="integer", minimum=5, maximum=1000, description="Maximum legal attack/weapon/spell range for this opening position. Must be at least distanceFeet." },
-                            requireLineOfSight=new { type="boolean", description="Usually true, especially for a ranged attacker that already attacked or can see the target." },
-                            allowDifficultTerrain=new { type="boolean", description="True only when the fiction explicitly places this enemy in water, debris, rough stone, or other difficult terrain." },
-                            allowHalfCover=new { type="boolean", description="True only when the fiction explicitly places this enemy behind partial cover/obstruction." },
-                            reason=new { type="string", description="Why this starting range/terrain is appropriate." }
-                        },
-                        required=new[]{"combatantName","targetCharacterName","distanceFeet","maximumRangeFeet","requireLineOfSight","allowDifficultTerrain","allowHalfCover","reason"},
-                        additionalProperties=false
-                    }
-                }
-            },
-            required=new[]{"reason","partyAllowDifficultTerrain","partyAllowHalfCover","engagements"},additionalProperties=false
-        }
-    };
-
-    private static object BuildInitializeCombatInitiativeTool() => new
-    {
-        type="function", name="initialize_combat_initiative",
-        description="Roll and persist initiative for every active party character and enemy on the trusted server. Call exactly once after monsters are added and initial tokens are staged.",
-        strict=true,
-        parameters=new { type="object", properties=new { reason=new { type="string" } }, required=new[]{"reason"}, additionalProperties=false }
-    };
-
-    private static object BuildUpdateCharacterHpTool() => new
-    {
-        type="function", name="update_character_hp",
-        description="Persist damage or healing to a party character, especially when resolving an enemy turn. hpDelta is negative damage or positive healing.",
-        strict=true,
-        parameters=new { type="object", properties=new {
-            characterName=new { type="string", description="Exact party character name." },
-            hpDelta=new { type="integer", minimum=-100000, maximum=100000 },
-            reason=new { type="string", description="Short cause such as Wolf bite damage or healing." }
-        }, required=new[]{"characterName","hpDelta","reason"}, additionalProperties=false }
-    };
-
-    private static object BuildAdvanceCombatTurnTool() => new
-    {
-        type="function", name="advance_combat_turn",
-        description="Advance strictly to the next persisted initiative entry after the CURRENT ENEMY has fully completed its turn. Never use this to end a player character turn; players use the End Turn button.",
-        strict=true,
-        parameters=new { type="object", properties=new { reason=new { type="string", description="Short summary of why the current enemy turn is complete." } }, required=new[]{"reason"}, additionalProperties=false }
-    };
-
     private static object BuildUpdateCombatMonsterTool() => new
     {
         type="function", name="update_combat_monster", description="Persist HP, conditions, and defeated state for one active enemy. hpDelta is negative damage or positive healing.", strict=true,
@@ -1028,6 +935,20 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             result.Mode,
             dc,
             dc > 0 && result.Total >= dc);
+    }
+
+    private async Task<AlignmentDeedToolResult> RecordAlignmentDeedAsync(Guid characterId, Guid campaignId, string direction, string reason)
+    {
+        var raw = await CallSupabaseRpcAsync("discord_gm_record_alignment_deed", new
+        {
+            p_character_id = characterId,
+            p_campaign_id = campaignId,
+            p_direction = direction,
+            p_reason = reason
+        }, "Unable to update alignment gauge");
+
+        return JsonSerializer.Deserialize<AlignmentDeedToolResult>(raw, JsonOptions)
+               ?? throw new InvalidOperationException("Supabase returned an invalid alignment result.");
     }
 
     private async Task<decimal> AdjustGoldAsync(Guid characterId, Guid campaignId, int delta)
@@ -1204,144 +1125,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private async Task EndCombatAsync(Guid campaignId,string reason)
         => _=await CallSupabaseRpcAsync("discord_gm_end_combat",new { p_campaign_id=campaignId,p_reason=reason },"Unable to end combat");
-    private async Task<List<PartyCombatantForGm>> GetPartyCombatantsForGmAsync(Guid campaignId)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_get_party_combatants",new { p_campaign_id=campaignId },"Unable to load party combat stats");
-        return JsonSerializer.Deserialize<List<PartyCombatantForGm>>(raw,JsonOptions) ?? new();
-    }
-
-    private async Task<List<InitiativeCandidateForGm>> GetInitiativeCandidatesAsync(Guid campaignId)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_get_initiative_candidates",new { p_campaign_id=campaignId },"Unable to load initiative candidates");
-        return JsonSerializer.Deserialize<List<InitiativeCandidateForGm>>(raw,JsonOptions) ?? new();
-    }
-
-    private async Task<List<CombatInitiativeForGm>> GetCombatInitiativeForGmAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw=await CallSupabaseRpcAsync("discord_gm_get_combat_initiative",new { p_campaign_id=campaignId },"Unable to load strict initiative");
-            return JsonSerializer.Deserialize<List<CombatInitiativeForGm>>(raw,JsonOptions) ?? new();
-        }
-        catch { return new(); }
-    }
-
-    private async Task<JsonElement> SetCombatInitiativeAsync(Guid campaignId,IReadOnlyList<InitiativePersistEntry> entries)
-    {
-        var payload=entries.Select(e=>new
-        {
-            entity_type=e.EntityType,
-            character_id=e.CharacterId,
-            combat_monster_id=e.CombatMonsterId,
-            initiative_roll=e.InitiativeRoll,
-            initiative_modifier=e.InitiativeModifier,
-            initiative_total=e.InitiativeTotal
-        }).ToArray();
-        var raw=await CallSupabaseRpcAsync("discord_gm_set_combat_initiative",new { p_campaign_id=campaignId,p_entries=payload },"Unable to initialize strict initiative");
-        using var document=JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> AdvanceCombatTurnAsync(Guid campaignId,string? reason)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_advance_combat_turn",new { p_campaign_id=campaignId,p_reason=CleanReason(reason,"Enemy turn complete") },"Unable to advance strict initiative");
-        using var document=JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<CharacterHpResult> UpdateCharacterHpAsync(Guid campaignId,UpdateCharacterHpToolArguments args)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_adjust_character_hp",new
-        {
-            p_campaign_id=campaignId,
-            p_character_name=(args.CharacterName??string.Empty).Trim(),
-            p_hp_delta=args.HpDelta,
-            p_reason=CleanReason(args.Reason,"Combat HP change")
-        },"Unable to update character HP");
-        return JsonSerializer.Deserialize<CharacterHpResult>(raw,JsonOptions) ?? throw new InvalidOperationException("Supabase returned invalid character HP state.");
-    }
-
-    private static int GetMonsterInitiativeModifier(string? monsterName)
-    {
-        var name=(monsterName??string.Empty).Trim();
-        if(name.Length==0)return 0;
-        var codex=MonsterCodexService.Shared.Find(name);
-        var details=codex?.Details??string.Empty;
-        var match=Regex.Match(details,@"\bDEX\s+\d+\s*\(\s*([+-]?\d+)\s*\)",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
-        return match.Success&&int.TryParse(match.Groups[1].Value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var modifier)?modifier:0;
-    }
-
-    private async Task<CombatStagingResult> StageCombatTokensAsync(Guid campaignId,StageCombatTokensToolArguments args)
-    {
-        var localMap=await GetLocalMapStateAsync(campaignId);
-        var tactical=await GetTacticalCombatStateForGmAsync(campaignId);
-        if(localMap is null || tactical is null || !tactical.Active)
-            throw new InvalidOperationException("Tactical map state is not active for initial combat staging.");
-        if(TacticalTerrainCatalog.Find(localMap.LocationKey) is null)
-            throw new InvalidOperationException($"No Build 5.1 terrain definition exists for {localMap.CurrentLocation}.");
-
-        var doors=await GetTacticalDoorStatesForGmAsync(campaignId,localMap.LocationKey);
-        var occupied=new HashSet<(int X,int Y)>();
-        var positions=new List<CombatStagingPosition>();
-        var characterPositions=new Dictionary<string,TacticalSpawnPoint>(StringComparer.OrdinalIgnoreCase);
-        var characters=tactical.Tokens.Where(t=>t.EntityType.Equals("character",StringComparison.OrdinalIgnoreCase)).OrderBy(t=>t.DisplayName).ToList();
-        var monsters=tactical.Tokens.Where(t=>t.EntityType.Equals("monster",StringComparison.OrdinalIgnoreCase)&&!t.Defeated).OrderBy(t=>t.DisplayName).ToList();
-        if(characters.Count==0)throw new InvalidOperationException("No party character tokens are available for initial staging.");
-
-        var anchor=TacticalTerrainCatalog.FindInitialPartyAnchor(localMap.LocationKey,doors,occupied,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
-        for(var i=0;i<characters.Count;i++)
-        {
-            var token=characters[i];
-            TacticalSpawnPoint point;
-            if(i==0) point=anchor;
-            else point=TacticalTerrainCatalog.FindInitialSpawnNear(localMap.LocationKey,anchor.GridX,anchor.GridY,5,Math.Min(15,5+i*5),doors,occupied,true,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
-            occupied.Add((point.GridX,point.GridY));
-            characterPositions[token.DisplayName]=point;
-            positions.Add(new CombatStagingPosition(token.TokenId,token.DisplayName,token.EntityType,point.GridX,point.GridY,point.DistanceFeet,point.Note));
-        }
-
-        var engagements=(args.Engagements??new List<StageEngagementToolArguments>())
-            .Where(e=>!string.IsNullOrWhiteSpace(e.CombatantName))
-            .GroupBy(e=>e.CombatantName.Trim(),StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g=>g.Key,g=>g.Last(),StringComparer.OrdinalIgnoreCase);
-        var fallbackTarget=characters[0].DisplayName;
-
-        foreach(var token in monsters)
-        {
-            engagements.TryGetValue(token.DisplayName,out var engagement);
-            engagement??=new StageEngagementToolArguments
-            {
-                CombatantName=token.DisplayName,TargetCharacterName=fallbackTarget,DistanceFeet=10,MaximumRangeFeet=10,
-                RequireLineOfSight=true,AllowDifficultTerrain=false,AllowHalfCover=false,Reason="Default close engagement"
-            };
-            var targetName=string.IsNullOrWhiteSpace(engagement.TargetCharacterName)?fallbackTarget:engagement.TargetCharacterName.Trim();
-            if(!characterPositions.TryGetValue(targetName,out var target))
-                target=characterPositions[fallbackTarget];
-            var desired=Math.Clamp(engagement.DistanceFeet<=0?10:engagement.DistanceFeet,5,95);
-            var maxRange=Math.Max(desired,engagement.MaximumRangeFeet<=0?desired:engagement.MaximumRangeFeet);
-            var point=TacticalTerrainCatalog.FindInitialSpawnNear(localMap.LocationKey,target.GridX,target.GridY,desired,maxRange,doors,occupied,
-                engagement.RequireLineOfSight,engagement.AllowDifficultTerrain,engagement.AllowHalfCover);
-            occupied.Add((point.GridX,point.GridY));
-            positions.Add(new CombatStagingPosition(token.TokenId,token.DisplayName,token.EntityType,point.GridX,point.GridY,point.DistanceFeet,
-                $"{point.Note}; {CleanReason(engagement.Reason,"initial engagement")}"));
-        }
-
-        // Include defeated monster tokens if any somehow exist during setup; place them safely after active tokens.
-        foreach(var token in tactical.Tokens.Where(t=>t.EntityType.Equals("monster",StringComparison.OrdinalIgnoreCase)&&t.Defeated))
-        {
-            var point=TacticalTerrainCatalog.FindInitialSpawnNear(localMap.LocationKey,anchor.GridX,anchor.GridY,15,40,doors,occupied,false,true,true);
-            occupied.Add((point.GridX,point.GridY));
-            positions.Add(new CombatStagingPosition(token.TokenId,token.DisplayName,token.EntityType,point.GridX,point.GridY,point.DistanceFeet,"defeated token staging"));
-        }
-
-        var rpcPositions=positions.Select(x=>new { token_id=x.TokenId,grid_x=x.GridX,grid_y=x.GridY }).ToArray();
-        var reason=CleanReason(args.Reason,"Terrain-aware initial combat staging");
-        var raw=await CallSupabaseRpcAsync("discord_gm_stage_combat_tokens",new { p_campaign_id=campaignId,p_positions=rpcPositions,p_reason=reason },"Unable to stage combat tokens");
-        using var doc=JsonDocument.Parse(raw);
-        var positioned=doc.RootElement.TryGetProperty("positioned",out var count)&&count.TryGetInt32(out var n)?n:positions.Count;
-        return new CombatStagingResult(positioned,reason,positions);
-    }
-
     private async Task<TacticalCombatForGm?> GetTacticalCombatStateForGmAsync(Guid campaignId)
     {
         try
@@ -1748,6 +1531,22 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string Reason { get; set; } = string.Empty;
     }
 
+    private sealed class AlignmentDeedToolArguments
+    {
+        public string Direction { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class AlignmentDeedToolResult
+    {
+        public string Alignment { get; set; } = string.Empty;
+        public int AlignmentDeedBalance { get; set; }
+        public int GoodDeeds { get; set; }
+        public int EvilDeeds { get; set; }
+        public bool Changed { get; set; }
+        public string PreviousAlignment { get; set; } = string.Empty;
+    }
+
     private sealed class AddInventoryItemToolArguments
     {
         public string ItemName { get; set; } = string.Empty;
@@ -1801,80 +1600,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("door_id")] public int DoorId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("is_open")] public bool IsOpen { get; set; }
     }
-    private sealed class StageCombatTokensToolArguments
-    {
-        public string Reason { get; set; } = string.Empty;
-        public bool PartyAllowDifficultTerrain { get; set; }
-        public bool PartyAllowHalfCover { get; set; }
-        public List<StageEngagementToolArguments> Engagements { get; set; } = new();
-    }
-    private sealed class StageEngagementToolArguments
-    {
-        public string CombatantName { get; set; } = string.Empty;
-        public string TargetCharacterName { get; set; } = string.Empty;
-        public int DistanceFeet { get; set; }
-        public int MaximumRangeFeet { get; set; }
-        public bool RequireLineOfSight { get; set; }
-        public bool AllowDifficultTerrain { get; set; }
-        public bool AllowHalfCover { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-    private sealed class UpdateCharacterHpToolArguments
-    {
-        public string CharacterName { get; set; } = string.Empty;
-        public int HpDelta { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-    private sealed class AdvanceCombatTurnToolArguments { public string Reason { get; set; } = string.Empty; }
-    private sealed class PartyCombatantForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("class_name")] public string ClassName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("level")] public int Level { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("strength")] public int Strength { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("dexterity")] public int Dexterity { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("constitution")] public int Constitution { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("intelligence")] public int Intelligence { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("wisdom")] public int Wisdom { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("charisma")] public int Charisma { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("proficiency_bonus")] public int ProficiencyBonus { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("speed")] public int Speed { get; set; }
-    }
-    private sealed class InitiativeCandidateForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("entity_type")] public string EntityType { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid? CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("combat_monster_id")] public Guid? CombatMonsterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("initiative_modifier")] public int InitiativeModifier { get; set; }
-    }
-    private sealed class CombatInitiativeForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("order_position")] public int OrderPosition { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("entity_type")] public string EntityType { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("initiative_roll")] public int InitiativeRoll { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("initiative_modifier")] public int InitiativeModifier { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("initiative_total")] public int InitiativeTotal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("is_current")] public bool IsCurrent { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; }
-    }
-    private sealed record InitiativePersistEntry(string EntityType,Guid? CharacterId,Guid? CombatMonsterId,int InitiativeRoll,int InitiativeModifier,int InitiativeTotal);
-    private sealed class CharacterHpResult
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    }
-    private sealed record CombatStagingPosition(Guid TokenId,string DisplayName,string EntityType,int GridX,int GridY,int DistanceFeet,string Note);
-    private sealed record CombatStagingResult(int Positioned,string Reason,List<CombatStagingPosition> Positions);
-
     private sealed class SetCombatTurnToolArguments
     {
         public string EntityType { get; set; } = string.Empty;
@@ -1901,18 +1626,13 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private sealed class TacticalTokenForGm
     {
-        [System.Text.Json.Serialization.JsonPropertyName("token_id")] public Guid TokenId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("entity_type")] public string EntityType { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid? CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("combat_monster_id")] public Guid? CombatMonsterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("grid_x")] public int GridX { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("grid_y")] public int GridY { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("movement_spent_ft")] public int MovementSpentFt { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; }
     }
 

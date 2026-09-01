@@ -153,11 +153,12 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/leave", async (Guid campaignI
 app.MapGet("/game-api/character-options", () => Results.Ok(new
 {
     success = true,
-    species = CharacterGenerationService.Species,
-    baseSpecies = CharacterGenerationService.BaseSpecies,
+    species = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species),
+    baseSpecies = CharacterFeatureRules.WithTortleBaseSpecies(CharacterGenerationService.BaseSpecies),
     classes = CharacterGenerationService.Classes,
     backgrounds = CharacterGenerationService.Backgrounds,
-    alignments = CharacterGenerationService.Alignments
+    alignments = CharacterFeatureRules.AlignmentLadder,
+    racialRules = CharacterFeatureRules.GetClientRules()
 }));
 
 app.MapGet("/game-api/campaigns/{campaignId:guid}/character", async (Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
@@ -174,8 +175,50 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/character", async (Guid campai
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+app.MapGet("/game-api/campaigns/{campaignId:guid}/character/features", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var state = await service.GetCharacterFeatureStateAsync(playerId, campaignId);
+        if (state is null) return Results.NotFound(new { success = false, error = "Character details could not be found." });
+        return Results.Ok(new
+        {
+            success = true,
+            characterId = state.CharacterId,
+            background = state.BackgroundName,
+            alignment = state.Alignment,
+            alignmentDeedBalance = state.AlignmentDeedBalance,
+            goodDeeds = state.AlignmentGoodDeeds,
+            evilDeeds = state.AlignmentEvilDeeds,
+            secondaryHeritage = state.SecondaryHeritage,
+            appearance = state.Appearance,
+            personality = state.Personality,
+            backstory = state.Backstory,
+            notes = state.Notes,
+            racialTraits = state.RacialTraits
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPut("/game-api/campaigns/{campaignId:guid}/character/details", async (
+    Guid campaignId, CharacterDetailsUpdateRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        await service.UpdateCharacterDetailsAsync(playerId, campaignId, body.Background, body.Appearance, body.Personality, body.Backstory, body.Notes);
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
-    Guid campaignId, RandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+    Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
     {
@@ -184,20 +227,45 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
-        var species = CharacterGenerationService.Species.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
+        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
+        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
         if (className is null) return Results.BadRequest(new { success = false, error = "Invalid class." });
 
-        var character = new CharacterGenerationService().Generate(species, className, 1, body.CharacterName ?? "");
-        var id = await service.CreateCharacterAsync(playerId, campaignId, character);
-        return Results.Ok(new { success = true, character = ProgramHelpers.ToClientGeneratedCharacter(id, character) });
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
+        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
+
+        AppliedRacialScores scores;
+        if (CharacterFeatureRules.IsTortleLineage(species))
+        {
+            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
+            // the classic Human +1s are removed before applying the player's Tortle choices.
+            scores = CharacterFeatureRules.ApplyAbilityScores(
+                species,
+                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
+                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
+                body.RacialAbilityChoices);
+        }
+        else
+        {
+            scores = new AppliedRacialScores(generated.Strength, generated.Dexterity, generated.Constitution,
+                generated.Intelligence, generated.Wisdom, generated.Charisma,
+                new Dictionary<string, int>());
+        }
+
+        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
+        var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
+            string.Empty, string.Empty, string.Empty, string.Empty);
+        var saved = await service.GetCharacterAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
 app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
-    Guid campaignId, ManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+    Guid campaignId, EnhancedManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
     {
@@ -206,13 +274,27 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
+        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
+        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
+        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
+
+        var scores = CharacterFeatureRules.ApplyAbilityScores(
+            species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
+            body.RacialAbilityChoices);
+        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
+
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
         var character = ManualCharacterCreationService.Create(
-            body.CharacterName, body.Species, body.SecondaryHeritage ?? "", body.ClassName,
+            body.CharacterName, engineSpecies, body.SecondaryHeritage ?? "", body.ClassName,
             body.Background, body.Alignment, body.Level,
-            body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
+            scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-        var id = await service.CreateCharacterAsync(playerId, campaignId, character);
-        return Results.Ok(new { success = true, character = ProgramHelpers.ToClientGeneratedCharacter(id, character) });
+
+        var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
+            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
+        var saved = await service.GetCharacterAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
@@ -1161,15 +1243,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
         var player = await service.GetOrCreatePlayerAsync(user);
         var messages = await service.GetMessagesAsync(player, campaignId, "gm", 150);
         var turnState = await service.GetGmTurnStateAsync(player, campaignId);
-        var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
-        var initiative = tactical?.Active == true
-            ? await service.GetCombatInitiativeAsync(player, campaignId)
-            : new List<CombatInitiativeRow>();
-        var combatCanAct = tactical?.Active != true ||
-            (tactical.ViewerCharacterId.HasValue &&
-             tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
-             tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId);
-
         return Results.Ok(new
         {
             success = true,
@@ -1191,30 +1264,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
                 lockToken = turnState.IsOwner ? turnState.LockToken : null,
                 remainingSeconds = turnState.RemainingSeconds,
                 expiresAt = turnState.ExpiresAt
-            },
-            combatTurn = new
-            {
-                active = tactical?.Active == true,
-                roundNumber = Math.Max(1, tactical?.RoundNumber ?? 1),
-                currentTurnType = tactical?.CurrentTurnType ?? string.Empty,
-                currentTurnCharacterId = tactical?.CurrentTurnCharacterId,
-                currentTurnMonsterId = tactical?.CurrentTurnMonsterId,
-                currentTurnName = tactical?.CurrentTurnName ?? string.Empty,
-                viewerCharacterId = tactical?.ViewerCharacterId,
-                canAct = combatCanAct,
-                initiative = initiative.Select(i => new
-                {
-                    orderPosition = i.OrderPosition,
-                    entityType = i.EntityType,
-                    characterId = i.CharacterId,
-                    combatMonsterId = i.CombatMonsterId,
-                    displayName = i.DisplayName,
-                    initiativeRoll = i.InitiativeRoll,
-                    initiativeModifier = i.InitiativeModifier,
-                    initiativeTotal = i.InitiativeTotal,
-                    isCurrent = i.IsCurrent,
-                    defeated = i.Defeated
-                })
             }
         });
     }
@@ -1233,23 +1282,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
-        if (tactical?.Active == true &&
-            !(tactical.ViewerCharacterId.HasValue &&
-              tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
-              tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId))
-        {
-            return Results.Conflict(new
-            {
-                success = false,
-                error = string.IsNullOrWhiteSpace(tactical.CurrentTurnName)
-                    ? "Combat initiative is active. Wait for your character's turn."
-                    : $"Combat initiative is active. It is {tactical.CurrentTurnName}'s turn.",
-                combatLocked = true,
-                currentTurnName = tactical.CurrentTurnName
-            });
-        }
-
         var playerName = user.GlobalName ?? user.Username;
         var turnState = await service.AcquireGmTurnAsync(player, campaignId, playerName);
         return Results.Ok(new
@@ -1274,235 +1306,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     }
 });
 
-// COMBAT BUILD 6.1 - PLAYER END TURN / AUTOMATIC CONSECUTIVE ENEMY TURNS
-app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/end-turn", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service,
-    OpenAiGameMasterService ai,
-    ApiKeyEncryptionService encryption) =>
-{
-    Guid player = Guid.Empty;
-    Guid turnToken = Guid.Empty;
-    var processingLeaseStarted = false;
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        player = await service.GetOrCreatePlayerAsync(user);
-        var character = await service.GetCharacterAsync(player, campaignId);
-        if (character is null)
-            return Results.NotFound(new { success = false, error = "Character could not be found." });
-
-        var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
-        if (tactical?.Active != true)
-            return Results.Conflict(new { success = false, error = "There is no active combat turn to end.", combatLocked = true });
-        if (!tactical.ViewerCharacterId.HasValue ||
-            !tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) ||
-            tactical.CurrentTurnCharacterId != tactical.ViewerCharacterId)
-            return Results.Conflict(new { success = false, error = $"It is {tactical.CurrentTurnName}'s turn, not yours.", combatLocked = true });
-
-        // Require a configured key before advancing because the next initiative entry may be an enemy.
-        // This prevents combat from becoming stranded on an unresolved enemy turn.
-        var storedKey = await service.GetStoredOpenAiKeyAsync(player);
-        if (storedKey is null || string.IsNullOrWhiteSpace(storedKey.EncryptedValue))
-            throw new OpenAiConfigurationException("No OpenAI API key is saved for your Discord account. Open Settings and use Test & Save API Key before ending a combat turn.");
-
-        var playerName = user.GlobalName ?? user.Username;
-        var lease = await service.AcquireGmTurnAsync(player, campaignId, playerName);
-        if (!lease.IsOwner || !lease.LockToken.HasValue)
-            return Results.Conflict(new { success = false, error = "The AI Game Master is currently busy. Try End Turn again after the current GM response finishes.", turnExpired = true });
-        turnToken = lease.LockToken.Value;
-        await service.BeginGmProcessingAsync(player, campaignId, turnToken);
-        processingLeaseStarted = true;
-
-        var campaigns = await service.GetCampaignsAsync(player);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        await service.AddMessageAsync(player, campaignId, "gm", "user", character.CharacterName, "[END TURN]");
-        var advanced = await service.EndPlayerCombatTurnAsync(player, campaignId);
-
-        string reply;
-        GameMasterTurnResult? enemyTurn = null;
-        if (advanced.CurrentTurnType.Equals("monster", StringComparison.OrdinalIgnoreCase))
-        {
-            var history = await service.GetMessagesAsync(player, campaignId, "gm", 100);
-            var inventory = await service.GetInventoryAsync(player, campaignId);
-            var spells = await service.GetSpellsAsync(player, campaignId);
-            var apiKey = encryption.Decrypt(storedKey.EncryptedValue);
-            var syntheticAction = $"[COMBAT END TURN] {character.CharacterName} ended their turn. The server has strictly advanced initiative to {advanced.CurrentTurnName}. Resolve that enemy's complete turn now. After resolving it, call advance_combat_turn. Continue resolving every consecutive enemy turn in strict server initiative order. Stop immediately when initiative reaches a player character or combat ends. Never take a player character's choices for them.";
-            enemyTurn = await ai.AskGameMasterAsync(user.Id, apiKey, campaign, character, history, syntheticAction, inventory, spells);
-            reply = enemyTurn.Message;
-        }
-        else
-        {
-            reply = $"Initiative passes to {advanced.CurrentTurnName}.";
-        }
-
-        await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM", reply);
-        return Results.Ok(new
-        {
-            success = true,
-            reply,
-            nextTurn = new
-            {
-                roundNumber = advanced.RoundNumber,
-                currentTurnType = advanced.CurrentTurnType,
-                currentTurnCharacterId = advanced.CurrentTurnCharacterId,
-                currentTurnMonsterId = advanced.CurrentTurnMonsterId,
-                currentTurnName = advanced.CurrentTurnName
-            },
-            rolls = enemyTurn is null
-                ? Array.Empty<object>()
-                : enemyTurn.Rolls.Select(r => (object)new
-                {
-                    reason = r.Reason,
-                    expression = r.Expression,
-                    rolls = r.Rolls,
-                    keptRoll = r.KeptRoll,
-                    modifier = r.Modifier,
-                    total = r.Total,
-                    mode = r.Mode,
-                    dc = r.Dc,
-                    success = r.Dc > 0 ? r.Success : (bool?)null
-                }).ToArray()
-        });
-    }
-    catch (OpenAiUsageException ex)
-    {
-        return Results.Json(new { success = false, error = ex.Message, usageIssue = true }, statusCode: 429);
-    }
-    catch (OpenAiConfigurationException ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message, needsApiKey = true });
-    }
-    catch (InvalidOperationException ex) when (ex.Message.Contains("turn", StringComparison.OrdinalIgnoreCase))
-    {
-        return Results.Conflict(new { success = false, error = ex.Message, combatLocked = true });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-    finally
-    {
-        if (processingLeaseStarted && player != Guid.Empty && turnToken != Guid.Empty)
-        {
-            try { await service.ReleaseGmTurnAsync(player, campaignId, turnToken); }
-            catch { }
-        }
-    }
-});
-
-// COMBAT BUILD 6.1 - RECOVERY FOR AN INTERRUPTED ENEMY TURN
-app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/resume-enemy-turns", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service,
-    OpenAiGameMasterService ai,
-    ApiKeyEncryptionService encryption) =>
-{
-    Guid player = Guid.Empty;
-    Guid turnToken = Guid.Empty;
-    var processingLeaseStarted = false;
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        player = await service.GetOrCreatePlayerAsync(user);
-        var character = await service.GetCharacterAsync(player, campaignId);
-        if (character is null)
-            return Results.NotFound(new { success = false, error = "Character could not be found." });
-
-        var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
-        if (tactical?.Active != true ||
-            !tactical.CurrentTurnType.Equals("monster", StringComparison.OrdinalIgnoreCase) ||
-            !tactical.CurrentTurnMonsterId.HasValue)
-        {
-            return Results.Conflict(new
-            {
-                success = false,
-                error = "There is no unresolved enemy initiative turn to resume.",
-                combatLocked = true
-            });
-        }
-
-        var storedKey = await service.GetStoredOpenAiKeyAsync(player);
-        if (storedKey is null || string.IsNullOrWhiteSpace(storedKey.EncryptedValue))
-            throw new OpenAiConfigurationException("No OpenAI API key is saved for your Discord account. Open Settings and use Test & Save API Key before resuming the GM turn.");
-
-        var playerName = user.GlobalName ?? user.Username;
-        var lease = await service.AcquireGmTurnAsync(player, campaignId, playerName);
-        if (!lease.IsOwner || !lease.LockToken.HasValue)
-            return Results.Conflict(new { success = false, error = "The AI Game Master is already resolving this combat turn.", turnExpired = true });
-
-        turnToken = lease.LockToken.Value;
-        await service.BeginGmProcessingAsync(player, campaignId, turnToken);
-        processingLeaseStarted = true;
-
-        var campaigns = await service.GetCampaignsAsync(player);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        var history = await service.GetMessagesAsync(player, campaignId, "gm", 100);
-        var inventory = await service.GetInventoryAsync(player, campaignId);
-        var spells = await service.GetSpellsAsync(player, campaignId);
-        var apiKey = encryption.Decrypt(storedKey.EncryptedValue);
-        var syntheticAction = $"[RESUME ENEMY INITIATIVE] Combat is currently stopped on enemy {tactical.CurrentTurnName}. Resolve that enemy's complete initiative turn now. Persist all movement, attack/save/damage results and HP changes with trusted tools. Then call advance_combat_turn. Continue every consecutive enemy turn in strict server initiative order and stop immediately when initiative reaches a player character or combat ends. Never take a player character's choices for them.";
-        var enemyTurn = await ai.AskGameMasterAsync(user.Id, apiKey, campaign, character, history, syntheticAction, inventory, spells);
-        var reply = enemyTurn.Message;
-        await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM", reply);
-
-        var refreshed = await service.GetTacticalCombatStateAsync(player, campaignId);
-        return Results.Ok(new
-        {
-            success = true,
-            reply,
-            nextTurn = new
-            {
-                roundNumber = Math.Max(1, refreshed?.RoundNumber ?? 1),
-                currentTurnType = refreshed?.CurrentTurnType ?? string.Empty,
-                currentTurnCharacterId = refreshed?.CurrentTurnCharacterId,
-                currentTurnMonsterId = refreshed?.CurrentTurnMonsterId,
-                currentTurnName = refreshed?.CurrentTurnName ?? string.Empty
-            },
-            rolls = enemyTurn.Rolls.Select(r => (object)new
-            {
-                reason = r.Reason,
-                expression = r.Expression,
-                rolls = r.Rolls,
-                keptRoll = r.KeptRoll,
-                modifier = r.Modifier,
-                total = r.Total,
-                mode = r.Mode,
-                dc = r.Dc,
-                success = r.Dc > 0 ? r.Success : (bool?)null
-            }).ToArray()
-        });
-    }
-    catch (OpenAiUsageException ex)
-    {
-        return Results.Json(new { success = false, error = ex.Message, usageIssue = true }, statusCode: 429);
-    }
-    catch (OpenAiConfigurationException ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message, needsApiKey = true });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-    finally
-    {
-        if (processingLeaseStarted && player != Guid.Empty && turnToken != Guid.Empty)
-        {
-            try { await service.ReleaseGmTurnAsync(player, campaignId, turnToken); }
-            catch { }
-        }
-    }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
     Guid campaignId, GameMasterRequest body, HttpRequest request, DiscordSupabaseService service, OpenAiGameMasterService ai, ApiKeyEncryptionService encryption) =>
 {
@@ -1514,23 +1317,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         player = await service.GetOrCreatePlayerAsync(user);
-
-        var combatAccess = await service.GetTacticalCombatStateAsync(player, campaignId);
-        if (combatAccess?.Active == true &&
-            !(combatAccess.ViewerCharacterId.HasValue &&
-              combatAccess.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
-              combatAccess.CurrentTurnCharacterId == combatAccess.ViewerCharacterId))
-        {
-            return Results.Conflict(new
-            {
-                success = false,
-                error = string.IsNullOrWhiteSpace(combatAccess.CurrentTurnName)
-                    ? "Combat initiative is active. Wait for your character's turn."
-                    : $"Combat initiative is active. It is {combatAccess.CurrentTurnName}'s turn.",
-                combatLocked = true,
-                currentTurnName = combatAccess.CurrentTurnName
-            });
-        }
 
         var tokenText = request.Headers["X-RabuShin-GM-Turn-Token"].ToString();
         if (!Guid.TryParse(tokenText, out turnToken))

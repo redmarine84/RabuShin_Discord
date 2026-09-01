@@ -168,38 +168,6 @@
   .gm-turn-countdown{text-align:left}
 }
 
-/* COMBAT BUILD 6.1 - STRICT INITIATIVE + END TURN */
-.combat-initiative-status{
-  margin:10px 0 0;
-  padding:9px 10px;
-  border:1px solid #5b4a2e;
-  border-radius:7px;
-  background:#0b0907;
-  color:#a99a7c;
-  font-size:11px;
-}
-.combat-initiative-status[hidden]{display:none!important}
-.combat-turn-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:7px;color:#c9b88f}
-.combat-turn-heading strong{color:#efd083}
-.initiative-order{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.initiative-chip{padding:4px 7px;border:1px solid #493d29;border-radius:999px;background:#12100c;color:#a99d83;white-space:nowrap}
-.initiative-chip b{color:#d4bb7d;margin-left:3px}
-.initiative-chip.current{border-color:#b58a43;background:#2b2011;color:#f2d58e;box-shadow:0 0 10px rgba(201,151,62,.2)}
-.initiative-arrow{color:#6f624c}
-.gm-combat-composer{grid-template-columns:minmax(0,1fr) auto auto auto}
-.button.end-turn{border-color:#8a633a;background:linear-gradient(#50321c,#2b1b11);color:#f0c98c;font-weight:700}
-.button.end-turn:hover{border-color:#c08c4b;background:linear-gradient(#674123,#382214)}
-.button.end-turn[hidden]{display:none!important}
-@media(max-width:620px){
-  .combat-turn-heading{align-items:flex-start;flex-direction:column;gap:3px}
-  .gm-combat-composer{grid-template-columns:1fr 1fr}
-  .gm-combat-composer textarea{grid-column:1 / -1}
-}
-
-/* Combat Build 6.1 - interrupted enemy turn recovery */
-.resume-enemy-turn {
-  white-space: nowrap;
-  border: 1px solid rgba(240, 178, 72, .55);
-}
-
-.button.resume-enemy-turn[hidden]{display:none!important}
+/* CHARACTER FEATURES BUILD - racial choices, alignment gauge, details */
+.racial-options{margin-top:16px}.racial-rule-card{border:1px solid #5b4a2e;border-radius:8px;background:#0c0a07;padding:14px}.racial-rule-card>b,.racial-rule-card>small{display:block}.racial-rule-card>b{color:#e0c27d;margin-bottom:5px}.racial-rule-card>small{color:#95886f;line-height:1.45}.racial-note{margin:0 0 8px;color:#a79573;font-size:12px}.racial-choice-grid{margin-top:10px}.racial-score-hint{margin-top:-4px}.alignment-gauge-host{margin-top:16px}.alignment-gauge-card{border:1px solid #5e4d31;border-radius:9px;background:#0b0907;padding:13px}.alignment-gauge-heading{display:flex;justify-content:space-between;align-items:end;gap:12px}.alignment-gauge-heading div{display:flex;flex-direction:column;gap:3px}.alignment-gauge-heading span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8f8065}.alignment-gauge-heading b{color:#e5c982;font-size:16px}.alignment-gauge-heading small{color:#9b8e75}.alignment-stage-row{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin:10px 0 8px}.alignment-stage-row span{padding:5px 2px;border:1px solid #403723;border-radius:4px;text-align:center;color:#756b58;font-size:9px;background:#080705}.alignment-stage-row span.current{border-color:#c69a4c;color:#f0d493;background:#332613;box-shadow:0 0 10px rgba(198,154,76,.22)}.alignment-meter{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}.alignment-meter>span{font-size:9px;font-weight:700;letter-spacing:.9px}.alignment-good-label{color:#9ec18d}.alignment-evil-label{color:#d88c84}.alignment-meter-track{height:10px;position:relative;border:1px solid #55462d;border-radius:999px;background:linear-gradient(90deg,rgba(92,128,76,.55),#312817 50%,rgba(126,58,52,.58));overflow:visible}.alignment-meter-track:after{content:'';position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#b59a65}.alignment-meter-track i{position:absolute;top:50%;width:14px;height:14px;border:2px solid #f0d493;border-radius:50%;background:#171008;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(240,212,147,.55)}.alignment-counts{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:9px;color:#817660;font-size:10px}.alignment-counts b{color:#d9bd7a}.character-details-modal{width:min(850px,96vw);max-height:92vh;overflow:auto;position:relative}.character-detail-sections{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}.character-detail-sections section{border:1px solid #443924;border-radius:7px;background:#0b0907;padding:12px}.character-detail-sections section h4{margin:0 0 7px;color:#dcbf79}.character-detail-sections section p{margin:0;color:#b1a184;line-height:1.5;overflow-wrap:anywhere}.character-detail-sections section:nth-last-of-type(1),.character-detail-sections section:nth-last-of-type(2){grid-column:1/-1}.character-details-form{margin-top:14px}.detail-long{min-height:125px}.racial-detail-list{display:flex;flex-wrap:wrap;gap:7px}.racial-detail-list span{border:1px solid #4d402a;border-radius:999px;background:#12100b;padding:6px 9px;color:#bdaa82;font-size:11px}.loading.mini{padding:14px}.character-sheet-details .alignment-gauge-card{max-width:720px}
+@media(max-width:760px){.racial-choice-grid,.character-detail-sections{grid-template-columns:1fr}.alignment-stage-row{grid-template-columns:repeat(3,1fr)}.view-heading>.row{flex-wrap:wrap;justify-content:flex-end}}
