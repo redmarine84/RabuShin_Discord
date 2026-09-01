@@ -595,6 +595,68 @@ public sealed class DiscordSupabaseService
         return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
             ?? throw new InvalidOperationException("Supabase returned an invalid terrain-aware movement result.");
     }
+    // MULTIPLAYER LIVE CHAT - AI GAME MASTER TURN LEASE
+    public async Task<GmTurnStateResult> GetGmTurnStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_gm_turn_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadGmTurnStateAsync(response, "Unable to load AI Game Master turn state");
+    }
+
+    public async Task<GmTurnStateResult> AcquireGmTurnAsync(
+        Guid playerId,
+        Guid campaignId,
+        string playerName)
+    {
+        using var response = await CallRpcAsync("discord_acquire_gm_turn", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_player_name = playerName
+        });
+        return await ReadGmTurnStateAsync(response, "Unable to acquire AI Game Master turn");
+    }
+
+    public async Task<GmTurnStateResult> BeginGmProcessingAsync(
+        Guid playerId,
+        Guid campaignId,
+        Guid lockToken)
+    {
+        using var response = await CallRpcAsync("discord_begin_gm_processing", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_lock_token = lockToken
+        });
+        return await ReadGmTurnStateAsync(response, "Unable to begin AI Game Master turn");
+    }
+
+    public async Task ReleaseGmTurnAsync(Guid playerId, Guid campaignId, Guid lockToken)
+    {
+        using var response = await CallRpcAsync("discord_release_gm_turn", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_lock_token = lockToken
+        });
+        await EnsureSuccessAsync(response, "Unable to release AI Game Master turn");
+    }
+
+    private static async Task<GmTurnStateResult> ReadGmTurnStateAsync(
+        HttpResponseMessage response,
+        string prefix)
+    {
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"{prefix}: {json}");
+
+        return JsonSerializer.Deserialize<GmTurnStateResult>(json, JsonOptions)
+            ?? throw new InvalidOperationException($"{prefix}: Supabase returned an invalid turn state.");
+    }
+
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);
@@ -643,6 +705,18 @@ public sealed class DiscordSupabaseService
             throw new InvalidOperationException($"{prefix}: Supabase returned an invalid numeric ID.");
         }
     }
+}
+
+public sealed class GmTurnStateResult
+{
+    [JsonPropertyName("active")] public bool Active { get; set; }
+    [JsonPropertyName("processing")] public bool Processing { get; set; }
+    [JsonPropertyName("is_owner")] public bool IsOwner { get; set; }
+    [JsonPropertyName("owner_player_id")] public Guid? OwnerPlayerId { get; set; }
+    [JsonPropertyName("owner_name")] public string OwnerName { get; set; } = string.Empty;
+    [JsonPropertyName("lock_token")] public Guid? LockToken { get; set; }
+    [JsonPropertyName("remaining_seconds")] public int RemainingSeconds { get; set; }
+    [JsonPropertyName("expires_at")] public DateTimeOffset? ExpiresAt { get; set; }
 }
 
 public sealed class DiscordLocalMapState

@@ -1157,57 +1157,173 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
 {
     try
     {
-        var user=await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString()); var player=await service.GetOrCreatePlayerAsync(user);
-        var messages=await service.GetMessagesAsync(player,campaignId,"gm",150);
-        return Results.Ok(new {success=true,messages=messages.Select(m=>new {messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt})});
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var player = await service.GetOrCreatePlayerAsync(user);
+        var messages = await service.GetMessagesAsync(player, campaignId, "gm", 150);
+        var turnState = await service.GetGmTurnStateAsync(player, campaignId);
+        return Results.Ok(new
+        {
+            success = true,
+            messages = messages.Select(m => new
+            {
+                messageId = m.MessageId,
+                roleName = m.RoleName,
+                senderName = m.SenderName,
+                messageText = m.MessageText,
+                createdAt = m.CreatedAt
+            }),
+            turnState = new
+            {
+                active = turnState.Active,
+                processing = turnState.Processing,
+                isOwner = turnState.IsOwner,
+                ownerPlayerId = turnState.OwnerPlayerId,
+                ownerName = turnState.OwnerName,
+                lockToken = turnState.IsOwner ? turnState.LockToken : null,
+                remainingSeconds = turnState.RemainingSeconds,
+                expiresAt = turnState.ExpiresAt
+            }
+        });
     }
-    catch(Exception ex){ return Results.BadRequest(new {success=false,error=ex.Message}); }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var player = await service.GetOrCreatePlayerAsync(user);
+        var playerName = user.GlobalName ?? user.Username;
+        var turnState = await service.AcquireGmTurnAsync(player, campaignId, playerName);
+        return Results.Ok(new
+        {
+            success = true,
+            turnState = new
+            {
+                active = turnState.Active,
+                processing = turnState.Processing,
+                isOwner = turnState.IsOwner,
+                ownerPlayerId = turnState.OwnerPlayerId,
+                ownerName = turnState.OwnerName,
+                lockToken = turnState.IsOwner ? turnState.LockToken : null,
+                remainingSeconds = turnState.RemainingSeconds,
+                expiresAt = turnState.ExpiresAt
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
 });
 
 app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
     Guid campaignId, GameMasterRequest body, HttpRequest request, DiscordSupabaseService service, OpenAiGameMasterService ai, ApiKeyEncryptionService encryption) =>
 {
+    Guid player = Guid.Empty;
+    Guid turnToken = Guid.Empty;
+    var processingLeaseStarted = false;
+
     try
     {
-        var user=await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player=await service.GetOrCreatePlayerAsync(user);
-        var character=await service.GetCharacterAsync(player,campaignId);
-        if(character is null) return Results.NotFound(new {success=false,error="Character could not be found."});
-        var campaigns=await service.GetCampaignsAsync(player); var campaign=campaigns.FirstOrDefault(c=>c.CampaignId==campaignId);
-        if(campaign is null) return Results.NotFound(new {success=false,error="Campaign could not be found."});
-        var sender=user.GlobalName??user.Username;
-        await service.AddMessageAsync(player,campaignId,"gm","user",sender,body.Message);
-        var history=await service.GetMessagesAsync(player,campaignId,"gm",100);
-        var inventory=await service.GetInventoryAsync(player,campaignId);
-        var spells=await service.GetSpellsAsync(player,campaignId);
-        var storedKey=await service.GetStoredOpenAiKeyAsync(player);
-        if(storedKey is null || string.IsNullOrWhiteSpace(storedKey.EncryptedValue))
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        player = await service.GetOrCreatePlayerAsync(user);
+
+        var tokenText = request.Headers["X-RabuShin-GM-Turn-Token"].ToString();
+        if (!Guid.TryParse(tokenText, out turnToken))
+        {
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "Begin typing in the AI Game Master box to claim the 30-second turn before sending.",
+                turnExpired = true
+            });
+        }
+
+        await service.BeginGmProcessingAsync(player, campaignId, turnToken);
+        processingLeaseStarted = true;
+
+        var character = await service.GetCharacterAsync(player, campaignId);
+        if (character is null)
+            return Results.NotFound(new { success = false, error = "Character could not be found." });
+
+        var campaigns = await service.GetCampaignsAsync(player);
+        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
+        if (campaign is null)
+            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
+
+        var sender = user.GlobalName ?? user.Username;
+        await service.AddMessageAsync(player, campaignId, "gm", "user", sender, body.Message);
+        var history = await service.GetMessagesAsync(player, campaignId, "gm", 100);
+        var inventory = await service.GetInventoryAsync(player, campaignId);
+        var spells = await service.GetSpellsAsync(player, campaignId);
+        var storedKey = await service.GetStoredOpenAiKeyAsync(player);
+        if (storedKey is null || string.IsNullOrWhiteSpace(storedKey.EncryptedValue))
             throw new OpenAiConfigurationException("No OpenAI API key is saved for your Discord account. Open Settings and use Test & Save API Key.");
-        var apiKey=encryption.Decrypt(storedKey.EncryptedValue);
-        var turn=await ai.AskGameMasterAsync(user.Id,apiKey,campaign,character,history,body.Message,inventory,spells);
-        await service.AddMessageAsync(player,campaignId,"gm","assistant","RabuShin AI GM",turn.Message);
+
+        var apiKey = encryption.Decrypt(storedKey.EncryptedValue);
+        var turn = await ai.AskGameMasterAsync(user.Id, apiKey, campaign, character, history, body.Message, inventory, spells);
+        await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM", turn.Message);
+
         return Results.Ok(new
         {
-            success=true,
-            reply=turn.Message,
-            gmControlledDice=true,
-            rolls=turn.Rolls.Select(r=>new
+            success = true,
+            reply = turn.Message,
+            gmControlledDice = true,
+            rolls = turn.Rolls.Select(r => new
             {
-                reason=r.Reason,
-                expression=r.Expression,
-                rolls=r.Rolls,
-                keptRoll=r.KeptRoll,
-                modifier=r.Modifier,
-                total=r.Total,
-                mode=r.Mode,
-                dc=r.Dc,
-                success=r.Dc>0 ? r.Success : (bool?)null
+                reason = r.Reason,
+                expression = r.Expression,
+                rolls = r.Rolls,
+                keptRoll = r.KeptRoll,
+                modifier = r.Modifier,
+                total = r.Total,
+                mode = r.Mode,
+                dc = r.Dc,
+                success = r.Dc > 0 ? r.Success : (bool?)null
             })
         });
     }
-    catch(OpenAiUsageException ex){ return Results.Json(new {success=false,error=ex.Message,usageIssue=true},statusCode:429); }
-    catch(OpenAiConfigurationException ex){ return Results.BadRequest(new {success=false,error=ex.Message,needsApiKey=true}); }
-    catch(Exception ex){ return Results.BadRequest(new {success=false,error=ex.Message}); }
+    catch (OpenAiUsageException ex)
+    {
+        return Results.Json(new { success = false, error = ex.Message, usageIssue = true }, statusCode: 429);
+    }
+    catch (OpenAiConfigurationException ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message, needsApiKey = true });
+    }
+    catch (InvalidOperationException ex) when (
+        ex.Message.Contains("30-second AI Game Master turn", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("AI Game Master turn expired", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("AI Game Master turn", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Conflict(new { success = false, error = ex.Message, turnExpired = true });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+    finally
+    {
+        if (processingLeaseStarted && player != Guid.Empty && turnToken != Guid.Empty)
+        {
+            try
+            {
+                await service.ReleaseGmTurnAsync(player, campaignId, turnToken);
+            }
+            catch
+            {
+                // A stale processing lease self-expires after ten minutes.
+            }
+        }
+    }
 });
 
 // Any non-API Activity route should load the Vite application.

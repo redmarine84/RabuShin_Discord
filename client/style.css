@@ -122,3 +122,48 @@
 @media(max-width:800px){.tactical-combat-heading{flex-direction:column;gap:6px}.tactical-movement-status{white-space:normal}.tactical-viewport{max-height:62vh}.tactical-token{width:44px;height:44px;border-width:2px}.tactical-token-name{max-width:96px;font-size:8px}.tactical-token-hp{font-size:8px;right:-7px;top:-7px}.tactical-toolbar #tacticalMoveHint{width:100%;margin-left:0}}
 /* VISUALS BUILD 5.1 - TACTICAL TERRAIN */
 .tactical-terrain-legend{width:100%;margin-top:5px;padding:7px 9px;border:1px dashed #6b5938;border-radius:6px;background:#0b0907;color:#b8aa8f;font-size:10px;line-height:1.45}.tactical-terrain-legend[hidden]{display:none!important}
+/* ============================================================
+   MULTIPLAYER LIVE CHAT + AI GAME MASTER 30-SECOND TURN LEASE
+   ============================================================ */
+.gm-turn-status{
+  min-height:34px;
+  margin:9px 0 -1px;
+  padding:7px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid #4d422f;
+  border-radius:7px;
+  background:#0d0b08;
+  color:#9b8f78;
+  font-size:12px;
+  line-height:1.3;
+}
+.gm-turn-status b{color:inherit}
+.gm-turn-status.idle{border-color:#46533d;color:#a8bc92;background:#0d120c}
+.gm-turn-status.checking{color:#8f846e}
+.gm-turn-status.own{border-color:#a57d37;color:#f0d68e;background:#171107;box-shadow:0 0 12px rgba(198,151,62,.12)}
+.gm-turn-status.locked{border-color:#6c4b43;color:#d4a79d;background:#140d0b}
+.gm-turn-status.processing{border-color:#556d57;color:#b4d0b3;background:#0d130e}
+.gm-turn-status.expired{border-color:#705c37;color:#d6bd7c;background:#151108}
+.gm-turn-countdown{
+  flex:0 0 auto;
+  min-width:46px;
+  text-align:right;
+  font-family:Consolas,"Courier New",monospace;
+  font-size:14px;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.4px;
+}
+#gmInput:disabled{
+  opacity:.62;
+  cursor:not-allowed;
+  background:#090806;
+}
+#sendGm:disabled{cursor:not-allowed;opacity:.55}
+
+@media(max-width:520px){
+  .gm-turn-status{align-items:flex-start;flex-direction:column;gap:4px}
+  .gm-turn-countdown{text-align:left}
+}

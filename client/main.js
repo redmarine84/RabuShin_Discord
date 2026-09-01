@@ -20,6 +20,20 @@ let tacticalZoom = 1;
 let tacticalLastSignature = '';
 let tacticalShowTerrainDebug = false; // VISUALS BUILD 5.1 - TERRAIN CLIENT
 
+// MULTIPLAYER LIVE CHAT + AI GM TURN LEASE
+let activeGameTab = 'gm';
+let conversationLiveSyncTimer = null;
+let conversationLiveSyncBusy = false;
+let gmTurnCountdownTimer = null;
+let gmTurnState = null;
+let gmTurnToken = null;
+let gmTurnAcquirePending = false;
+let gmTurnSubmitting = false;
+let gmTurnDraft = '';
+let campaignChatDraft = '';
+let gmMessageSignature = '';
+let chatMessageSignature = '';
+
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -180,6 +194,12 @@ async function showCampaignLauncher() {
   tacticalSelectedTokenId = null;
   tacticalLastSignature = '';
   stopTacticalCombatPolling();
+  stopConversationLiveSync();
+  activeGameTab = 'gm';
+  gmTurnState = null;
+  gmTurnToken = null;
+  gmTurnDraft = '';
+  campaignChatDraft = '';
   currentCombatData = null;
   currentLocalMapData = null;
   currentWorldMapData = null;
@@ -497,6 +517,11 @@ async function showSpellSelection(campaignId, character) {
 async function enterCampaign(campaignId) {
   try {
     currentCampaignId=campaignId;
+    activeGameTab='gm';
+    gmTurnState=null;
+    gmTurnToken=null;
+    gmTurnDraft='';
+    campaignChatDraft='';
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
     renderGameShell();
     renderGameMasterTab();
@@ -521,7 +546,10 @@ function renderGameShell() {
 }
 
 function switchGameTab(tab,button) {
-  document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));button?.classList.add('active');
+  document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));
+  button?.classList.add('active');
+  stopConversationLiveSync();
+  activeGameTab=tab;
   if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
@@ -533,6 +561,217 @@ function timelineDisplayText(value) {
 function timelineHtml(messages, emptyText='No messages yet.') {
   if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
   return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(timelineDisplayText(m.messageText)).replaceAll('\n','<br>')}</div></div>`).join('');
+}
+
+
+function messageListSignature(messages) {
+  const list=messages||[];
+  if(!list.length)return '0';
+  const last=list[list.length-1];
+  return `${list.length}:${last.messageId||0}:${last.createdAt||''}`;
+}
+
+function updateLiveTimeline(elementId,messages,emptyText,signatureName,force=false) {
+  const timeline=document.querySelector(`#${elementId}`);
+  if(!timeline)return;
+  const signature=messageListSignature(messages);
+  const previous=signatureName==='gm'?gmMessageSignature:chatMessageSignature;
+  if(!force&&signature===previous)return;
+  timeline.innerHTML=timelineHtml(messages,emptyText);
+  timeline.scrollTop=timeline.scrollHeight;
+  if(signatureName==='gm')gmMessageSignature=signature;
+  else chatMessageSignature=signature;
+}
+
+function stopConversationLiveSync() {
+  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
+  conversationLiveSyncTimer=null;
+  conversationLiveSyncBusy=false;
+  if(gmTurnCountdownTimer)clearInterval(gmTurnCountdownTimer);
+  gmTurnCountdownTimer=null;
+}
+
+function normalizeGmTurnState(state) {
+  const normalized={
+    active:!!state?.active,
+    processing:!!state?.processing,
+    isOwner:!!state?.isOwner,
+    ownerPlayerId:state?.ownerPlayerId||null,
+    ownerName:String(state?.ownerName||''),
+    lockToken:state?.lockToken||null,
+    remainingSeconds:Math.max(0,Number(state?.remainingSeconds)||0),
+    expiresAt:state?.expiresAt||null,
+    _deadlineMs:null
+  };
+  if(normalized.active&&!normalized.processing&&normalized.remainingSeconds>0)
+    normalized._deadlineMs=Date.now()+normalized.remainingSeconds*1000;
+  return normalized;
+}
+
+function currentGmTurnSeconds() {
+  if(!gmTurnState?.active||gmTurnState.processing)return 0;
+  if(gmTurnState._deadlineMs)
+    return Math.max(0,Math.ceil((gmTurnState._deadlineMs-Date.now())/1000));
+  return Math.max(0,Number(gmTurnState.remainingSeconds)||0);
+}
+
+function setGmTurnState(state) {
+  gmTurnState=normalizeGmTurnState(state);
+  gmTurnToken=gmTurnState.isOwner?gmTurnState.lockToken:null;
+  updateGmTurnUi();
+}
+
+function updateGmTurnUi() {
+  const status=document.querySelector('#gmTurnStatus');
+  const input=document.querySelector('#gmInput');
+  const send=document.querySelector('#sendGm');
+  if(!status||!input||!send)return;
+
+  const message=input.value.trim();
+  const state=gmTurnState;
+  status.className='gm-turn-status';
+
+  if(!state) {
+    status.classList.add('checking');
+    status.innerHTML='<span>Checking shared GM turn...</span>';
+    input.disabled=true;
+    send.disabled=true;
+    return;
+  }
+
+  if(state.active&&state.processing) {
+    const who=state.ownerName||'Another player';
+    status.classList.add('processing');
+    status.innerHTML=`<span>RabuShin is responding to <b>${escapeHtml(who)}</b>...</span>`;
+    input.disabled=true;
+    send.disabled=true;
+    return;
+  }
+
+  const seconds=currentGmTurnSeconds();
+  if(state.active&&seconds<=0) {
+    gmTurnState={active:false,processing:false,isOwner:false,ownerName:'',lockToken:null,remainingSeconds:0,_deadlineMs:null};
+    gmTurnToken=null;
+    status.classList.add('expired');
+    status.innerHTML='<span>Turn expired — continue typing to claim a new 30-second turn.</span>';
+    input.disabled=false;
+    send.disabled=!message||gmTurnSubmitting;
+    return;
+  }
+
+  if(state.active&&state.isOwner) {
+    status.classList.add('own');
+    status.innerHTML=`<span>Your turn — send before time expires</span><b class="gm-turn-countdown">00:${String(seconds).padStart(2,'0')}</b>`;
+    input.disabled=gmTurnSubmitting;
+    send.disabled=!message||gmTurnSubmitting;
+    return;
+  }
+
+  if(state.active) {
+    const who=state.ownerName||'Another player';
+    status.classList.add('locked');
+    status.innerHTML=`<span><b>${escapeHtml(who)}</b> is typing</span><b class="gm-turn-countdown">00:${String(seconds).padStart(2,'0')}</b>`;
+    input.disabled=true;
+    send.disabled=true;
+    return;
+  }
+
+  status.classList.add('idle');
+  status.innerHTML='<span>AI Game Master input available — begin typing to claim 30 seconds.</span>';
+  input.disabled=false;
+  // A saved draft may acquire the lease when Send is clicked.
+  send.disabled=!message||gmTurnSubmitting;
+}
+
+async function acquireGmTurnForDraft() {
+  const input=document.querySelector('#gmInput');
+  if(!input||!currentCampaignId||!input.value.trim())return false;
+  if(gmTurnSubmitting)return false;
+  if(gmTurnState?.active&&gmTurnState.isOwner&&gmTurnToken&&currentGmTurnSeconds()>0)return true;
+  if(gmTurnAcquirePending)return false;
+
+  gmTurnAcquirePending=true;
+  try {
+    const result=await api(`/game-api/campaigns/${currentCampaignId}/gm/turn/acquire`,{method:'POST'});
+    setGmTurnState(result.turnState);
+    if(!result.turnState?.isOwner) {
+      const who=result.turnState?.ownerName||'Another player';
+      document.querySelector('#gmError').textContent=`${who} currently has the AI Game Master turn.`;
+      return false;
+    }
+    document.querySelector('#gmError').textContent='';
+    return true;
+  } catch(error) {
+    document.querySelector('#gmError').textContent=error.message;
+    return false;
+  } finally {
+    gmTurnAcquirePending=false;
+    updateGmTurnUi();
+  }
+}
+
+async function refreshGmLive(force=false) {
+  if(activeGameTab!=='gm'||!currentCampaignId||conversationLiveSyncBusy)return;
+  conversationLiveSyncBusy=true;
+  try {
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/gm`);
+    currentGameData.gmMessages=data.messages||[];
+    updateLiveTimeline('gmTimeline',currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.','gm',force);
+    setGmTurnState(data.turnState);
+  } catch(error) {
+    const errorBox=document.querySelector('#gmError');
+    if(errorBox&&!gmTurnSubmitting)errorBox.textContent=`Live sync: ${error.message}`;
+  } finally {
+    conversationLiveSyncBusy=false;
+  }
+}
+
+function scheduleGmLiveSync() {
+  if(activeGameTab!=='gm')return;
+  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
+  conversationLiveSyncTimer=setTimeout(async()=>{
+    await refreshGmLive(false);
+    if(activeGameTab==='gm')scheduleGmLiveSync();
+  },1000);
+}
+
+function startGmLiveSync() {
+  stopConversationLiveSync();
+  gmMessageSignature=messageListSignature(currentGameData?.gmMessages||[]);
+  gmTurnCountdownTimer=setInterval(updateGmTurnUi,250);
+  void refreshGmLive(true);
+  scheduleGmLiveSync();
+}
+
+async function refreshChatLive(force=false) {
+  if(activeGameTab!=='chat'||!currentCampaignId||conversationLiveSyncBusy)return;
+  conversationLiveSyncBusy=true;
+  try {
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/chat`);
+    currentGameData.chatMessages=data.messages||[];
+    updateLiveTimeline('chatTimeline',currentGameData.chatMessages,'No campaign chat messages yet.','chat',force);
+  } catch(error) {
+    const errorBox=document.querySelector('#chatError');
+    if(errorBox)errorBox.textContent=`Live sync: ${error.message}`;
+  } finally {
+    conversationLiveSyncBusy=false;
+  }
+}
+
+function scheduleChatLiveSync() {
+  if(activeGameTab!=='chat')return;
+  if(conversationLiveSyncTimer)clearTimeout(conversationLiveSyncTimer);
+  conversationLiveSyncTimer=setTimeout(async()=>{
+    await refreshChatLive(false);
+    if(activeGameTab==='chat')scheduleChatLiveSync();
+  },1000);
+}
+
+function startChatLiveSync() {
+  stopConversationLiveSync();
+  chatMessageSignature=messageListSignature(currentGameData?.chatMessages||[]);
+  void refreshChatLive(true);
+  scheduleChatLiveSync();
 }
 
 function worldMapPercent(value,total) {
@@ -1038,8 +1277,15 @@ function scrollGmToBottom() {
 }
 
 function renderGameMasterTab() {
+  const existingInput=document.querySelector('#gmInput');
+  if(existingInput)gmTurnDraft=existingInput.value;
+
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div class="composer"><textarea id="gmInput" class="input" placeholder="What do you do?"></textarea><button id="sendGm" class="button primary">Send</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP ${currentGameData.character.currentHp}/${currentGameData.character.maxHp} • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP ${currentGameData.character.currentHp}/${currentGameData.character.maxHp} • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+
+  const input=document.querySelector('#gmInput');
+  input.value=gmTurnDraft;
+
   const gmRefreshButton=document.querySelector('#refreshGm');
   if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
     const mapButton=document.createElement('button');
@@ -1050,6 +1296,7 @@ function renderGameMasterTab() {
   }
   const openWorldMapButton=document.querySelector('#openWorldMap');
   if(openWorldMapButton)openWorldMapButton.onclick=openWorldMap;
+
   const localMapRefreshButton=document.querySelector('#refreshGm');
   const localMapButtonHost=localMapRefreshButton?.parentElement;
   if(localMapButtonHost&&!document.querySelector('#openSettlementMap')) {
@@ -1072,13 +1319,65 @@ function renderGameMasterTab() {
   if(settlementMapButton)settlementMapButton.onclick=()=>openCampaignLocalMap('settlement');
   if(encounterMapButton)encounterMapButton.onclick=()=>openCampaignLocalMap('encounter');
   void refreshLocalMapButtons();
-  document.querySelector('#refreshGm').onclick=async()=>{const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;renderGameMasterTab();};
+
+  document.querySelector('#refreshGm').onclick=()=>refreshGmLive(true);
+
+  input.addEventListener('input',()=>{
+    gmTurnDraft=input.value;
+    updateGmTurnUi();
+    if(input.value.trim()&&(!gmTurnState?.active||(!gmTurnState.isOwner&&currentGmTurnSeconds()<=0)))
+      void acquireGmTurnForDraft();
+  });
+  input.addEventListener('focus',()=>{
+    if(input.value.trim()&&!gmTurnState?.active)void acquireGmTurnForDraft();
+  });
+
   document.querySelector('#sendGm').onclick=async()=>{
-    const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;
-    const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
-      try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } await refreshWorldMapCampaignLocation(); renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
+    const message=input.value.trim();
+    if(!message||gmTurnSubmitting)return;
+
+    if(!gmTurnState?.isOwner||!gmTurnToken||currentGmTurnSeconds()<=0) {
+      const acquired=await acquireGmTurnForDraft();
+      if(!acquired)return;
+    }
+
+    const token=gmTurnToken;
+    gmTurnSubmitting=true;
+    gmTurnState={...(gmTurnState||{}),active:true,processing:true,isOwner:true,ownerName:(currentDiscordUser?.global_name||currentDiscordUser?.username||'You'),lockToken:token};
+    updateGmTurnUi();
+    document.querySelector('#gmError').textContent='';
+
+    try {
+      await api(`/game-api/campaigns/${currentCampaignId}/gm`,{
+        method:'POST',
+        headers:{'X-RabuShin-GM-Turn-Token':token},
+        body:JSON.stringify({message})
+      });
+      gmTurnDraft='';
+      input.value='';
+
+      try {
+        const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
+        currentGameData.inventory=inv.inventory||[];
+        if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
+      } catch(refreshError) {
+        console.warn('Inventory refresh after GM turn failed:',refreshError);
+      }
+
+      await refreshWorldMapCampaignLocation();
+    } catch(error) {
+      document.querySelector('#gmError').textContent=error.message;
+      if(error.data?.needsApiKey)showNotice('Open Settings and enter your OpenAI API key.',true);
+      if(error.data?.turnExpired)gmTurnToken=null;
+    } finally {
+      gmTurnSubmitting=false;
+      await refreshGmLive(true);
+      updateGmTurnUi();
+    }
   };
- scrollGmToBottom();
+
+  scrollGmToBottom();
+  startGmLiveSync();
 }
 
 function clearPortraitCache(characterId = null) {
@@ -1329,9 +1628,12 @@ function prefillGameMasterMessage(message) {
   const input=document.querySelector('#gmInput');
   if(!input)return;
   input.value=message;
+  gmTurnDraft=message;
   input.focus();
   const end=input.value.length;
   input.setSelectionRange?.(end,end);
+  updateGmTurnUi();
+  void acquireGmTurnForDraft();
 }
 
 function renderSpellbookTab() {
@@ -1360,11 +1662,33 @@ function renderJournalTab(){const entries=currentGameData.journal||[];document.q
 }
 async function refreshJournal(){const d=await api(`/game-api/campaigns/${currentCampaignId}/journal`);currentGameData.journal=d.entries;renderJournalTab();}
 
-function renderChatTab(){document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><input id="chatInput" class="input" placeholder="Message the party"><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
-  document.querySelector('#refreshChat').onclick=refreshChat;
-  document.querySelector('#sendChat').onclick=async()=>{const input=document.querySelector('#chatInput'),message=input.value.trim();if(!message)return;try{await api(`/game-api/campaigns/${currentCampaignId}/chat`,{method:'POST',body:JSON.stringify({message})});input.value='';await refreshChat();}catch(e){document.querySelector('#chatError').textContent=e.message;}};
+function renderChatTab(){
+  const existingInput=document.querySelector('#chatInput');
+  if(existingInput)campaignChatDraft=existingInput.value;
+  document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><input id="chatInput" class="input" placeholder="Message the party"><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
+  const input=document.querySelector('#chatInput');
+  input.value=campaignChatDraft;
+  input.addEventListener('input',()=>campaignChatDraft=input.value);
+  document.querySelector('#refreshChat').onclick=()=>refreshChatLive(true);
+  document.querySelector('#sendChat').onclick=async()=>{
+    const message=input.value.trim();
+    if(!message)return;
+    const send=document.querySelector('#sendChat');
+    send.disabled=true;
+    try {
+      await api(`/game-api/campaigns/${currentCampaignId}/chat`,{method:'POST',body:JSON.stringify({message})});
+      campaignChatDraft='';
+      input.value='';
+      await refreshChatLive(true);
+    } catch(e) {
+      document.querySelector('#chatError').textContent=e.message;
+    } finally {
+      send.disabled=false;
+    }
+  };
+  startChatLiveSync();
 }
-async function refreshChat(){const d=await api(`/game-api/campaigns/${currentCampaignId}/chat`);currentGameData.chatMessages=d.messages;renderChatTab();}
+async function refreshChat(){await refreshChatLive(true);}
 
 function renderSettingsTab(){
   document.querySelector('#gameView').innerHTML=`
