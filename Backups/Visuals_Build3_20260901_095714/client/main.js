@@ -10,7 +10,6 @@ let currentGameData = null;
 let selectedInventoryId = null;
 const portraitObjectUrls = new Map();
 let currentWorldMapData = null; // VISUALS BUILD 2 - WORLD MAP CLIENT
-let currentLocalMapData = null; // VISUALS BUILD 3 - LOCAL MAP CLIENT
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
@@ -167,7 +166,6 @@ async function showCampaignLauncher() {
   clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
-  currentLocalMapData = null;
   currentWorldMapData = null;
   const main = document.querySelector('#mainContent');
   const name = currentDiscordUser?.global_name || currentDiscordUser?.username || 'Player';
@@ -626,84 +624,6 @@ async function refreshWorldMapCampaignLocation() {
     console.warn('World Map state refresh failed:',error);
   }
 }
-async function loadLocalMapState() {
-  currentLocalMapData=await api(`/game-api/campaigns/${currentCampaignId}/local-maps`);
-  return currentLocalMapData;
-}
-
-async function refreshLocalMapButtons() {
-  const settlementButton=document.querySelector('#openSettlementMap');
-  const encounterButton=document.querySelector('#openEncounterMap');
-  if(!settlementButton&&!encounterButton)return;
-  try {
-    const data=await loadLocalMapState();
-    if(settlementButton) {
-      settlementButton.disabled=!data?.settlementMap?.available;
-      settlementButton.title=data?.settlementMap?.available ? `View ${data.currentLocation} settlement map` : 'No settlement map is available here.';
-    }
-    if(encounterButton) {
-      encounterButton.disabled=!data?.encounterMap?.available;
-      encounterButton.title=data?.encounterMap?.available ? `View active ${data.currentLocation} encounter map` : 'No tactical Encounter Map is currently active.';
-    }
-  } catch(error) {
-    if(settlementButton)settlementButton.disabled=true;
-    if(encounterButton)encounterButton.disabled=true;
-    console.warn('Local map state refresh failed:',error);
-  }
-}
-
-async function openCampaignLocalMap(kind) {
-  try {
-    const data=await loadLocalMapState();
-    const map=kind==='encounter' ? data?.encounterMap : data?.settlementMap;
-    if(!map?.available) {
-      showNotice(kind==='encounter' ? 'No Encounter Map is currently active.' : 'No Settlement Map is available for the current location.',true);
-      await refreshLocalMapButtons();
-      return;
-    }
-    renderCampaignLocalMap(map,kind,data.currentLocation);
-  } catch(error) {
-    showNotice(error.message,true);
-  }
-}
-
-function renderCampaignLocalMap(map,kind,currentLocation) {
-  document.querySelector('#localMapOverlay')?.remove();
-  const overlay=document.createElement('div');
-  overlay.id='localMapOverlay';
-  overlay.className='modal-overlay local-map-overlay';
-  const reason=kind==='encounter'&&map.reason ? `<p class="muted">${escapeHtml(map.reason)}</p>` : '';
-  overlay.innerHTML=`<div class="local-map-modal">
-    <div class="local-map-header">
-      <div><h2>${escapeHtml(map.name)}</h2><p>Current location: <b>${escapeHtml(currentLocation||'Unknown')}</b></p>${reason}</div>
-      <button id="closeLocalMap" class="modal-close" aria-label="Close">×</button>
-    </div>
-    <div class="local-map-toolbar">
-      <button id="localMapZoomOut" class="button small">−</button>
-      <span id="localMapZoomLabel">100%</span>
-      <button id="localMapZoomIn" class="button small">+</button>
-      <button id="localMapFit" class="button small">Fit to Screen</button>
-    </div>
-    <div id="localMapViewport" class="local-map-viewport">
-      <img id="localMapImage" class="local-map-image" src="${escapeHtml(map.imageUrl)}" width="${Number(map.imageWidth)||''}" height="${Number(map.imageHeight)||''}" alt="${escapeHtml(map.name)}">
-    </div>
-  </div>`;
-  document.body.appendChild(overlay);
-  const image=overlay.querySelector('#localMapImage');
-  const label=overlay.querySelector('#localMapZoomLabel');
-  let zoom=1;
-  const applyZoom=()=>{
-    image.style.width=`${Math.round(zoom*100)}%`;
-    image.style.height='auto';
-    label.textContent=`${Math.round(zoom*100)}%`;
-  };
-  overlay.querySelector('#localMapZoomOut').onclick=()=>{zoom=Math.max(.5,Math.round((zoom-.25)*100)/100);applyZoom();};
-  overlay.querySelector('#localMapZoomIn').onclick=()=>{zoom=Math.min(3,Math.round((zoom+.25)*100)/100);applyZoom();};
-  overlay.querySelector('#localMapFit').onclick=()=>{zoom=1;applyZoom();overlay.querySelector('#localMapViewport').scrollTo(0,0);};
-  overlay.querySelector('#closeLocalMap').onclick=()=>overlay.remove();
-  overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
-  applyZoom();
-}
 function scrollGmToBottom() {
     requestAnimationFrame(() => {
         const timeline = document.querySelector('#gmTimeline');
@@ -726,28 +646,6 @@ function renderGameMasterTab() {
   }
   const openWorldMapButton=document.querySelector('#openWorldMap');
   if(openWorldMapButton)openWorldMapButton.onclick=openWorldMap;
-  const localMapRefreshButton=document.querySelector('#refreshGm');
-  const localMapButtonHost=localMapRefreshButton?.parentElement;
-  if(localMapButtonHost&&!document.querySelector('#openSettlementMap')) {
-    const settlementMapButton=document.createElement('button');
-    settlementMapButton.id='openSettlementMap';
-    settlementMapButton.className='button small';
-    settlementMapButton.textContent='🏘 Settlement Map';
-    localMapButtonHost.insertBefore(settlementMapButton,localMapRefreshButton);
-  }
-  if(localMapButtonHost&&!document.querySelector('#openEncounterMap')) {
-    const encounterMapButton=document.createElement('button');
-    encounterMapButton.id='openEncounterMap';
-    encounterMapButton.className='button small';
-    encounterMapButton.textContent='⚔ Encounter Map';
-    encounterMapButton.disabled=true;
-    localMapButtonHost.insertBefore(encounterMapButton,localMapRefreshButton);
-  }
-  const settlementMapButton=document.querySelector('#openSettlementMap');
-  const encounterMapButton=document.querySelector('#openEncounterMap');
-  if(settlementMapButton)settlementMapButton.onclick=()=>openCampaignLocalMap('settlement');
-  if(encounterMapButton)encounterMapButton.onclick=()=>openCampaignLocalMap('encounter');
-  void refreshLocalMapButtons();
   document.querySelector('#refreshGm').onclick=async()=>{const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;renderGameMasterTab();};
   document.querySelector('#sendGm').onclick=async()=>{
     const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;

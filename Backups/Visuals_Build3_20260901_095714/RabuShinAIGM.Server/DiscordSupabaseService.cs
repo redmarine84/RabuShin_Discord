@@ -502,17 +502,6 @@ public sealed class DiscordSupabaseService
         });
         return await ReadListAsync<DiscordWorldMapState>(response, "Unable to load World Map");
     }
-    // VISUALS BUILD 3 - LOCAL MAP STATE
-    public async Task<DiscordLocalMapState?> GetLocalMapStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_local_map_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var list = await ReadListAsync<DiscordLocalMapState>(response, "Unable to load Settlement/Encounter Map state");
-        return list.FirstOrDefault();
-    }
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);
@@ -563,14 +552,6 @@ public sealed class DiscordSupabaseService
     }
 }
 
-public sealed class DiscordLocalMapState
-{
-    [JsonPropertyName("current_location")] public string CurrentLocation { get; set; } = string.Empty;
-    [JsonPropertyName("location_key")] public string LocationKey { get; set; } = string.Empty;
-    [JsonPropertyName("encounter_active")] public bool EncounterActive { get; set; }
-    [JsonPropertyName("encounter_location_key")] public string? EncounterLocationKey { get; set; }
-    [JsonPropertyName("encounter_reason")] public string EncounterReason { get; set; } = string.Empty;
-}
 public sealed class DiscordWorldMapState
 {
     [JsonPropertyName("location_key")] public string LocationKey { get; set; } = string.Empty;

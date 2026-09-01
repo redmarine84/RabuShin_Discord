@@ -573,68 +573,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/world-map", async (
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
-// VISUALS BUILD 3 - LOCAL MAP ENDPOINT
-app.MapGet("/game-api/campaigns/{campaignId:guid}/local-maps", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        var definition = LocalMapCatalog.FindByLocation(campaign.CurrentLocation);
-        var state = await service.GetLocalMapStateAsync(playerId, campaignId);
-
-        object? settlementMap = null;
-        object? encounterMap = null;
-
-        if (definition is not null)
-        {
-            settlementMap = new
-            {
-                available = true,
-                locationKey = definition.LocationKey,
-                name = $"{definition.LocationName} Settlement Map",
-                imageUrl = definition.SettlementImageUrl,
-                imageWidth = definition.SettlementImageWidth,
-                imageHeight = definition.SettlementImageHeight
-            };
-
-            var encounterActive = state?.EncounterActive == true &&
-                string.Equals(state.EncounterLocationKey, definition.LocationKey, StringComparison.OrdinalIgnoreCase);
-
-            encounterMap = new
-            {
-                available = encounterActive,
-                active = encounterActive,
-                locationKey = definition.LocationKey,
-                name = $"{definition.LocationName} Encounter Map",
-                imageUrl = encounterActive ? definition.EncounterImageUrl : null,
-                imageWidth = definition.EncounterImageWidth,
-                imageHeight = definition.EncounterImageHeight,
-                reason = encounterActive ? state?.EncounterReason : null
-            };
-        }
-
-        return Results.Ok(new
-        {
-            success = true,
-            currentLocation = campaign.CurrentLocation,
-            settlementMap,
-            encounterMap
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
 app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {

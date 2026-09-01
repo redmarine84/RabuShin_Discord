@@ -91,13 +91,6 @@ WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
 - Never update the campaign's location by narration alone. The travel_to_world_location tool is the authoritative location change.
 - The current settlement is always considered discovered.
 
-SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
-- The Settlement Map always represents the campaign's current settlement and needs no GM state change.
-- The Encounter Map is shared campaign state and must stay hidden during ordinary exploration, travel, shopping, or conversation.
-- When a tactical encounter or combat begins and the current settlement's encounter map is useful, call set_encounter_map with active=true before or as you establish the tactical scene.
-- When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
-- Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
-
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
 
@@ -172,21 +165,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         }
 
-        // VISUALS BUILD 3 - LOCAL MAP GM TOOL
-        var localMapState = await GetLocalMapStateAsync(campaign.CampaignId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("LOCAL MAP STATE (SERVER-AUTHORITATIVE / CAMPAIGN-WIDE):");
-        if (localMapState is null)
-        {
-            inputBuilder.AppendLine("(Local map state unavailable. Do not attempt to change encounter-map state.)");
-        }
-        else
-        {
-            inputBuilder.AppendLine($"- Settlement Map: {localMapState.CurrentLocation}");
-            inputBuilder.AppendLine(localMapState.EncounterActive
-                ? $"- Encounter Map: ACTIVE for {localMapState.CurrentLocation} ({localMapState.EncounterReason})"
-                : "- Encounter Map: INACTIVE");
-        }
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -205,8 +183,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
             BuildDiscoverWorldLocationTool(),
-            BuildTravelToWorldLocationTool(),
-            BuildSetEncounterMapTool()
+            BuildTravelToWorldLocationTool()
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
@@ -332,18 +309,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative = true, action = "travel_to_world_location", currentLocation = arrived };
                         break;
                     }
-                    case "set_encounter_map":
-                    {
-                        var args = DeserializeArguments<SetEncounterMapToolArguments>(call.ArgumentsJson, "encounter map state");
-                        var reason = CleanReason(args.Reason, args.Active ? "Tactical encounter" : "Encounter ended");
-                        var location = await SetEncounterMapAsync(campaign.CampaignId, args.Active, reason);
-                        var summary = args.Active
-                            ? $"Encounter Map activated for {location} ({reason})"
-                            : $"Encounter Map closed ({reason})";
-                        stateAudits.Add(new GameMasterStateAudit("Map", summary));
-                        toolResult = new { authoritative = true, action = "set_encounter_map", active = args.Active, currentLocation = location, reason };
-                        break;
-                    }                    default:
+                    default:
                         throw new InvalidOperationException($"The Game Master requested unsupported tool '{call.Name}'.");
                 }
 
@@ -574,27 +540,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
     }
 
-    private static object BuildSetEncounterMapTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "set_encounter_map",
-            description = "Activate or close the shared Encounter Map for the campaign's current settlement. Activate only for an actual tactical encounter/combat; close it when that scene ends.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    active = new { type = "boolean", description = "True when a tactical encounter begins; false when it ends." },
-                    reason = new { type = "string", description = "Short reason such as Combat with wolf pack or Encounter resolved." }
-                },
-                required = new[] { "active", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -724,37 +669,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         return value;
     }
 
-    private async Task<LocalMapStateRow?> GetLocalMapStateAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_get_local_map_state",
-                new { p_campaign_id = campaignId },
-                "Unable to load local map state");
-            var rows = JsonSerializer.Deserialize<List<LocalMapStateRow>>(raw, JsonOptions);
-            return rows?.FirstOrDefault();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async Task<string> SetEncounterMapAsync(Guid campaignId, bool active, string reason)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_set_encounter_map",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_active = active,
-                p_reason = reason
-            },
-            "Unable to update Encounter Map state");
-
-        return JsonSerializer.Deserialize<string>(raw, JsonOptions) ?? string.Empty;
-    }
     private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
@@ -1047,29 +961,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string LocationName { get; set; } = string.Empty;
     }
 
-    private sealed class SetEncounterMapToolArguments
-    {
-        public bool Active { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class LocalMapStateRow
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("current_location")]
-        public string CurrentLocation { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("location_key")]
-        public string LocationKey { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("encounter_active")]
-        public bool EncounterActive { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("encounter_location_key")]
-        public string? EncounterLocationKey { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("encounter_reason")]
-        public string EncounterReason { get; set; } = string.Empty;
-    }
     private sealed class WorldMapStateRow
     {
         [System.Text.Json.Serialization.JsonPropertyName("location_key")]
