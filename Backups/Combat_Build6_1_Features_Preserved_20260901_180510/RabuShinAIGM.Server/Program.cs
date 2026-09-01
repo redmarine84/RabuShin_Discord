@@ -153,12 +153,11 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/leave", async (Guid campaignI
 app.MapGet("/game-api/character-options", () => Results.Ok(new
 {
     success = true,
-    species = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species),
-    baseSpecies = CharacterFeatureRules.WithTortleBaseSpecies(CharacterGenerationService.BaseSpecies),
+    species = CharacterGenerationService.Species,
+    baseSpecies = CharacterGenerationService.BaseSpecies,
     classes = CharacterGenerationService.Classes,
     backgrounds = CharacterGenerationService.Backgrounds,
-    alignments = CharacterFeatureRules.AlignmentLadder,
-    racialRules = CharacterFeatureRules.GetClientRules()
+    alignments = CharacterGenerationService.Alignments
 }));
 
 app.MapGet("/game-api/campaigns/{campaignId:guid}/character", async (Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
@@ -175,50 +174,8 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/character", async (Guid campai
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-app.MapGet("/game-api/campaigns/{campaignId:guid}/character/features", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var state = await service.GetCharacterFeatureStateAsync(playerId, campaignId);
-        if (state is null) return Results.NotFound(new { success = false, error = "Character details could not be found." });
-        return Results.Ok(new
-        {
-            success = true,
-            characterId = state.CharacterId,
-            background = state.BackgroundName,
-            alignment = state.Alignment,
-            alignmentDeedBalance = state.AlignmentDeedBalance,
-            goodDeeds = state.AlignmentGoodDeeds,
-            evilDeeds = state.AlignmentEvilDeeds,
-            secondaryHeritage = state.SecondaryHeritage,
-            appearance = state.Appearance,
-            personality = state.Personality,
-            backstory = state.Backstory,
-            notes = state.Notes,
-            racialTraits = state.RacialTraits
-        });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPut("/game-api/campaigns/{campaignId:guid}/character/details", async (
-    Guid campaignId, CharacterDetailsUpdateRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.UpdateCharacterDetailsAsync(playerId, campaignId, body.Background, body.Appearance, body.Personality, body.Backstory, body.Notes);
-        return Results.Ok(new { success = true });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
-    Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+    Guid campaignId, RandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
     {
@@ -227,45 +184,20 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
-        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
-        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
+        var species = CharacterGenerationService.Species.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
         if (className is null) return Results.BadRequest(new { success = false, error = "Invalid class." });
 
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
-        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
-
-        AppliedRacialScores scores;
-        if (CharacterFeatureRules.IsTortleLineage(species))
-        {
-            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
-            // the classic Human +1s are removed before applying the player's Tortle choices.
-            scores = CharacterFeatureRules.ApplyAbilityScores(
-                species,
-                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
-                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices);
-        }
-        else
-        {
-            scores = new AppliedRacialScores(generated.Strength, generated.Dexterity, generated.Constitution,
-                generated.Intelligence, generated.Wisdom, generated.Charisma,
-                new Dictionary<string, int>());
-        }
-
-        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
-        var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
-            string.Empty, string.Empty, string.Empty, string.Empty);
-        var saved = await service.GetCharacterAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
+        var character = new CharacterGenerationService().Generate(species, className, 1, body.CharacterName ?? "");
+        var id = await service.CreateCharacterAsync(playerId, campaignId, character);
+        return Results.Ok(new { success = true, character = ProgramHelpers.ToClientGeneratedCharacter(id, character) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
 app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
-    Guid campaignId, EnhancedManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+    Guid campaignId, ManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
     {
@@ -274,27 +206,13 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
-        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
-        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
-        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
-
-        var scores = CharacterFeatureRules.ApplyAbilityScores(
-            species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
-            body.RacialAbilityChoices);
-        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
-
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
         var character = ManualCharacterCreationService.Create(
-            body.CharacterName, engineSpecies, body.SecondaryHeritage ?? "", body.ClassName,
+            body.CharacterName, body.Species, body.SecondaryHeritage ?? "", body.ClassName,
             body.Background, body.Alignment, body.Level,
-            scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
+            body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-
-        var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
-            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-        var saved = await service.GetCharacterAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
+        var id = await service.CreateCharacterAsync(playerId, campaignId, character);
+        return Results.Ok(new { success = true, character = ProgramHelpers.ToClientGeneratedCharacter(id, character) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });

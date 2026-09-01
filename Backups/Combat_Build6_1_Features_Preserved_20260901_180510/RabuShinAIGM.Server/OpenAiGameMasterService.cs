@@ -127,15 +127,6 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
 - Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
 
-ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
-- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
-- A morally significant GOOD deed moves the hidden alignment gauge one point toward the good side. A morally significant EVIL deed moves it one point toward the evil side.
-- Exactly 9 net points in one direction changes alignment by one stage and resets the stage progress. Example: True Neutral + 9 good points becomes Lawful Neutral; True Neutral + 9 evil points becomes Chaotic Neutral.
-- Call record_alignment_deed only after a player character definitively performs a morally significant deed. Do not score ordinary politeness, combat against legitimate hostile enemies, routine bargaining, or merely stated intentions.
-- Killing or deliberately harming innocents, cruelty, betrayal for selfish harm, and similarly serious acts normally qualify as evil. Meaningful mercy, self-sacrifice, protection of innocents, and similarly serious altruistic acts normally qualify as good. Judge context fairly.
-- If an action is morally mixed or neutral, do not call the tool. If one resolved player action contains multiple clearly separate significant deeds, you may call it once for each distinct deed.
-- The server, not narration, changes the stored alignment. Never claim the alignment changed unless the tool result says it changed.
-
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
 
@@ -162,9 +153,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             $"INT {character.Intelligence} ({FormatModifier(AbilityModifier(character.Intelligence))}), " +
             $"WIS {character.Wisdom} ({FormatModifier(AbilityModifier(character.Wisdom))}), " +
             $"CHA {character.Charisma} ({FormatModifier(AbilityModifier(character.Charisma))})");
-        inputBuilder.AppendLine($"ALIGNMENT: {character.Alignment}");
-        var racialTraitSummary = CharacterFeatureRules.BuildGmTraitSummary(character.CharacterData);
-        if (!string.IsNullOrWhiteSpace(racialTraitSummary)) inputBuilder.AppendLine($"RACIAL TRAITS: {racialTraitSummary}");
         inputBuilder.AppendLine("Location/campaign state is managed by RabuShin.");
 
         inputBuilder.AppendLine();
@@ -308,7 +296,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             BuildDiceTool(),
             BuildAdjustGoldTool(),
-            BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
             BuildDiscoverWorldLocationTool(),
@@ -402,31 +389,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var summary = $"{(args.Delta >= 0 ? "+" : string.Empty)}{args.Delta} GP ({reason}); balance {newGold:0.##} GP";
                         stateAudits.Add(new GameMasterStateAudit("Gold", summary));
                         toolResult = new { authoritative = true, action = "adjust_gold", delta = args.Delta, newGold, reason };
-                        break;
-                    }
-                    case "record_alignment_deed":
-                    {
-                        var args = DeserializeArguments<AlignmentDeedToolArguments>(call.ArgumentsJson, "alignment deed");
-                        var direction = (args.Direction ?? string.Empty).Trim().ToLowerInvariant();
-                        if (direction is not ("good" or "evil"))
-                            throw new InvalidOperationException("Alignment deed direction must be good or evil.");
-                        var reason = CleanReason(args.Reason, direction == "good" ? "Significant good deed" : "Significant evil deed");
-                        var result = await RecordAlignmentDeedAsync(character.CharacterId, campaign.CampaignId, direction, reason);
-                        if (result.Changed)
-                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} → {result.Alignment} ({reason})"));
-                        toolResult = new
-                        {
-                            authoritative = true,
-                            action = "record_alignment_deed",
-                            direction,
-                            reason,
-                            alignment = result.Alignment,
-                            deedBalance = result.AlignmentDeedBalance,
-                            goodDeeds = result.GoodDeeds,
-                            evilDeeds = result.EvilDeeds,
-                            changed = result.Changed,
-                            previousAlignment = result.PreviousAlignment
-                        };
                         break;
                     }
                     case "add_inventory_item":
@@ -736,28 +698,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short reason such as Quest reward, bought rations, paid innkeeper." }
                 },
                 required = new[] { "delta", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildAlignmentDeedTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "record_alignment_deed",
-            description = "Record one definitively completed, morally significant good or evil deed on the current character's alignment gauge. Do not use for neutral, trivial, merely intended, or ambiguous actions. The server changes alignment automatically after 9 net deed points toward one side.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    direction = new { type = "string", @enum = new[] { "good", "evil" }, description = "Moral direction of this significant deed." },
-                    reason = new { type = "string", description = "Short factual reason describing the completed deed." }
-                },
-                required = new[] { "direction", "reason" },
                 additionalProperties = false
             }
         };
@@ -1088,20 +1028,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             result.Mode,
             dc,
             dc > 0 && result.Total >= dc);
-    }
-
-    private async Task<AlignmentDeedToolResult> RecordAlignmentDeedAsync(Guid characterId, Guid campaignId, string direction, string reason)
-    {
-        var raw = await CallSupabaseRpcAsync("discord_gm_record_alignment_deed", new
-        {
-            p_character_id = characterId,
-            p_campaign_id = campaignId,
-            p_direction = direction,
-            p_reason = reason
-        }, "Unable to update alignment gauge");
-
-        return JsonSerializer.Deserialize<AlignmentDeedToolResult>(raw, JsonOptions)
-               ?? throw new InvalidOperationException("Supabase returned an invalid alignment result.");
     }
 
     private async Task<decimal> AdjustGoldAsync(Guid characterId, Guid campaignId, int delta)
@@ -1820,22 +1746,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         public int Delta { get; set; }
         public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class AlignmentDeedToolArguments
-    {
-        public string Direction { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class AlignmentDeedToolResult
-    {
-        public string Alignment { get; set; } = string.Empty;
-        public int AlignmentDeedBalance { get; set; }
-        public int GoodDeeds { get; set; }
-        public int EvilDeeds { get; set; }
-        public bool Changed { get; set; }
-        public string PreviousAlignment { get; set; } = string.Empty;
     }
 
     private sealed class AddInventoryItemToolArguments
