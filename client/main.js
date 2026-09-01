@@ -507,15 +507,23 @@ function timelineHtml(messages, emptyText='No messages yet.') {
 }
 
 function scrollGmToLatestMessage() {
+    const timeline = document.querySelector('#gmTimeline');
+    if (!timeline) return;
+    const messages = timeline.querySelectorAll('.message');
+    if (!messages.length) return;
+    const lastMessage = messages[messages.length - 1];
     requestAnimationFrame(() => {
-        const timeline = document.querySelector('#gmTimeline');
-        if (!timeline) return;
-        const messages = timeline.querySelectorAll('.message');
-        if (!messages.length) return;
-        const latestMessage = messages[messages.length - 1];
-        const timelineRect = timeline.getBoundingClientRect();
-        const messageRect = latestMessage.getBoundingClientRect();
-        timeline.scrollTop += messageRect.top - timelineRect.top;
+        // First force the GM message window to the very bottom.
+        timeline.scrollTop = timeline.scrollHeight;
+        requestAnimationFrame(() => {
+            // Determine where the last message begins INSIDE the timeline.
+            const timelineRect = timeline.getBoundingClientRect();
+            const messageRect = lastMessage.getBoundingClientRect();
+            const messageTopInsideTimeline =                timeline.scrollTop +                (messageRect.top - timelineRect.top);
+            // Now place the beginning of that message at the top
+            // of the GM message window.
+            timeline.scrollTop = messageTopInsideTimeline;
+        });
     });
 }
 
