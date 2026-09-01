@@ -753,7 +753,7 @@ async function renderCombatTab() {
 function showMonsterStatViewer(monster) {
   document.querySelector('#monsterStatOverlay')?.remove();
   const overlay=document.createElement('div'); overlay.id='monsterStatOverlay'; overlay.className='modal-overlay monster-stat-overlay';
-  overlay.innerHTML=`<div class="monster-stat-modal"><div class="monster-stat-header"><div><h2>${escapeHtml(monster.displayName)}</h2><p>${escapeHtml(monster.subtitle||monster.monsterName)}</p></div><button id="closeMonsterStats" class="modal-close" aria-label="Close">Ã—</button></div>
+    overlay.innerHTML = `<div class="monster-stat-modal"><div class="monster-stat-header"><div><h2>${escapeHtml(monster.displayName)}</h2><p>${escapeHtml(monster.subtitle || monster.monsterName)}</p></div><button id="closeMonsterStats" class="modal-close" aria-label="Close">&times;</button></div>
     <div class="monster-stat-layout"><div class="monster-stat-art">${monsterImageHtml(monster,'monster-stat-image')}<div class="monster-live-vitals"><span>Current HP <b>${monster.currentHp}/${monster.maxHp}</b></span><span>AC <b>${monster.armorClass}</b></span><span>${escapeHtml(monster.defeated?'Defeated':monster.conditions||'No conditions')}</span></div></div>
     <div class="monster-stat-text"><div class="monster-stat-source">${escapeHtml(monster.source||'')}</div><pre>${escapeHtml(monster.statBlock||'No stat block available.')}</pre></div></div></div>`;
   document.body.appendChild(overlay);
