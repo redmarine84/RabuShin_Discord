@@ -90,22 +90,58 @@ public sealed class DiscordSupabaseService
 
     public async Task DeleteCampaignAsync(Guid playerId, Guid campaignId)
     {
+        var portraitPaths = new List<string>();
+        try
+        {
+            portraitPaths = (await GetPartyAsync(playerId, campaignId))
+                .Select(member => member.PortraitPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => path!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+        catch
+        {
+            // Campaign deletion must not be blocked if portrait cleanup discovery fails.
+        }
+
         using var response = await CallRpcAsync("discord_delete_campaign", new
         {
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
         await EnsureSuccessAsync(response, "Unable to delete campaign");
+
+        foreach (var path in portraitPaths)
+            await TryDeletePortraitObjectAsync(path);
     }
 
     public async Task LeaveCampaignAsync(Guid playerId, Guid campaignId)
     {
+        string? portraitPath = null;
+        try
+        {
+            var character = await GetCharacterAsync(playerId, campaignId);
+            if (character is not null)
+            {
+                var party = await GetPartyAsync(playerId, campaignId);
+                portraitPath = party.FirstOrDefault(member => member.CharacterId == character.CharacterId)?.PortraitPath;
+            }
+        }
+        catch
+        {
+            // Leaving the campaign must not be blocked by optional portrait cleanup.
+        }
+
         using var response = await CallRpcAsync("discord_leave_campaign", new
         {
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
         await EnsureSuccessAsync(response, "Unable to leave campaign");
+
+        if (!string.IsNullOrWhiteSpace(portraitPath))
+            await TryDeletePortraitObjectAsync(portraitPath);
     }
 
     public async Task<DiscordCharacterInfo?> GetCharacterAsync(Guid playerId, Guid campaignId)
@@ -176,6 +212,55 @@ public sealed class DiscordSupabaseService
             p_campaign_id = campaignId
         });
         return await ReadListAsync<DiscordPartyMember>(response, "Unable to load party");
+    }
+
+    public async Task UploadCharacterPortraitAsync(
+        Guid playerId, Guid campaignId, Stream portraitStream, string contentType)
+    {
+        var character = await GetCharacterAsync(playerId, campaignId)
+            ?? throw new InvalidOperationException("Character could not be found.");
+
+        var portraitPath = $"{campaignId:D}/{character.CharacterId:D}";
+        await UploadPortraitObjectAsync(portraitPath, portraitStream, contentType);
+
+        using var response = await CallRpcAsync("discord_set_character_portrait", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_portrait_path = portraitPath
+        });
+        await EnsureSuccessAsync(response, "Unable to save character portrait");
+    }
+
+    public async Task ClearCharacterPortraitAsync(Guid playerId, Guid campaignId)
+    {
+        var character = await GetCharacterAsync(playerId, campaignId)
+            ?? throw new InvalidOperationException("Character could not be found.");
+        var party = await GetPartyAsync(playerId, campaignId);
+        var portraitPath = party.FirstOrDefault(member => member.CharacterId == character.CharacterId)?.PortraitPath;
+
+        using var response = await CallRpcAsync("discord_set_character_portrait", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_portrait_path = (string?)null
+        });
+        await EnsureSuccessAsync(response, "Unable to remove character portrait");
+
+        if (!string.IsNullOrWhiteSpace(portraitPath))
+            await TryDeletePortraitObjectAsync(portraitPath);
+    }
+
+    public async Task<DiscordPortraitObject?> GetPartyPortraitAsync(
+        Guid viewerPlayerId, Guid campaignId, Guid characterId)
+    {
+        var party = await GetPartyAsync(viewerPlayerId, campaignId);
+        var member = party.FirstOrDefault(item => item.CharacterId == characterId);
+        if (member is null)
+            throw new UnauthorizedAccessException("That character is not part of this campaign.");
+        if (string.IsNullOrWhiteSpace(member.PortraitPath))
+            return null;
+        return await DownloadPortraitObjectAsync(member.PortraitPath);
     }
 
     public async Task SaveStartingEquipmentAsync(
@@ -352,6 +437,60 @@ public sealed class DiscordSupabaseService
         using var response = await CallRpcAsync("discord_clear_openai_key", new { p_player_id = playerId });
         await EnsureSuccessAsync(response, "Unable to remove OpenAI API key");
     }
+
+    private async Task UploadPortraitObjectAsync(string portraitPath, Stream portraitStream, string contentType)
+    {
+        var url = $"{_supabaseUrl.TrimEnd('/')}/storage/v1/object/character-portraits/{EscapeStoragePath(portraitPath)}";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        AddSupabaseServiceHeaders(request);
+        request.Headers.TryAddWithoutValidation("x-upsert", "true");
+        request.Content = new StreamContent(portraitStream);
+        request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        using var response = await _http.SendAsync(request);
+        await EnsureSuccessAsync(response, "Unable to upload character portrait");
+    }
+
+    private async Task<DiscordPortraitObject> DownloadPortraitObjectAsync(string portraitPath)
+    {
+        var url = $"{_supabaseUrl.TrimEnd('/')}/storage/v1/object/character-portraits/{EscapeStoragePath(portraitPath)}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        AddSupabaseServiceHeaders(request);
+        using var response = await _http.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Unable to load character portrait: {body}");
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+        return new DiscordPortraitObject(bytes, contentType);
+    }
+
+    private async Task TryDeletePortraitObjectAsync(string portraitPath)
+    {
+        try
+        {
+            var url = $"{_supabaseUrl.TrimEnd('/')}/storage/v1/object/character-portraits";
+            using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+            AddSupabaseServiceHeaders(request);
+            request.Content = JsonContent.Create(new { prefixes = new[] { portraitPath } });
+            using var response = await _http.SendAsync(request);
+        }
+        catch
+        {
+            // Portrait storage cleanup is best-effort.
+        }
+    }
+
+    private void AddSupabaseServiceHeaders(HttpRequestMessage request)
+    {
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSecretKey);
+        request.Headers.TryAddWithoutValidation("apikey", _supabaseSecretKey);
+    }
+
+    private static string EscapeStoragePath(string path) =>
+        string.Join("/", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
 
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
@@ -550,8 +689,23 @@ public sealed class DiscordPartyMember
     [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
     [JsonPropertyName("species_name")] public string SpeciesName { get; set; } = string.Empty;
     [JsonPropertyName("class_name")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("background_name")] public string BackgroundName { get; set; } = string.Empty;
+    [JsonPropertyName("alignment")] public string Alignment { get; set; } = string.Empty;
     [JsonPropertyName("level")] public int Level { get; set; }
     [JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
     [JsonPropertyName("max_hp")] public int MaxHp { get; set; }
     [JsonPropertyName("armor_class")] public int ArmorClass { get; set; }
+    [JsonPropertyName("strength")] public int Strength { get; set; }
+    [JsonPropertyName("dexterity")] public int Dexterity { get; set; }
+    [JsonPropertyName("constitution")] public int Constitution { get; set; }
+    [JsonPropertyName("intelligence")] public int Intelligence { get; set; }
+    [JsonPropertyName("wisdom")] public int Wisdom { get; set; }
+    [JsonPropertyName("charisma")] public int Charisma { get; set; }
+    [JsonPropertyName("initiative")] public int Initiative { get; set; }
+    [JsonPropertyName("passive_perception")] public int PassivePerception { get; set; }
+    [JsonPropertyName("proficiency_bonus")] public int ProficiencyBonus { get; set; }
+    [JsonPropertyName("speed")] public int Speed { get; set; }
+    [JsonPropertyName("portrait_path")] public string? PortraitPath { get; set; }
 }
+
+public sealed record DiscordPortraitObject(byte[] Bytes, string ContentType);

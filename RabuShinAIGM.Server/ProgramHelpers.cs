@@ -2,7 +2,7 @@ using QuestsOfRabuShinAIGM;
 
 public static class ProgramHelpers
 {
-    public static object ToClientCharacter(DiscordCharacterInfo c) => new
+    public static object ToClientCharacter(DiscordCharacterInfo c, bool hasPortrait = false) => new
     {
         characterId = c.CharacterId,
         campaignId = c.CampaignId,
@@ -30,6 +30,7 @@ public static class ProgramHelpers
         gold = c.Gold,
         equipmentComplete = c.EquipmentComplete,
         spellsComplete = c.SpellsComplete,
+        hasPortrait,
         characterData = c.CharacterData
     };
 
@@ -63,7 +64,37 @@ public static class ProgramHelpers
         backstory = c.Backstory,
         languages = c.Languages,
         proficiencies = c.Proficiencies,
-        features = c.Features
+        features = c.Features,
+        hasPortrait = false
+    };
+
+
+    public static object ToClientPartyMember(DiscordPartyMember p) => new
+    {
+        characterId = p.CharacterId,
+        playerId = p.PlayerId,
+        displayName = p.DisplayName,
+        discordUsername = p.DiscordUsername,
+        characterName = p.CharacterName,
+        speciesName = p.SpeciesName,
+        className = p.ClassName,
+        backgroundName = p.BackgroundName,
+        alignment = p.Alignment,
+        level = p.Level,
+        currentHp = p.CurrentHp,
+        maxHp = p.MaxHp,
+        armorClass = p.ArmorClass,
+        strength = p.Strength,
+        dexterity = p.Dexterity,
+        constitution = p.Constitution,
+        intelligence = p.Intelligence,
+        wisdom = p.Wisdom,
+        charisma = p.Charisma,
+        initiative = p.Initiative,
+        passivePerception = p.PassivePerception,
+        proficiencyBonus = p.ProficiencyBonus,
+        speed = p.Speed,
+        hasPortrait = !string.IsNullOrWhiteSpace(p.PortraitPath)
     };
 
     public static object MapEquipmentPackage(StartingEquipmentPackage package, int index)

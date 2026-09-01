@@ -216,6 +216,75 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+app.MapPost("/game-api/campaigns/{campaignId:guid}/character/portrait", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        if (!request.HasFormContentType)
+            return Results.BadRequest(new { success = false, error = "Upload the portrait as multipart form data." });
+
+        var form = await request.ReadFormAsync(request.HttpContext.RequestAborted);
+        var file = form.Files.GetFile("portrait");
+        if (file is null)
+            return Results.BadRequest(new { success = false, error = "Choose a portrait image first." });
+
+        await CharacterPortraitFileValidator.ValidateAsync(file, request.HttpContext.RequestAborted);
+        await using var stream = file.OpenReadStream();
+        await service.UploadCharacterPortraitAsync(playerId, campaignId, stream, file.ContentType);
+        return Results.Ok(new { success = true, message = "Character portrait saved." });
+    }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 401); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapDelete("/game-api/campaigns/{campaignId:guid}/character/portrait", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        await service.ClearCharacterPortraitAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, message = "Character portrait removed." });
+    }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 401); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/characters/{characterId:guid}/portrait", async (
+    Guid campaignId, Guid characterId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var portrait = await service.GetPartyPortraitAsync(playerId, campaignId, characterId);
+        return portrait is null
+            ? Results.NotFound(new { success = false, error = "This character does not have a portrait." })
+            : Results.File(portrait.Bytes, portrait.ContentType, enableRangeProcessing: false);
+    }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 403); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/party", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var party = await service.GetPartyAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, party = party.Select(ProgramHelpers.ToClientPartyMember) });
+    }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 401); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapGet("/game-api/campaigns/{campaignId:guid}/character/setup", async (Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
@@ -437,8 +506,8 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             success = true,
             campaign = new { campaignId = campaign.CampaignId, campaignName = campaign.CampaignName, joinCode = campaign.JoinCode,
                 currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount },
-            character = ProgramHelpers.ToClientCharacter(character),
-            party = party.Select(p => new { characterId=p.CharacterId,playerId=p.PlayerId,displayName=p.DisplayName,discordUsername=p.DiscordUsername,characterName=p.CharacterName,speciesName=p.SpeciesName,className=p.ClassName,level=p.Level,currentHp=p.CurrentHp,maxHp=p.MaxHp,armorClass=p.ArmorClass }),
+            character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
+            party = party.Select(ProgramHelpers.ToClientPartyMember),
             inventory = inventory.Select(InventoryPresentationService.ToClientItem),
             spells = spells.Select(s => new { characterSpellId=s.CharacterSpellId,spellName=s.SpellName,spellLevel=s.SpellLevel,prepared=s.Prepared,sourceTag=s.SourceTag,spellData=s.SpellData }),
             spellSlots = slots.Select(s => new { spellLevel=s.SpellLevel,maxSlots=s.MaxSlots,usedSlots=s.UsedSlots }),

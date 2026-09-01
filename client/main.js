@@ -8,6 +8,7 @@ let currentDiscordUser = null;
 let currentCampaignId = null;
 let currentGameData = null;
 let selectedInventoryId = null;
+const portraitObjectUrls = new Map();
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/AppDownload.github.io/rabushin').replace(/\/$/, '');
@@ -80,7 +81,8 @@ async function readResponse(response) {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   if (discordAccessToken) headers.set('Authorization', `Bearer ${discordAccessToken}`);
-  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (options.body && !isFormData && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const response = await fetch(path, { ...options, headers });
   const data = await readResponse(response);
   if (!response.ok || data.success === false) {
@@ -160,6 +162,7 @@ async function setupDiscord() {
 }
 
 async function showCampaignLauncher() {
+  clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
   const main = document.querySelector('#mainContent');
@@ -514,8 +517,162 @@ function renderGameMasterTab() {
   };
 }
 
+function clearPortraitCache(characterId = null) {
+  if(characterId) {
+    const url=portraitObjectUrls.get(characterId);
+    if(url) URL.revokeObjectURL(url);
+    portraitObjectUrls.delete(characterId);
+    return;
+  }
+  for(const url of portraitObjectUrls.values()) URL.revokeObjectURL(url);
+  portraitObjectUrls.clear();
+}
+
+function portraitInitials(name) {
+  return String(name||'?').trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('')||'?';
+}
+
+function portraitFrameHtml(characterId, characterName, hasPortrait, extraClass='') {
+  return `<div class="portrait-frame ${extraClass}" data-portrait-frame="${characterId}" data-has-portrait="${hasPortrait?'true':'false'}">
+    <div class="portrait-placeholder">${escapeHtml(portraitInitials(characterName))}</div>
+    <img alt="${escapeHtml(characterName)} portrait" hidden>
+  </div>`;
+}
+
+async function loadPortraitObjectUrl(characterId, force=false) {
+  if(!force && portraitObjectUrls.has(characterId)) return portraitObjectUrls.get(characterId);
+  if(force) clearPortraitCache(characterId);
+  const headers=new Headers();
+  if(discordAccessToken) headers.set('Authorization',`Bearer ${discordAccessToken}`);
+  const response=await fetch(`/game-api/campaigns/${currentCampaignId}/characters/${characterId}/portrait`,{headers});
+  if(response.status===404)return null;
+  if(!response.ok) {
+    const text=await response.text();
+    throw new Error(text||`Unable to load portrait (HTTP ${response.status}).`);
+  }
+  const blob=await response.blob();
+  const url=URL.createObjectURL(blob);
+  portraitObjectUrls.set(characterId,url);
+  return url;
+}
+
+async function hydratePortraits(scope=document) {
+  const frames=[...scope.querySelectorAll('[data-portrait-frame][data-has-portrait="true"]')];
+  await Promise.all(frames.map(async frame=>{
+    try {
+      const url=await loadPortraitObjectUrl(frame.dataset.portraitFrame);
+      if(!url)return;
+      const img=frame.querySelector('img');
+      const placeholder=frame.querySelector('.portrait-placeholder');
+      img.src=url;img.hidden=false;if(placeholder)placeholder.hidden=true;
+    } catch(error) { console.warn('Unable to load character portrait:',error); }
+  }));
+}
+
+async function uploadCharacterPortrait(file) {
+  if(!file)return;
+  const allowed=['image/png','image/jpeg','image/webp'];
+  if(!allowed.includes(file.type))return showNotice('Portraits must be PNG, JPEG, or WebP.',true);
+  if(file.size>5*1024*1024)return showNotice('Portraits must be 5 MB or smaller.',true);
+  const button=document.querySelector('#uploadPortrait');
+  if(button){button.disabled=true;button.textContent='Uploading...';}
+  try {
+    const form=new FormData();form.append('portrait',file);
+    await api(`/game-api/campaigns/${currentCampaignId}/character/portrait`,{method:'POST',body:form});
+    clearPortraitCache(currentGameData.character.characterId);
+    currentGameData.character.hasPortrait=true;
+    const self=currentGameData.party?.find(p=>p.characterId===currentGameData.character.characterId);
+    if(self)self.hasPortrait=true;
+    showNotice('Character portrait saved.');
+    renderCharacterTab();
+  } catch(error) { showNotice(error.message,true); if(button){button.disabled=false;button.textContent='Upload / Replace Portrait';} }
+}
+
+async function removeCharacterPortrait() {
+  if(!confirm('Remove your character portrait?'))return;
+  try {
+    await api(`/game-api/campaigns/${currentCampaignId}/character/portrait`,{method:'DELETE'});
+    clearPortraitCache(currentGameData.character.characterId);
+    currentGameData.character.hasPortrait=false;
+    const self=currentGameData.party?.find(p=>p.characterId===currentGameData.character.characterId);
+    if(self)self.hasPortrait=false;
+    showNotice('Character portrait removed.');
+    renderCharacterTab();
+  } catch(error) { showNotice(error.message,true); }
+}
+
+function showPartyMemberDetails(member) {
+  document.querySelector('#partyMemberOverlay')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='partyMemberOverlay';overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal party-member-modal">
+    <button id="closePartyMember" class="modal-close" aria-label="Close">×</button>
+    <div class="party-member-detail">
+      ${portraitFrameHtml(member.characterId,member.characterName,member.hasPortrait,'party-detail-portrait')}
+      <div class="party-member-sheet">
+        <h2>${escapeHtml(member.characterName)}</h2>
+        <p>${escapeHtml(member.displayName)} • @${escapeHtml(member.discordUsername)}</p>
+        <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} • ${escapeHtml(member.backgroundName||'')} ${member.alignment?`• ${escapeHtml(member.alignment)}`:''}</p>
+        <div class="vitals party-detail-vitals"><div>HP <b>${member.currentHp}/${member.maxHp}</b></div><div>AC <b>${member.armorClass}</b></div><div>Initiative <b>${formatSigned(member.initiative)}</b></div><div>Speed <b>${member.speed} ft.</b></div><div>Passive Perception <b>${member.passivePerception}</b></div><div>Proficiency <b>${formatSigned(member.proficiencyBonus)}</b></div></div>
+        <div class="stats">${statBox('STR',member.strength)}${statBox('DEX',member.dexterity)}${statBox('CON',member.constitution)}${statBox('INT',member.intelligence)}${statBox('WIS',member.wisdom)}${statBox('CHA',member.charisma)}</div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.querySelector('#closePartyMember').onclick=()=>overlay.remove();
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  hydratePortraits(overlay);
+}
+
 function statBox(name,score){return `<div class="stat"><span>${name}</span><b>${score}</b><small>${formatSigned(abilityMod(score))}</small></div>`;}
-function renderCharacterTab(){const c=currentGameData.character,party=currentGameData.party||[];document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Character Sheet & Party</h3></div><div class="character-grid"><section class="panel"><h2>${escapeHtml(c.characterName)}</h2><p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p><div class="vitals"><div>HP <b>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div><div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div></section><section class="panel"><h3>Campaign Party</h3><div class="party-list">${party.length?party.map(p=>`<div class="party-card"><div><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small></div><span>HP ${p.currentHp}/${p.maxHp} • AC ${p.armorClass}</span></div>`).join(''):'<div class="empty small">No other characters yet.</div>'}</div></section></div>`;}
+function renderCharacterTab(){
+  const c=currentGameData.character,party=currentGameData.party||[],view=document.querySelector('#gameView');
+  const self=party.find(p=>p.characterId===c.characterId);
+  const hasPortrait=Boolean(c.hasPortrait||self?.hasPortrait);
+  view.innerHTML=`<div class="view-heading"><div><h3>Character Sheet & Party</h3><p class="muted">Add your portrait, then click any party member to view their character card.</p></div><button id="refreshParty" class="button small">Refresh Party</button></div>
+    <div class="character-grid visual-character-grid">
+      <section class="panel character-sheet-panel">
+        <div class="character-sheet-layout">
+          <div class="own-portrait-column">
+            ${portraitFrameHtml(c.characterId,c.characterName,hasPortrait,'own-character-portrait')}
+            <input id="portraitFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+            <button id="uploadPortrait" class="button primary wide">${hasPortrait?'Replace Portrait':'Upload Portrait'}</button>
+            ${hasPortrait?'<button id="removePortrait" class="button danger-button wide">Remove Portrait</button>':''}
+            <small class="portrait-help">PNG, JPEG, or WebP • 5 MB max</small>
+          </div>
+          <div class="character-sheet-details">
+            <h2>${escapeHtml(c.characterName)}</h2>
+            <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
+            <div class="vitals"><div>HP <b>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
+            <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
+          </div>
+        </div>
+      </section>
+      <section class="panel party-panel"><h3>Campaign Party</h3><p class="muted">Select a character to view their portrait and current public combat stats.</p>
+        <div class="party-list visual-party-list">${party.length?party.map((p,index)=>`<button class="party-card visual-party-card" data-party-index="${index}">
+          ${portraitFrameHtml(p.characterId,p.characterName,p.hasPortrait,'party-thumbnail')}
+          <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP ${p.currentHp}/${p.maxHp} • AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
+        </button>`).join(''):'<div class="empty small">No characters are in this campaign yet.</div>'}</div>
+      </section>
+    </div>`;
+  document.querySelector('#refreshParty').onclick=refreshPartyData;
+  document.querySelector('#uploadPortrait').onclick=()=>document.querySelector('#portraitFile').click();
+  document.querySelector('#portraitFile').onchange=e=>uploadCharacterPortrait(e.target.files?.[0]);
+  const remove=document.querySelector('#removePortrait');if(remove)remove.onclick=removeCharacterPortrait;
+  document.querySelectorAll('[data-party-index]').forEach(button=>button.onclick=()=>showPartyMemberDetails(party[Number(button.dataset.partyIndex)]));
+  hydratePortraits(view);
+}
+
+async function refreshPartyData() {
+  try {
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/party`);
+    currentGameData.party=data.party||[];
+    const self=currentGameData.party.find(p=>p.characterId===currentGameData.character.characterId);
+    currentGameData.character.hasPortrait=Boolean(self?.hasPortrait);
+    clearPortraitCache();
+    renderCharacterTab();
+  } catch(error) { showNotice(error.message,true); }
+}
 
 function renderInventoryTab() {
   const items=currentGameData.inventory||[],view=document.querySelector('#gameView');
