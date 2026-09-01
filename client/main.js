@@ -513,7 +513,7 @@ function renderGameMasterTab() {
   document.querySelector('#sendGm').onclick=async()=>{
     const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;
     const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
-    try{await api(`/game-api/campaigns/${currentCampaignId}/gm`,{method:'POST',body:JSON.stringify({message})});input.value='';const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;renderGameMasterTab();const tl=document.querySelector('#gmTimeline');tl.scrollTop=tl.scrollHeight;}catch(error){document.querySelector('#gmError').textContent=error.message;if(error.data?.needsApiKey)showNotice('Open Settings and enter your OpenAI API key.',true);btn.disabled=false;btn.textContent='Send';}
+    try{await api(`/game-api/campaigns/${currentCampaignId}/gm`,{method:'POST',body:JSON.stringify({message})});input.value='';const d=await api(`/game-api/campaigns/${currentCampaignId}/gm`);currentGameData.gmMessages=d.messages;try{const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);currentGameData.inventory=inv.inventory||[];if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;}catch(refreshError){console.warn('Inventory refresh after GM turn failed:',refreshError);}renderGameMasterTab();const tl=document.querySelector('#gmTimeline');tl.scrollTop=tl.scrollHeight;}catch(error){document.querySelector('#gmError').textContent=error.message;if(error.data?.needsApiKey)showNotice('Open Settings and enter your OpenAI API key.',true);btn.disabled=false;btn.textContent='Send';}
   };
 }
 
@@ -752,13 +752,10 @@ function showDropInventoryDialog(item) {
 function confirmUseInventoryItem(item) {
   showModal('Use Inventory Item',`
     <p>Use <b>${escapeHtml(item.itemName)}</b>?</p>
-    <p class="muted">One item will be consumed from this stack. RabuShin will prepare an "I use ${escapeHtml(item.itemName)}" action for the AI Game Master so you can add any target or details before sending it.</p>`,
-    'Use Item',async()=>{
-      const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory/${item.inventoryItemId}/use`,{method:'POST'});
+    <p class="muted">RabuShin will prepare an "I use ${escapeHtml(item.itemName)}" action for the AI Game Master. The item is not consumed until the GM successfully resolves the use.</p>`,
+    'Prepare Action',async()=>{
       document.querySelector('#modalOverlay')?.remove();
-      currentGameData.inventory=(await api(`/game-api/campaigns/${currentCampaignId}/inventory`)).inventory||[];
-      showNotice(data.message||'Item used.');
-      prefillGameMasterMessage(data.gmPrefill||`I use ${item.itemName}`);
+      prefillGameMasterMessage(`I use ${item.itemName}`);
     });
 }
 
