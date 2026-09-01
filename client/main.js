@@ -502,7 +502,7 @@ function renderGameShell() {
   document.querySelectorAll('.game-tab').forEach(btn=>btn.onclick=()=>switchGameTab(btn.dataset.tab,btn));
   const settingsGameTab=document.querySelector('.game-tab[data-tab="settings"]');
   if(settingsGameTab&&!document.querySelector('.game-tab[data-tab="combat"]')) {
-    const combatTab=document.createElement('button'); combatTab.className='game-tab'; combatTab.dataset.tab='combat'; combatTab.textContent='âš” Combat';
+    const combatTab=document.createElement('button'); combatTab.className='game-tab'; combatTab.dataset.tab='combat'; combatTab.textContent='\u2694 Combat';
     settingsGameTab.parentElement.insertBefore(combatTab,settingsGameTab);
     combatTab.onclick=()=>switchGameTab('combat',combatTab);
   }
@@ -729,13 +729,13 @@ async function renderCombatTab() {
   try {
     const data=await loadCombatState();
     if(!data.active) {
-      view.innerHTML=`<div class="view-heading"><h3>âš” Combat</h3><button id="refreshCombat" class="button small">Refresh</button></div><section class="panel combat-empty"><h3>No Active Combat</h3><p>When the AI Game Master begins a tactical encounter, enemy portraits and combat statistics will appear here automatically.</p></section>`;
+        view.innerHTML =`<div class="view-heading"><h3>\u2694 Combat</h3><button id="refreshCombat" class="button small">Refresh</button></div><section class="panel combat-empty"><h3>No Active Combat</h3><p>When the AI Game Master begins a tactical encounter, enemy portraits and combat statistics will appear here automatically.</p></section>`;
       document.querySelector('#refreshCombat').onclick=renderCombatTab;
       return;
     }
     const party=currentGameData.party||[];
     const monsters=data.monsters||[];
-    view.innerHTML=`<div class="view-heading"><div><h3>âš” ${escapeHtml(data.title||'Combat')}</h3><small>Round ${Number(data.roundNumber)||1}</small></div><div class="row gap"><button id="combatEncounterMap" class="button small">Encounter Map</button><button id="refreshCombat" class="button small">Refresh</button></div></div>
+      view.innerHTML =`<div class="view-heading"><div><h3>\u2694 ${escapeHtml(data.title||'Combat')}</h3><small>Round ${Number(data.roundNumber)||1}</small></div><div class="row gap"><button id="combatEncounterMap" class="button small">Encounter Map</button><button id="refreshCombat" class="button small">Refresh</button></div></div>
       <section class="combat-party-strip"><h4>Party</h4><div class="combat-party-list">${party.map(p=>`<div class="combat-party-vital"><b>${escapeHtml(p.characterName)}</b><span>HP ${p.currentHp}/${p.maxHp}</span><span>AC ${p.armorClass}</span></div>`).join('')}</div></section>
       <section class="panel"><h3>Enemies</h3><div class="combat-monster-grid">${monsters.length?monsters.map(m=>`<button class="combat-monster-card ${m.defeated?'defeated':''}" data-monster-id="${escapeHtml(m.combatMonsterId)}">
         ${monsterImageHtml(m)}
@@ -746,7 +746,7 @@ async function renderCombatTab() {
     document.querySelectorAll('.combat-monster-image').forEach(img=>{if(img.tagName!=='IMG')return;img.onerror=()=>{img.hidden=true;const fb=img.parentElement?.querySelector('.monster-image-fallback');if(fb)fb.hidden=false;};});
     document.querySelectorAll('.combat-monster-card').forEach(card=>card.onclick=()=>{const monster=monsters.find(m=>String(m.combatMonsterId)===card.dataset.monsterId);if(monster)showMonsterStatViewer(monster);});
   } catch(error) {
-    view.innerHTML=`<div class="view-heading"><h3>âš” Combat</h3></div><div class="error">Unable to load Combat: ${escapeHtml(error.message)}</div>`;
+      view.innerHTML =`<div class="view-heading"><h3>\u2694 Combat</h3></div><div class="error">Unable to load Combat: ${escapeHtml(error.message)}</div>`;
   }
 }
 
