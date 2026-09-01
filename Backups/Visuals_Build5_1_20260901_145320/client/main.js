@@ -18,7 +18,6 @@ let tacticalCombatRefreshTimer = null;
 let tacticalSelectedTokenId = null;
 let tacticalZoom = 1;
 let tacticalLastSignature = '';
-let tacticalShowTerrainDebug = false; // VISUALS BUILD 5.1 - TERRAIN CLIENT
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
@@ -805,23 +804,6 @@ function tacticalMonsterArtHtml(token,combatData) {
   return `<span class="tactical-token-art"><span class="portrait-placeholder">${escapeHtml((token.monsterName||token.displayName||'?').slice(0,1).toUpperCase())}</span></span>`;
 }
 
-const tacticalBarrierDebugMaps={
-  greymoor:'/maps/barriers/Encounter_Greymoor_Hollow_Barriers.png',
-  stonewake:'/maps/barriers/Encounter_Stonewake_Port_Barriers.png',
-  emberfall:'/maps/barriers/Encounter_Emberfall_Barriers.png',
-  lunareth:'/maps/barriers/Encounter_Lunareth_Barriers.png',
-  high_bastion:'/maps/barriers/Encounter_High_Bastion_Barriers.png',
-  marrowfen:'/maps/barriers/Encounter_Marrowfen_Barriers.png',
-  silverreach:'/maps/barriers/Encounter_Silverreach_Barriers.png',
-  duskmire:'/maps/barriers/Encounter_Duskmire_Crossing_Barriers.png',
-  frostharbor:'/maps/barriers/Encounter_Frostharbor_Barriers.png',
-  sunspire:'/maps/barriers/Encounter_Sunspire_Barriers.png',
-  blackroot:'/maps/barriers/Encounter_Blackroot_Enclave_Barriers.png',
-  aetherfall:'/maps/barriers/Encounter_Aetherfall_Barriers.png'
-};
-function tacticalBarrierDebugUrl(map) {
-  return tacticalBarrierDebugMaps[String(map?.locationKey||'').toLowerCase()]||'';
-}
 function tacticalTurnLabel(tactical) {
   if(!tactical?.currentTurnName)return 'Current turn: waiting for the AI Game Master';
   return `Current turn: ${tactical.currentTurnName}`;
@@ -878,9 +860,7 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
       <span id="tacticalZoomLabel">${Math.round(tacticalZoom*100)}%</span>
       <button id="tacticalZoomIn" class="button small">+</button>
       <button id="tacticalFit" class="button small">Fit</button>
-      <button id="tacticalTerrainDebug" class="button small">Terrain Debug</button>
-      <span id="tacticalMoveHint" class="muted">${canMove?'Select your token, then click a destination square. Terrain and obstacles are validated by the server.':''}</span>
-      <div id="tacticalTerrainLegend" class="tactical-terrain-legend" ${tacticalShowTerrainDebug?'':'hidden'}>Purple/Indigo: blocked wall/building | Green: closed door | Lime: open door | Gold/Light Yellow/Gray: partial cover | Gray/Turquoise: difficult terrain | Lavender: bridge/stairs | Orange: cliff/ledge</div>
+      <span id="tacticalMoveHint" class="muted">${canMove?'Select your token, then click a destination square.':''}</span>
     </div>
     <div id="tacticalViewport" class="tactical-viewport">
       <div id="tacticalStage" class="tactical-stage" style="width:${Math.round(tacticalZoom*100)}%">
@@ -896,8 +876,6 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
   const viewport=host.querySelector('#tacticalViewport');
   const zoomLabel=host.querySelector('#tacticalZoomLabel');
   const moveHint=host.querySelector('#tacticalMoveHint');
-  const terrainDebug=host.querySelector('#tacticalTerrainDebug');
-  const terrainLegend=host.querySelector('#tacticalTerrainLegend');
 
   const applyZoom=()=>{
     tacticalZoom=Math.max(.5,Math.min(3,tacticalZoom));
@@ -908,14 +886,6 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
   host.querySelector('#tacticalZoomOut').onclick=()=>{tacticalZoom=Math.round(Math.max(.5,tacticalZoom-.25)*100)/100;applyZoom();};
   host.querySelector('#tacticalZoomIn').onclick=()=>{tacticalZoom=Math.round(Math.min(3,tacticalZoom+.25)*100)/100;applyZoom();};
   host.querySelector('#tacticalFit').onclick=()=>{tacticalZoom=1;applyZoom();viewport?.scrollTo(0,0);};
-  if(terrainDebug&&image)terrainDebug.onclick=()=>{
-    const debugUrl=tacticalBarrierDebugUrl(map);
-    if(!debugUrl){showNotice('No barrier debug map is available for this encounter.',true);return;}
-    tacticalShowTerrainDebug=!tacticalShowTerrainDebug;
-    image.src=tacticalShowTerrainDebug?debugUrl:map.imageUrl;
-    if(terrainLegend)terrainLegend.hidden=!tacticalShowTerrainDebug;
-    terrainDebug.textContent=tacticalShowTerrainDebug?'Clean Map':'Terrain Debug';
-  };
 
   host.querySelectorAll('[data-tactical-token-id]').forEach(button=>{
     button.onclick=event=>{
@@ -948,16 +918,20 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
       if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)return;
       const gridX=Math.max(0,Math.min(19,Math.floor((event.clientX-rect.left)/rect.width*20)));
       const gridY=Math.max(0,Math.min(19,Math.floor((event.clientY-rect.top)/rect.height*20)));
-      // Build 5.1: the server calculates the legal path and terrain-aware movement cost.
-
+      const cost=Math.max(Math.abs(gridX-Number(token.gridX)),Math.abs(gridY-Number(token.gridY)))*5;
+      const remaining=Math.max(0,Number(tactical.viewerMovementRemaining)||0);
+      if(cost>remaining) {
+        showNotice(`That move costs ${cost} ft., but you only have ${remaining} ft. remaining.`,true);
+        return;
+      }
       try {
         if(moveHint)moveHint.textContent='Moving token...';
-        const response=await api(`/game-api/campaigns/${currentCampaignId}/combat/tactical/move51`,{
+        const response=await api(`/game-api/campaigns/${currentCampaignId}/combat/tactical/move`,{
           method:'POST',
           body:JSON.stringify({gridX,gridY})
         });
         const move=response.move||{};
-        showNotice(`Moved ${Number(move.moveCostFt)||0} ft. - ${Number(move.movementRemainingFt)||0} ft. remaining.` + (response.usesDifficultTerrain?' Difficult terrain applied.':''));
+        showNotice(`Moved ${Number(move.moveCostFt)||0} ft. - ${Number(move.movementRemainingFt)||0} ft. remaining.`);
         tacticalSelectedTokenId=null;
         await refreshTacticalCombatBoard(host,mapData,party,true);
       } catch(error) {
@@ -973,7 +947,8 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
       const rect=image.getBoundingClientRect();
       const gridX=Math.max(0,Math.min(19,Math.floor((event.clientX-rect.left)/rect.width*20)));
       const gridY=Math.max(0,Math.min(19,Math.floor((event.clientY-rect.top)/rect.height*20)));
-      moveHint.textContent=`Destination (${gridX+1},${gridY+1}) - server will calculate the legal terrain-aware path.`;
+      const cost=Math.max(Math.abs(gridX-Number(token.gridX)),Math.abs(gridY-Number(token.gridY)))*5;
+      moveHint.textContent=`Destination (${gridX+1},${gridY+1}) - ${cost} ft.`;
     };
   }
 

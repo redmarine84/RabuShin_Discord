@@ -113,14 +113,8 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - A player can move only their own character token and only while set_combat_turn identifies that character as the current turn. The server enforces the character's Speed and cumulative movement for that turn.
 - Do not use position_combat_token for a player's voluntary movement. Player voluntary movement comes from the Tactical Combat Map UI.
 - Use position_combat_token to place/reposition monster tokens, to establish initial tactical staging when needed, or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
-- VISUALS BUILD 5.1 - TACTICAL TERRAIN GM
-- Monster movement remains GM-authoritative, but normal position_combat_token movement is now validated against the encounter terrain mask and uses terrain-aware path cost.
-- Buildings and walls block normal movement and line of sight. Closed doors block both until opened. Open doors and marked bridge/stair passages are passable.
-- Water and marked stone/debris are difficult terrain. Marked stalls, stone/debris, tables, and chairs can provide half cover while remaining partially visible.
-- Use check_tactical_line_of_sight before a ranged attack, visible-target spell, or visibility-sensitive ruling when cover or obstruction may matter.
-- Use set_tactical_door_state when a combatant opens or closes a nearby marked door. The server finds the nearest marked door to that combatant.
-- Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
-- Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
+- Monster movement remains GM-authoritative. Respect the creature's movement capabilities when narrating/positioning it even though Build 5.0 does not yet perform automated wall/terrain/line-of-sight pathfinding.
+- Do not claim automatic wall/obstacle/line-of-sight validation. That arrives in Build 5.1. Continue adjudicating terrain and visibility from the encounter description and map context.
 
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
@@ -270,9 +264,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildSetCombatRoundTool(),
             BuildEndCombatTool(),
             BuildSetCombatTurnTool(),
-            BuildPositionCombatTokenTool(),
-            BuildCheckTacticalLineOfSightTool(),
-            BuildSetTacticalDoorStateTool()
+            BuildPositionCombatTokenTool()
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
@@ -461,20 +453,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<PositionCombatTokenToolArguments>(call.ArgumentsJson, "combat token position");
                         var result = await PositionCombatTokenAsync(campaign.CampaignId, args);
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{args.CombatantName} moved to tactical square ({args.GridX},{args.GridY})"));
-                        toolResult = result;
-                        break;
-                    }                    case "check_tactical_line_of_sight":
-                    {
-                        var args = DeserializeArguments<CheckTacticalLineOfSightArguments>(call.ArgumentsJson, "tactical line of sight");
-                        var result = await CheckTacticalLineOfSightAsync(campaign.CampaignId, args);
-                        toolResult = result;
-                        break;
-                    }
-                    case "set_tactical_door_state":
-                    {
-                        var args = DeserializeArguments<SetTacticalDoorStateArguments>(call.ArgumentsJson, "tactical door state");
-                        var result = await SetTacticalDoorStateAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Nearby tactical door {(args.Open ? "opened" : "closed")} by {args.CombatantName}"));
                         toolResult = result;
                         break;
                     }                    default:
@@ -809,44 +787,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             additionalProperties=false
         }
     };
-    private static object BuildCheckTacticalLineOfSightTool() => new
-    {
-        type="function",
-        name="check_tactical_line_of_sight",
-        description="Check server-authoritative line of sight and cover between two combatants on the active tactical encounter map.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                fromCombatantName=new { type="string", description="Exact party character name or exact monster display name." },
-                toCombatantName=new { type="string", description="Exact party character name or exact monster display name." }
-            },
-            required=new[]{"fromCombatantName","toCombatantName"},
-            additionalProperties=false
-        }
-    };
-
-    private static object BuildSetTacticalDoorStateTool() => new
-    {
-        type="function",
-        name="set_tactical_door_state",
-        description="Open or close the nearest marked tactical door to a combatant. Use only when the narrative action actually opens or closes a door.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                combatantName=new { type="string", description="Exact party character name or exact monster display name standing near the door." },
-                open=new { type="boolean", description="true to open the nearest door; false to close it." },
-                reason=new { type="string", description="Short narrative reason for the door state change." }
-            },
-            required=new[]{"combatantName","open","reason"},
-            additionalProperties=false
-        }
-    };
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -1090,106 +1030,19 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private async Task<JsonElement> PositionCombatTokenAsync(Guid campaignId, PositionCombatTokenToolArguments args)
     {
-        var entityType=(args.EntityType ?? string.Empty).Trim();
-        var combatantName=(args.CombatantName ?? string.Empty).Trim();
-        var destinationX=Math.Clamp(args.GridX,0,19);
-        var destinationY=Math.Clamp(args.GridY,0,19);
-        var reason=CleanReason(args.Reason,"Tactical positioning");
-        var localMap=await GetLocalMapStateAsync(campaignId);
-        var tactical=await GetTacticalCombatStateForGmAsync(campaignId);
-        if(localMap is null || tactical is null || !tactical.Active)
-            throw new InvalidOperationException("Tactical map state is not active.");
-
-        var token=tactical.Tokens.FirstOrDefault(t =>
-            t.EntityType.Equals(entityType,StringComparison.OrdinalIgnoreCase) &&
-            t.DisplayName.Equals(combatantName,StringComparison.OrdinalIgnoreCase));
-        if(token is null)
-            throw new InvalidOperationException($"Tactical combatant was not found: {combatantName}");
-
-        var cost=0;
-        var teleport=reason.Contains("teleport",StringComparison.OrdinalIgnoreCase) ||
-                     reason.Contains("dimension door",StringComparison.OrdinalIgnoreCase) ||
-                     reason.Contains("misty step",StringComparison.OrdinalIgnoreCase);
-        if(!teleport)
-        {
-            var doorStates=await GetTacticalDoorStatesForGmAsync(campaignId,localMap.LocationKey);
-            var occupied=tactical.Tokens
-                .Where(t => !t.Defeated && !ReferenceEquals(t,token))
-                .Select(t => (t.GridX,t.GridY))
-                .ToHashSet();
-            var path=TacticalTerrainCatalog.FindPath(
-                localMap.LocationKey,
-                token.GridX,token.GridY,
-                destinationX,destinationY,
-                doorStates,occupied);
-            if(!path.Success) throw new InvalidOperationException(path.Error);
-            cost=path.CostFt;
-        }
-
         var raw = await CallSupabaseRpcAsync(
-            "discord_gm_position_combat_token_costed",
+            "discord_gm_position_combat_token",
             new
             {
                 p_campaign_id = campaignId,
-                p_entity_type = entityType,
-                p_combatant_name = combatantName,
-                p_grid_x = destinationX,
-                p_grid_y = destinationY,
-                p_distance_ft = cost,
-                p_reason = reason
+                p_entity_type = (args.EntityType ?? string.Empty).Trim(),
+                p_combatant_name = (args.CombatantName ?? string.Empty).Trim(),
+                p_grid_x = Math.Clamp(args.GridX,0,19),
+                p_grid_y = Math.Clamp(args.GridY,0,19),
+                p_reason = CleanReason(args.Reason,"Tactical positioning")
             },
             "Unable to position combat token");
         using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-    private async Task<Dictionary<int,bool>> GetTacticalDoorStatesForGmAsync(Guid campaignId,string locationKey)
-    {
-        var raw=await CallSupabaseRpcAsync(
-            "discord_gm_get_tactical_door_states",
-            new { p_campaign_id=campaignId,p_location_key=locationKey },
-            "Unable to load tactical door state");
-        var rows=JsonSerializer.Deserialize<List<TacticalDoorStateForGm>>(raw,JsonOptions) ?? new();
-        return rows.ToDictionary(r=>r.DoorId,r=>r.IsOpen);
-    }
-
-    private async Task<object> CheckTacticalLineOfSightAsync(Guid campaignId,CheckTacticalLineOfSightArguments args)
-    {
-        var localMap=await GetLocalMapStateAsync(campaignId);
-        var tactical=await GetTacticalCombatStateForGmAsync(campaignId);
-        if(localMap is null || tactical is null || !tactical.Active)
-            throw new InvalidOperationException("Tactical map state is not active.");
-        var from=tactical.Tokens.FirstOrDefault(t=>t.DisplayName.Equals((args.FromCombatantName??string.Empty).Trim(),StringComparison.OrdinalIgnoreCase));
-        var target=tactical.Tokens.FirstOrDefault(t=>t.DisplayName.Equals((args.ToCombatantName??string.Empty).Trim(),StringComparison.OrdinalIgnoreCase));
-        if(from is null || target is null)
-            throw new InvalidOperationException("Both tactical combatants must exist on the active map.");
-        var doors=await GetTacticalDoorStatesForGmAsync(campaignId,localMap.LocationKey);
-        var los=TacticalTerrainCatalog.CheckLineOfSight(localMap.LocationKey,from.GridX,from.GridY,target.GridX,target.GridY,doors);
-        return new { authoritative=true,from=from.DisplayName,target=target.DisplayName,visible=los.Visible,cover=los.Cover,reason=los.Reason };
-    }
-
-    private async Task<JsonElement> SetTacticalDoorStateAsync(Guid campaignId,SetTacticalDoorStateArguments args)
-    {
-        var localMap=await GetLocalMapStateAsync(campaignId);
-        var tactical=await GetTacticalCombatStateForGmAsync(campaignId);
-        if(localMap is null || tactical is null || !tactical.Active)
-            throw new InvalidOperationException("Tactical map state is not active.");
-        var name=(args.CombatantName??string.Empty).Trim();
-        var token=tactical.Tokens.FirstOrDefault(t=>t.DisplayName.Equals(name,StringComparison.OrdinalIgnoreCase));
-        if(token is null) throw new InvalidOperationException($"Tactical combatant was not found: {name}");
-        var door=TacticalTerrainCatalog.FindNearestDoor(localMap.LocationKey,token.GridX,token.GridY,2.75);
-        if(door is null) throw new InvalidOperationException($"No marked tactical door is close enough to {name} to interact with.");
-        var raw=await CallSupabaseRpcAsync(
-            "discord_gm_set_tactical_door_state",
-            new
-            {
-                p_campaign_id=campaignId,
-                p_location_key=localMap.LocationKey,
-                p_door_id=door.DoorId,
-                p_is_open=args.Open,
-                p_reason=CleanReason(args.Reason,args.Open?"Door opened":"Door closed")
-            },
-            "Unable to update tactical door state");
-        using var document=JsonDocument.Parse(raw);
         return document.RootElement.Clone();
     }
     private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
@@ -1492,24 +1345,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     private sealed class CombatStateRowRaw { [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; } [System.Text.Json.Serialization.JsonPropertyName("title")] public string Title { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monsters")] public JsonElement Monsters { get; set; } }
     private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } }
     private sealed record CombatStateForGm(bool Active,string Title,int RoundNumber,List<CombatMonsterForGm> Monsters);
-    private sealed class CheckTacticalLineOfSightArguments
-    {
-        public string FromCombatantName { get; set; } = string.Empty;
-        public string ToCombatantName { get; set; } = string.Empty;
-    }
-
-    private sealed class SetTacticalDoorStateArguments
-    {
-        public string CombatantName { get; set; } = string.Empty;
-        public bool Open { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class TacticalDoorStateForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("door_id")] public int DoorId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("is_open")] public bool IsOpen { get; set; }
-    }
     private sealed class SetCombatTurnToolArguments
     {
         public string EntityType { get; set; } = string.Empty;

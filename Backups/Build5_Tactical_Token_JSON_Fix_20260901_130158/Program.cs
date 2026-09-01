@@ -575,150 +575,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/world-map", async (
     }
 });
 // VISUALS BUILD 3 - LOCAL MAP ENDPOINT
-// VISUALS BUILD 5.1 - TACTICAL TERRAIN ENDPOINTS
-app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move51", async (
-    Guid campaignId,
-    TacticalMoveRequest move,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId)
-            ?? throw new InvalidOperationException("Campaign could not be found.");
-        var mapDefinition = LocalMapCatalog.FindByLocation(campaign.CurrentLocation)
-            ?? throw new InvalidOperationException("The current location does not have a tactical terrain definition.");
-
-        var state = await service.GetTacticalCombatStateAsync(playerId, campaignId)
-            ?? throw new InvalidOperationException("Tactical combat state could not be found.");
-        if (!state.Active)
-            throw new InvalidOperationException("There is no active tactical combat.");
-
-        var tokens = state.Tokens.ValueKind == JsonValueKind.Array
-            ? JsonSerializer.Deserialize<List<DiscordTacticalTokenInfo>>(
-                state.Tokens.GetRawText(),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new()
-            : new List<DiscordTacticalTokenInfo>();
-
-        if (!state.ViewerCharacterId.HasValue)
-            throw new InvalidOperationException("Your campaign character could not be found.");
-
-        var ownToken = tokens.FirstOrDefault(t => t.CharacterId == state.ViewerCharacterId)
-            ?? throw new InvalidOperationException("Your tactical token could not be found.");
-
-        var doorRows = await service.GetTacticalDoorStatesAsync(playerId, campaignId, mapDefinition.LocationKey);
-        var doorStates = doorRows.ToDictionary(d => d.DoorId, d => d.IsOpen);
-        var occupied = tokens
-            .Where(t => t.TokenId != ownToken.TokenId && !t.Defeated)
-            .Select(t => (t.GridX, t.GridY))
-            .ToHashSet();
-
-        var path = TacticalTerrainCatalog.FindPath(
-            mapDefinition.LocationKey,
-            ownToken.GridX,
-            ownToken.GridY,
-            move.GridX,
-            move.GridY,
-            doorStates,
-            occupied);
-
-        if (!path.Success)
-            return Results.BadRequest(new { success = false, error = path.Error });
-
-        var result = await service.MoveOwnCombatTokenCostedAsync(
-            playerId,
-            campaignId,
-            move.GridX,
-            move.GridY,
-            path.CostFt);
-
-        return Results.Ok(new
-        {
-            success = true,
-            move = new
-            {
-                tokenId = result.TokenId,
-                gridX = result.GridX,
-                gridY = result.GridY,
-                moveCostFt = result.MoveCostFt,
-                movementSpentFt = result.MovementSpentFt,
-                movementRemainingFt = result.MovementRemainingFt
-            },
-            usesDifficultTerrain = path.UsesDifficultTerrain,
-            path = path.Path.Select(p => new { gridX = p.X, gridY = p.Y })
-        });
-    }
-    catch (UnauthorizedAccessException)
-    {
-        return Results.Unauthorized();
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical/los", async (
-    Guid campaignId,
-    Guid fromTokenId,
-    Guid toTokenId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId)
-            ?? throw new InvalidOperationException("Campaign could not be found.");
-        var mapDefinition = LocalMapCatalog.FindByLocation(campaign.CurrentLocation)
-            ?? throw new InvalidOperationException("The current location does not have a tactical terrain definition.");
-        var state = await service.GetTacticalCombatStateAsync(playerId, campaignId)
-            ?? throw new InvalidOperationException("Tactical combat state could not be found.");
-
-        var tokens = state.Tokens.ValueKind == JsonValueKind.Array
-            ? JsonSerializer.Deserialize<List<DiscordTacticalTokenInfo>>(
-                state.Tokens.GetRawText(),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new()
-            : new List<DiscordTacticalTokenInfo>();
-        var from = tokens.FirstOrDefault(t => t.TokenId == fromTokenId)
-            ?? throw new InvalidOperationException("The source combat token could not be found.");
-        var to = tokens.FirstOrDefault(t => t.TokenId == toTokenId)
-            ?? throw new InvalidOperationException("The target combat token could not be found.");
-
-        var doorRows = await service.GetTacticalDoorStatesAsync(playerId, campaignId, mapDefinition.LocationKey);
-        var doorStates = doorRows.ToDictionary(d => d.DoorId, d => d.IsOpen);
-        var los = TacticalTerrainCatalog.CheckLineOfSight(
-            mapDefinition.LocationKey,
-            from.GridX,
-            from.GridY,
-            to.GridX,
-            to.GridY,
-            doorStates);
-
-        return Results.Ok(new
-        {
-            success = true,
-            visible = los.Visible,
-            cover = los.Cover,
-            reason = los.Reason,
-            from = from.DisplayName,
-            target = to.DisplayName
-        });
-    }
-    catch (UnauthorizedAccessException)
-    {
-        return Results.Unauthorized();
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
 // VISUALS BUILD 5 - TACTICAL COMBAT ENDPOINTS
 app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
     Guid campaignId,
@@ -744,28 +600,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
                       state.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
                       state.CurrentTurnCharacterId == state.ViewerCharacterId;
 
-        // BUILD 5 FIX - BROWSER TACTICAL TOKEN JSON
-        // The model uses snake_case JsonPropertyName attributes for Supabase input.
-        // Explicitly project to camelCase for client/main.js.
-        var clientTokens = tokens.Select(token => new
-        {
-            tokenId = token.TokenId,
-            entityType = token.EntityType,
-            characterId = token.CharacterId,
-            combatMonsterId = token.CombatMonsterId,
-            displayName = token.DisplayName,
-            monsterName = token.MonsterName,
-            gridX = token.GridX,
-            gridY = token.GridY,
-            movementSpentFt = token.MovementSpentFt,
-            speedFt = token.SpeedFt,
-            currentHp = token.CurrentHp,
-            maxHp = token.MaxHp,
-            armorClass = token.ArmorClass,
-            defeated = token.Defeated,
-            hasPortrait = token.HasPortrait
-        }).ToList();
-
         return Results.Ok(new
         {
             success = true,
@@ -782,7 +616,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             viewerSpeed = Math.Max(0, state.ViewerSpeed),
             viewerMovementRemaining = Math.Max(0, state.ViewerMovementRemaining),
             canMove,
-            tokens = clientTokens
+            tokens
         });
     }
     catch (UnauthorizedAccessException ex)
@@ -806,20 +640,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move", async 
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var playerId = await service.GetOrCreatePlayerAsync(user);
         var result = await service.MoveOwnCombatTokenAsync(playerId, campaignId, move.GridX, move.GridY);
-        // BUILD 5 FIX - BROWSER TACTICAL MOVE JSON
-        return Results.Ok(new
-        {
-            success = true,
-            move = new
-            {
-                tokenId = result.TokenId,
-                gridX = result.GridX,
-                gridY = result.GridY,
-                moveCostFt = result.MoveCostFt,
-                movementSpentFt = result.MovementSpentFt,
-                movementRemainingFt = result.MovementRemainingFt
-            }
-        });
+        return Results.Ok(new { success = true, move = result });
     }
     catch (UnauthorizedAccessException)
     {

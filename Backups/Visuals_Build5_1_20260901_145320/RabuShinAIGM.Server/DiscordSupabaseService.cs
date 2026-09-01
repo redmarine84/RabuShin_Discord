@@ -557,44 +557,6 @@ public sealed class DiscordSupabaseService
         return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
             ?? throw new InvalidOperationException("Supabase returned an invalid tactical movement result.");
     }
-    // VISUALS BUILD 5.1 - TACTICAL TERRAIN RPC
-    public async Task<List<TacticalDoorStateRow>> GetTacticalDoorStatesAsync(
-        Guid playerId,
-        Guid campaignId,
-        string locationKey)
-    {
-        using var response = await CallRpcAsync("discord_get_tactical_door_states", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_location_key = locationKey
-        });
-        return await ReadListAsync<TacticalDoorStateRow>(response, "Unable to load tactical door state");
-    }
-
-    public async Task<TacticalMoveResult> MoveOwnCombatTokenCostedAsync(
-        Guid playerId,
-        Guid campaignId,
-        int gridX,
-        int gridY,
-        int moveCostFt)
-    {
-        using var response = await CallRpcAsync("discord_move_own_combat_token_costed", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_grid_x = gridX,
-            p_grid_y = gridY,
-            p_move_cost_ft = Math.Max(0, moveCostFt)
-        });
-
-        var json = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Unable to move tactical token: {json}");
-
-        return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
-            ?? throw new InvalidOperationException("Supabase returned an invalid terrain-aware movement result.");
-    }
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);
