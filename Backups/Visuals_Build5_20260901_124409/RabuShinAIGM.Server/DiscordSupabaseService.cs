@@ -524,39 +524,6 @@ public sealed class DiscordSupabaseService
         var rows = await ReadListAsync<DiscordCombatStateRow>(response, "Unable to load Combat state");
         return rows.FirstOrDefault();
     }
-    // VISUALS BUILD 5 - TACTICAL COMBAT STATE
-    public async Task<DiscordTacticalCombatStateRow?> GetTacticalCombatStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_tactical_combat_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordTacticalCombatStateRow>(response, "Unable to load Tactical Combat state");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<TacticalMoveResult> MoveOwnCombatTokenAsync(
-        Guid playerId,
-        Guid campaignId,
-        int gridX,
-        int gridY)
-    {
-        using var response = await CallRpcAsync("discord_move_own_combat_token", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_grid_x = gridX,
-            p_grid_y = gridY
-        });
-
-        var json = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Unable to move tactical token: {json}");
-
-        return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
-            ?? throw new InvalidOperationException("Supabase returned an invalid tactical movement result.");
-    }
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
         var json = JsonSerializer.Serialize(body);

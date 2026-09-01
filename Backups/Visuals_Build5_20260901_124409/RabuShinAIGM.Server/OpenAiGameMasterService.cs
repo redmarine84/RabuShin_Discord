@@ -107,15 +107,6 @@ COMBAT VISUAL STATE â€” SERVER-AUTHORITATIVE / MANDATORY:
 - Call end_combat when the tactical combat is actually over. Ending combat also closes the Encounter Map.
 - Never invent persistent enemy HP/status changes only in narration; commit them through these tools first.
 
-TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
-- The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 from left to right; y=0..19 from top to bottom. Each square represents 5 feet.
-- After combat starts and enemies are added, ensure the first acting combatant has an authoritative turn by calling set_combat_turn. Whenever the active turn changes, call set_combat_turn again BEFORE asking that combatant to act.
-- A player can move only their own character token and only while set_combat_turn identifies that character as the current turn. The server enforces the character's Speed and cumulative movement for that turn.
-- Do not use position_combat_token for a player's voluntary movement. Player voluntary movement comes from the Tactical Combat Map UI.
-- Use position_combat_token to place/reposition monster tokens, to establish initial tactical staging when needed, or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
-- Monster movement remains GM-authoritative. Respect the creature's movement capabilities when narrating/positioning it even though Build 5.0 does not yet perform automated wall/terrain/line-of-sight pathfinding.
-- Do not claim automatic wall/obstacle/line-of-sight validation. That arrives in Build 5.1. Continue adjudicating terrain and visibility from the encounter description and map context.
-
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
 
@@ -219,25 +210,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             foreach (var enemy in combatState.Monsters)
                 inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Defeated: {enemy.Defeated}");
         }
-        // VISUALS BUILD 5 - TACTICAL COMBAT GM
-        var tacticalState = await GetTacticalCombatStateForGmAsync(campaign.CampaignId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("TACTICAL COMBAT GRID (SERVER-AUTHORITATIVE / CAMPAIGN-WIDE):");
-        if (tacticalState is null || !tacticalState.Active)
-        {
-            inputBuilder.AppendLine("- Tactical grid: INACTIVE");
-        }
-        else
-        {
-            inputBuilder.AppendLine($"- Grid: 20x20; 5 ft. per square; Round {tacticalState.RoundNumber}");
-            inputBuilder.AppendLine(string.IsNullOrWhiteSpace(tacticalState.CurrentTurnName)
-                ? "- Current turn: NOT SET"
-                : $"- Current turn: {tacticalState.CurrentTurnName} ({tacticalState.CurrentTurnType})");
-            foreach (var token in tacticalState.Tokens)
-            {
-                inputBuilder.AppendLine($"- {token.DisplayName} [{token.EntityType}] square ({token.GridX},{token.GridY}); HP {token.CurrentHp}/{token.MaxHp}; movement spent {token.MovementSpentFt} ft.{(token.Defeated ? "; DEFEATED/DOWN" : string.Empty)}");
-            }
-        }
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -262,9 +234,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildAddCombatMonsterTool(),
             BuildUpdateCombatMonsterTool(),
             BuildSetCombatRoundTool(),
-            BuildEndCombatTool(),
-            BuildSetCombatTurnTool(),
-            BuildPositionCombatTokenTool()
+            BuildEndCombatTool()
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
@@ -439,21 +409,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         await EndCombatAsync(campaign.CampaignId, reason);
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"Combat ended ({reason})"));
                         toolResult = new { authoritative=true, action="end_combat", reason };
-                        break;
-                    }                    case "set_combat_turn":
-                    {
-                        var args = DeserializeArguments<SetCombatTurnToolArguments>(call.ArgumentsJson, "combat turn");
-                        var result = await SetCombatTurnAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"Current turn: {args.CombatantName}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "position_combat_token":
-                    {
-                        var args = DeserializeArguments<PositionCombatTokenToolArguments>(call.ArgumentsJson, "combat token position");
-                        var result = await PositionCombatTokenAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{args.CombatantName} moved to tactical square ({args.GridX},{args.GridY})"));
-                        toolResult = result;
                         break;
                     }                    default:
                         throw new InvalidOperationException($"The Game Master requested unsupported tool '{call.Name}'.");
@@ -747,46 +702,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         type="function", name="end_combat", description="End authoritative combat, clear enemy combat state, and close the Encounter Map.", strict=true,
         parameters=new { type="object", properties=new { reason=new { type="string" } }, required=new[]{"reason"}, additionalProperties=false }
     };
-    private static object BuildSetCombatTurnTool() => new
-    {
-        type="function",
-        name="set_combat_turn",
-        description="Set the authoritative current combat turn. This resets that combatant token's movement spent for the new turn and enables a player to move their own token when it is their character's turn.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                entityType=new { type="string", @enum=new[]{"character","monster"}, description="character for a party member or monster for an enemy." },
-                combatantName=new { type="string", description="Exact party character name or exact stable monster display name from combat state." }
-            },
-            required=new[]{"entityType","combatantName"},
-            additionalProperties=false
-        }
-    };
-
-    private static object BuildPositionCombatTokenTool() => new
-    {
-        type="function",
-        name="position_combat_token",
-        description="GM-authoritative tactical token positioning on the 20x20 encounter grid. Use for monster movement, initial staging, or forced movement; do not use for voluntary player movement.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                entityType=new { type="string", @enum=new[]{"character","monster"} },
-                combatantName=new { type="string", description="Exact party character name or exact stable monster display name." },
-                gridX=new { type="integer", minimum=0, maximum=19, description="Zero-based column from left to right." },
-                gridY=new { type="integer", minimum=0, maximum=19, description="Zero-based row from top to bottom." },
-                reason=new { type="string", description="Short reason such as monster movement, initial staging, knockback, or teleport." }
-            },
-            required=new[]{"entityType","combatantName","gridX","gridY","reason"},
-            additionalProperties=false
-        }
-    };
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -991,60 +906,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private async Task EndCombatAsync(Guid campaignId,string reason)
         => _=await CallSupabaseRpcAsync("discord_gm_end_combat",new { p_campaign_id=campaignId,p_reason=reason },"Unable to end combat");
-    private async Task<TacticalCombatForGm?> GetTacticalCombatStateForGmAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_get_tactical_combat_state",
-                new { p_campaign_id = campaignId },
-                "Unable to load tactical combat state");
-            var rows = JsonSerializer.Deserialize<List<TacticalCombatStateRowForGm>>(raw, JsonOptions);
-            var row = rows?.FirstOrDefault();
-            if (row is null) return null;
-            var tokens = row.Tokens.ValueKind == JsonValueKind.Array
-                ? JsonSerializer.Deserialize<List<TacticalTokenForGm>>(row.Tokens.GetRawText(), JsonOptions) ?? new()
-                : new List<TacticalTokenForGm>();
-            return new TacticalCombatForGm(row.Active,row.RoundNumber,row.CurrentTurnType,row.CurrentTurnName,tokens);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async Task<JsonElement> SetCombatTurnAsync(Guid campaignId, SetCombatTurnToolArguments args)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_set_combat_turn",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_entity_type = (args.EntityType ?? string.Empty).Trim(),
-                p_combatant_name = (args.CombatantName ?? string.Empty).Trim()
-            },
-            "Unable to set combat turn");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> PositionCombatTokenAsync(Guid campaignId, PositionCombatTokenToolArguments args)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_position_combat_token",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_entity_type = (args.EntityType ?? string.Empty).Trim(),
-                p_combatant_name = (args.CombatantName ?? string.Empty).Trim(),
-                p_grid_x = Math.Clamp(args.GridX,0,19),
-                p_grid_y = Math.Clamp(args.GridY,0,19),
-                p_reason = CleanReason(args.Reason,"Tactical positioning")
-            },
-            "Unable to position combat token");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
     private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
@@ -1345,48 +1206,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     private sealed class CombatStateRowRaw { [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; } [System.Text.Json.Serialization.JsonPropertyName("title")] public string Title { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monsters")] public JsonElement Monsters { get; set; } }
     private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } }
     private sealed record CombatStateForGm(bool Active,string Title,int RoundNumber,List<CombatMonsterForGm> Monsters);
-    private sealed class SetCombatTurnToolArguments
-    {
-        public string EntityType { get; set; } = string.Empty;
-        public string CombatantName { get; set; } = string.Empty;
-    }
-
-    private sealed class PositionCombatTokenToolArguments
-    {
-        public string EntityType { get; set; } = string.Empty;
-        public string CombatantName { get; set; } = string.Empty;
-        public int GridX { get; set; }
-        public int GridY { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class TacticalCombatStateRowForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("current_turn_type")] public string CurrentTurnType { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("current_turn_name")] public string CurrentTurnName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("tokens")] public JsonElement Tokens { get; set; }
-    }
-
-    private sealed class TacticalTokenForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("entity_type")] public string EntityType { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("grid_x")] public int GridX { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("grid_y")] public int GridY { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("movement_spent_ft")] public int MovementSpentFt { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; }
-    }
-
-    private sealed record TacticalCombatForGm(
-        bool Active,
-        int RoundNumber,
-        string CurrentTurnType,
-        string CurrentTurnName,
-        List<TacticalTokenForGm> Tokens);
     private sealed class SetEncounterMapToolArguments
     {
         public bool Active { get; set; }

@@ -12,12 +12,6 @@ const portraitObjectUrls = new Map();
 let currentWorldMapData = null; // VISUALS BUILD 2 - WORLD MAP CLIENT
 let currentLocalMapData = null; // VISUALS BUILD 3 - LOCAL MAP CLIENT
 let currentCombatData = null; // VISUALS BUILD 4 - MONSTER COMBAT CLIENT
-let currentTacticalCombatData = null; // VISUALS BUILD 5 - TACTICAL COMBAT CLIENT
-let currentTacticalMapData = null;
-let tacticalCombatRefreshTimer = null;
-let tacticalSelectedTokenId = null;
-let tacticalZoom = 1;
-let tacticalLastSignature = '';
 
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
@@ -174,11 +168,6 @@ async function showCampaignLauncher() {
   clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
-  currentTacticalCombatData = null;
-  currentTacticalMapData = null;
-  tacticalSelectedTokenId = null;
-  tacticalLastSignature = '';
-  stopTacticalCombatPolling();
   currentCombatData = null;
   currentLocalMapData = null;
   currentWorldMapData = null;
@@ -521,7 +510,6 @@ function renderGameShell() {
 
 function switchGameTab(tab,button) {
   document.querySelectorAll('.game-tab').forEach(b=>b.classList.remove('active'));button?.classList.add('active');
-  if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
 }
@@ -754,12 +742,6 @@ async function renderCombatTab() {
         <div class="combat-monster-card-body"><h4>${escapeHtml(m.displayName)}</h4>${m.displayName!==m.monsterName?`<small>${escapeHtml(m.monsterName)}</small>`:''}<div class="combat-monster-vitals"><span>HP <b>${m.currentHp}/${m.maxHp}</b></span><span>AC <b>${m.armorClass}</b></span></div><p>${escapeHtml(m.defeated?'Defeated':m.conditions||'No conditions')}</p><span class="view-stat-block">View Image & Stat Block’</span></div>
       </button>`).join(''):'<div class="empty small">Combat is active, but no enemies have been added yet.</div>'}</div></section>`;
     document.querySelector('#refreshCombat').onclick=renderCombatTab;
-    const tacticalHost=document.createElement('section');
-    tacticalHost.id='tacticalCombatHost';
-    tacticalHost.className='panel tactical-combat-panel';
-    const partyStrip=view.querySelector('.combat-party-strip');
-    if(partyStrip)partyStrip.before(tacticalHost); else view.appendChild(tacticalHost);
-    void renderTacticalCombatBoard(tacticalHost,data,party);
     const encounter=document.querySelector('#combatEncounterMap'); if(encounter)encounter.onclick=()=>openCampaignLocalMap('encounter');
     document.querySelectorAll('.combat-monster-image').forEach(img=>{if(img.tagName!=='IMG')return;img.onerror=()=>{img.hidden=true;const fb=img.parentElement?.querySelector('.monster-image-fallback');if(fb)fb.hidden=false;};});
     document.querySelectorAll('.combat-monster-card').forEach(card=>card.onclick=()=>{const monster=monsters.find(m=>String(m.combatMonsterId)===card.dataset.monsterId);if(monster)showMonsterStatViewer(monster);});
@@ -768,231 +750,6 @@ async function renderCombatTab() {
   }
 }
 
-async function loadTacticalCombatState() {
-  currentTacticalCombatData=await api(`/game-api/campaigns/${currentCampaignId}/combat/tactical`);
-  return currentTacticalCombatData;
-}
-
-function stopTacticalCombatPolling() {
-  if(tacticalCombatRefreshTimer)clearTimeout(tacticalCombatRefreshTimer);
-  tacticalCombatRefreshTimer=null;
-}
-
-function tacticalStateSignature(tactical,combat) {
-  const tokens=(tactical?.tokens||[]).map(t=>[t.tokenId,t.gridX,t.gridY,t.movementSpentFt,t.currentHp,t.defeated]);
-  const monsters=(combat?.monsters||[]).map(m=>[m.combatMonsterId,m.currentHp,m.conditions,m.defeated]);
-  return JSON.stringify([tactical?.active,tactical?.roundNumber,tactical?.currentTurnType,tactical?.currentTurnCharacterId,tactical?.currentTurnMonsterId,tactical?.viewerMovementRemaining,tokens,monsters]);
-}
-
-function tacticalTokenPositionStyle(token) {
-  const x=Math.max(0,Math.min(19,Number(token.gridX)||0));
-  const y=Math.max(0,Math.min(19,Number(token.gridY)||0));
-  return `left:${((x+.5)/20*100).toFixed(3)}%;top:${((y+.5)/20*100).toFixed(3)}%;`;
-}
-
-function tacticalCharacterArtHtml(token) {
-  const hasPortrait=!!token.hasPortrait;
-  return `<span class="tactical-token-art" data-portrait-frame="${escapeHtml(token.characterId||'')}" data-has-portrait="${hasPortrait?'true':'false'}">
-    <span class="portrait-placeholder">${escapeHtml(portraitInitials(token.displayName))}</span>
-    <img alt="${escapeHtml(token.displayName)} portrait" hidden>
-  </span>`;
-}
-
-function tacticalMonsterArtHtml(token,combatData) {
-  const monster=(combatData?.monsters||[]).find(m=>String(m.combatMonsterId)===String(token.combatMonsterId));
-  if(monster?.imageUrl)return `<span class="tactical-token-art"><img src="${escapeHtml(monster.imageUrl)}" alt="${escapeHtml(token.displayName)}"></span>`;
-  return `<span class="tactical-token-art"><span class="portrait-placeholder">${escapeHtml((token.monsterName||token.displayName||'?').slice(0,1).toUpperCase())}</span></span>`;
-}
-
-function tacticalTurnLabel(tactical) {
-  if(!tactical?.currentTurnName)return 'Current turn: waiting for the AI Game Master';
-  return `Current turn: ${tactical.currentTurnName}`;
-}
-
-function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
-  if(!host)return;
-  if(!tactical?.active) {
-    host.innerHTML='<h3>Tactical Encounter Map</h3><p class="muted">Tactical combat is not active.</p>';
-    return;
-  }
-
-  const map=mapData?.encounterMap;
-  if(!map?.available||!map?.imageUrl) {
-    host.innerHTML='<h3>Tactical Encounter Map</h3><p class="muted">Combat is active, but the Encounter Map is not currently available.</p>';
-    return;
-  }
-
-  const tokens=tactical.tokens||[];
-  const viewerId=String(tactical.viewerCharacterId||'');
-  const canMove=!!tactical.canMove;
-  const currentTurnCharacterId=String(tactical.currentTurnCharacterId||'');
-  const currentTurnMonsterId=String(tactical.currentTurnMonsterId||'');
-  const selected=tokens.find(t=>String(t.tokenId)===String(tacticalSelectedTokenId));
-  if(!selected||selected.entityType!=='character'||String(selected.characterId)!==viewerId||!canMove)tacticalSelectedTokenId=null;
-
-  const tokenHtml=tokens.map(token=>{
-    const isCharacter=token.entityType==='character';
-    const isOwn=isCharacter&&String(token.characterId)===viewerId;
-    const isTurn=(isCharacter&&String(token.characterId)===currentTurnCharacterId)||(!isCharacter&&String(token.combatMonsterId)===currentTurnMonsterId);
-    const isSelected=String(token.tokenId)===String(tacticalSelectedTokenId);
-    const classes=['tactical-token',isCharacter?'character-token':'monster-token'];
-    if(isOwn)classes.push('own-token');
-    if(isTurn)classes.push('current-turn-token');
-    if(isSelected)classes.push('selected-token');
-    if(token.defeated)classes.push('defeated-token');
-    const art=isCharacter?tacticalCharacterArtHtml(token):tacticalMonsterArtHtml(token,combatData);
-    const hp=`${Number(token.currentHp)||0}/${Math.max(1,Number(token.maxHp)||1)}`;
-    return `<button class="${classes.join(' ')}" data-tactical-token-id="${escapeHtml(token.tokenId)}" data-entity-type="${escapeHtml(token.entityType)}" style="${tacticalTokenPositionStyle(token)}" title="${escapeHtml(token.displayName)} - HP ${hp} - AC ${Number(token.armorClass)||0}">
-      ${art}<span class="tactical-token-name">${escapeHtml(token.displayName)}</span><span class="tactical-token-hp">${escapeHtml(hp)}</span>
-    </button>`;
-  }).join('');
-
-  const movementText=canMove
-    ? `Your movement: ${Math.max(0,Number(tactical.viewerMovementRemaining)||0)} / ${Math.max(0,Number(tactical.viewerSpeed)||0)} ft. remaining`
-    : (tactical.currentTurnName ? `Waiting for ${escapeHtml(tactical.currentTurnName)}` : 'Waiting for the AI Game Master to set the active turn');
-
-  host.innerHTML=`<div class="tactical-combat-heading">
-      <div><h3>Tactical Encounter Map</h3><p class="muted">20 x 20 logical grid - 5 ft. per square - ${escapeHtml(tacticalTurnLabel(tactical))}</p></div>
-      <div class="tactical-movement-status ${canMove?'your-turn':''}">${movementText}</div>
-    </div>
-    <div class="tactical-toolbar">
-      <button id="tacticalZoomOut" class="button small">-</button>
-      <span id="tacticalZoomLabel">${Math.round(tacticalZoom*100)}%</span>
-      <button id="tacticalZoomIn" class="button small">+</button>
-      <button id="tacticalFit" class="button small">Fit</button>
-      <span id="tacticalMoveHint" class="muted">${canMove?'Select your token, then click a destination square.':''}</span>
-    </div>
-    <div id="tacticalViewport" class="tactical-viewport">
-      <div id="tacticalStage" class="tactical-stage" style="width:${Math.round(tacticalZoom*100)}%">
-        <img id="tacticalMapImage" class="tactical-map-image" src="${escapeHtml(map.imageUrl)}" alt="${escapeHtml(map.name||'Encounter Map')}">
-        <div class="tactical-token-layer">${tokenHtml}</div>
-      </div>
-    </div>`;
-
-  hydratePortraits(host);
-
-  const stage=host.querySelector('#tacticalStage');
-  const image=host.querySelector('#tacticalMapImage');
-  const viewport=host.querySelector('#tacticalViewport');
-  const zoomLabel=host.querySelector('#tacticalZoomLabel');
-  const moveHint=host.querySelector('#tacticalMoveHint');
-
-  const applyZoom=()=>{
-    tacticalZoom=Math.max(.5,Math.min(3,tacticalZoom));
-    if(stage)stage.style.width=`${Math.round(tacticalZoom*100)}%`;
-    if(zoomLabel)zoomLabel.textContent=`${Math.round(tacticalZoom*100)}%`;
-  };
-
-  host.querySelector('#tacticalZoomOut').onclick=()=>{tacticalZoom=Math.round(Math.max(.5,tacticalZoom-.25)*100)/100;applyZoom();};
-  host.querySelector('#tacticalZoomIn').onclick=()=>{tacticalZoom=Math.round(Math.min(3,tacticalZoom+.25)*100)/100;applyZoom();};
-  host.querySelector('#tacticalFit').onclick=()=>{tacticalZoom=1;applyZoom();viewport?.scrollTo(0,0);};
-
-  host.querySelectorAll('[data-tactical-token-id]').forEach(button=>{
-    button.onclick=event=>{
-      event.stopPropagation();
-      const token=tokens.find(t=>String(t.tokenId)===String(button.dataset.tacticalTokenId));
-      if(!token)return;
-      if(token.entityType==='character') {
-        const isOwn=String(token.characterId)===viewerId;
-        if(isOwn&&canMove&&!token.defeated) {
-          tacticalSelectedTokenId=token.tokenId;
-          host.querySelectorAll('.tactical-token').forEach(t=>t.classList.toggle('selected-token',t===button));
-          if(moveHint)moveHint.textContent=`${token.displayName} selected. Click a destination square.`;
-          return;
-        }
-        const member=(party||[]).find(p=>String(p.characterId)===String(token.characterId));
-        if(member)showPartyMemberDetails(member);
-        return;
-      }
-      const monster=(combatData?.monsters||[]).find(m=>String(m.combatMonsterId)===String(token.combatMonsterId));
-      if(monster)showMonsterStatViewer({...monster,currentHp:token.currentHp,maxHp:token.maxHp,armorClass:token.armorClass,defeated:token.defeated});
-    };
-  });
-
-  if(stage&&image) {
-    stage.onclick=async event=>{
-      if(!tacticalSelectedTokenId||!canMove)return;
-      const token=tokens.find(t=>String(t.tokenId)===String(tacticalSelectedTokenId));
-      if(!token)return;
-      const rect=image.getBoundingClientRect();
-      if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)return;
-      const gridX=Math.max(0,Math.min(19,Math.floor((event.clientX-rect.left)/rect.width*20)));
-      const gridY=Math.max(0,Math.min(19,Math.floor((event.clientY-rect.top)/rect.height*20)));
-      const cost=Math.max(Math.abs(gridX-Number(token.gridX)),Math.abs(gridY-Number(token.gridY)))*5;
-      const remaining=Math.max(0,Number(tactical.viewerMovementRemaining)||0);
-      if(cost>remaining) {
-        showNotice(`That move costs ${cost} ft., but you only have ${remaining} ft. remaining.`,true);
-        return;
-      }
-      try {
-        if(moveHint)moveHint.textContent='Moving token...';
-        const response=await api(`/game-api/campaigns/${currentCampaignId}/combat/tactical/move`,{
-          method:'POST',
-          body:JSON.stringify({gridX,gridY})
-        });
-        const move=response.move||{};
-        showNotice(`Moved ${Number(move.moveCostFt)||0} ft. - ${Number(move.movementRemainingFt)||0} ft. remaining.`);
-        tacticalSelectedTokenId=null;
-        await refreshTacticalCombatBoard(host,mapData,party,true);
-      } catch(error) {
-        showNotice(error.message,true);
-        if(moveHint)moveHint.textContent='Select your token, then click a destination square.';
-      }
-    };
-
-    stage.onmousemove=event=>{
-      if(!tacticalSelectedTokenId||!canMove||!moveHint)return;
-      const token=tokens.find(t=>String(t.tokenId)===String(tacticalSelectedTokenId));
-      if(!token)return;
-      const rect=image.getBoundingClientRect();
-      const gridX=Math.max(0,Math.min(19,Math.floor((event.clientX-rect.left)/rect.width*20)));
-      const gridY=Math.max(0,Math.min(19,Math.floor((event.clientY-rect.top)/rect.height*20)));
-      const cost=Math.max(Math.abs(gridX-Number(token.gridX)),Math.abs(gridY-Number(token.gridY)))*5;
-      moveHint.textContent=`Destination (${gridX+1},${gridY+1}) - ${cost} ft.`;
-    };
-  }
-
-  applyZoom();
-}
-
-async function refreshTacticalCombatBoard(host,mapData,party,force=false) {
-  if(!host?.isConnected)return;
-  try {
-    const [tactical,combat]=await Promise.all([loadTacticalCombatState(),loadCombatState()]);
-    const signature=tacticalStateSignature(tactical,combat);
-    if(force||signature!==tacticalLastSignature) {
-      tacticalLastSignature=signature;
-      renderTacticalCombatBoardView(host,tactical,mapData,combat,party);
-    }
-  } catch(error) {
-    if(force)host.innerHTML=`<h3>Tactical Encounter Map</h3><div class="error">Unable to load Tactical Combat: ${escapeHtml(error.message)}</div>`;
-  }
-}
-
-function scheduleTacticalCombatPolling(host,mapData,party) {
-  stopTacticalCombatPolling();
-  tacticalCombatRefreshTimer=setTimeout(async()=>{
-    if(!host?.isConnected)return;
-    await refreshTacticalCombatBoard(host,mapData,party,false);
-    if(host.isConnected)scheduleTacticalCombatPolling(host,mapData,party);
-  },3000);
-}
-
-async function renderTacticalCombatBoard(host,combatData,party) {
-  stopTacticalCombatPolling();
-  tacticalLastSignature='';
-  host.innerHTML='<h3>Tactical Encounter Map</h3><p class="muted">Loading synchronized token positions...</p>';
-  try {
-    const [tactical,mapData]=await Promise.all([loadTacticalCombatState(),loadLocalMapState()]);
-    currentTacticalMapData=mapData;
-    currentCombatData=combatData||currentCombatData;
-    tacticalLastSignature=tacticalStateSignature(tactical,currentCombatData);
-    renderTacticalCombatBoardView(host,tactical,mapData,currentCombatData,party);
-    scheduleTacticalCombatPolling(host,mapData,party);
-  } catch(error) {
-    host.innerHTML=`<h3>Tactical Encounter Map</h3><div class="error">Unable to load Tactical Combat: ${escapeHtml(error.message)}</div>`;
-  }
-}
 function showMonsterStatViewer(monster) {
   document.querySelector('#monsterStatOverlay')?.remove();
   const overlay=document.createElement('div'); overlay.id='monsterStatOverlay'; overlay.className='modal-overlay monster-stat-overlay';
