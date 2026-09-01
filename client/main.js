@@ -11,7 +11,7 @@ let selectedInventoryId = null;
 const portraitObjectUrls = new Map();
 
 const app = document.querySelector('#app');
-const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/AppDownload.github.io/rabushin').replace(/\/$/, '');
+const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
   terms: `${publicSiteBase}/terms.html`,
   privacy: `${publicSiteBase}/privacy.html`,
@@ -506,24 +506,12 @@ function timelineHtml(messages, emptyText='No messages yet.') {
   return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(m.messageText).replaceAll('\n','<br>')}</div></div>`).join('');
 }
 
-function scrollGmToLatestMessage() {
-    const timeline = document.querySelector('#gmTimeline');
-    if (!timeline) return;
-    const messages = timeline.querySelectorAll('.message');
-    if (!messages.length) return;
-    const lastMessage = messages[messages.length - 1];
+function scrollGmToBottom() {
     requestAnimationFrame(() => {
-        // First force the GM message window to the very bottom.
-        timeline.scrolltop = timeline.scrollHeight;
-        requestAnimationFrame(() => {
-            // Determine where the last message begins INSIDE the timeline.
-            const timelineRect = timeline.getBoundingClientRect();
-            const messageRect = lastMessage.getBoundingClientRect();
-            const messageTopInsideTimeline = timeline.scrollTop + (messageRect.top - timelineRect.top);
-            // Now place the beginning of that message at the top
-            // of the GM message window.
-            timeline.scrollTop = messageTopInsideTimeline;
-        });
+        const timeline = document.querySelector('#gmTimeline');
+        if (!timeline) return;
+
+        timeline.scrollTop = timeline.scrollHeight;
     });
 }
 
@@ -536,7 +524,7 @@ function renderGameMasterTab() {
     const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
       try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
   };
-    scrollGmToLatestMessage();
+ scrollGmToBottom();
 }
 
 function clearPortraitCache(characterId = null) {
