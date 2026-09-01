@@ -1,0 +1,633 @@
+Chapter 11
+        BLACKROOT ENCLAVE
+      THE LAST UNALTERED STRONGHOLD
+               Recommended Level 11 • Preparation for Level 12 Finale
+
+ DM NOTE. Chapter Purpose. Blackroot Enclave is the campaign’s final refuge, alliance
+ chapter, and strategic preparation point. The characters learn how to collapse Rabu Shin’s
+ distributed consciousness without releasing a continent-wide mutation surge, earn
+ temporary anti-lattice equipment, expose an infiltrator, and make the one-way journey to
+ Aetherfall.
+
+
+                             Blackroot Enclave settlement map
+
+
+Blackroot Enclave
+Blackroot Enclave lies inside a mountain south of Emberfall, reached through root-
+choked caverns and ancient duergar tunnels. Its people are dwarves, druids,
+rangers, artificers, and refugees who rejected uncontrolled arcane
+experimentation generations ago. They do not oppose change; they oppose change
+imposed without consent.
+The settlement is built around the roots of an impossible subterranean tree whose
+black bark grows through stone. Bioluminescent fungi illuminate iron bridges,
+
+
+carved halls, living workshops, and deep containment vaults. Blackroot has studied
+Rabu Shin’s lattice signatures since his exile and has prepared tools intended for
+one purpose: surviving Aetherfall long enough to shut it down.
+
+ ARRIVAL AT BLACKROOT
+ The mountain passage narrows until roots as thick as ship masts fill the stone.
+ Warm green light glows between them. A hidden gate of ironwood opens without
+ a sound, revealing bridges suspended over a cavern vast enough to hold a city. At
+ its center rises a black-barked tree, its crown lost in darkness. Hooded sentries
+ level bows from the roots above. “If you carry lattice shards,” one calls, “declare
+ them now.”
+
+
+Entering the Enclave
+The sentries insist that every lattice fragment be placed in a leadglass containment
+coffer before the characters pass the Ironbark Gate. A character who refuses must
+succeed on a DC 17 Persuasion check to earn a guarded audience, while concealed
+fragments are detected by ward-stones unless hidden with nondetection or similar
+magic.
+Once the party explains the events at Sunspire, Archdruid Thalen orders the
+fragments transferred to the Hollow Council Tree. The characters are treated as
+honored but dangerous guests. Their actions during this chapter determine how
+much support Blackroot commits to the final assault.
+
+Keyed Locations in Blackroot Enclave
+1. Ironbark Gate. The guarded entrance, lined with anti-transmutation runes and
+lattice-detection stones.
+2. Hollow Council Tree. A vast chamber grown inside the central root where the
+enclave’s elders debate strategy.
+3. Forge of Living Steel. Artisans combine ironwood, silver, radiant salts, and
+memory crystal into temporary anti-lattice equipment.
+4. Containment Vault. Captured constructs and infected specimens are held behind
+layered wards. The party can train here before Aetherfall.
+5. Rootbound Archive. Maps, survivor testimony, and resonance records chart the
+entire lattice network.
+6. Deepwell Sanctuary. A quiet refuge where healers examine the characters for
+contamination and remove lingering mutation effects.
+7. Gravity Chamber. A test hall built to simulate Aetherfall’s shifting orientation
+and forced movement.
+8. Gateway Hollow. A stone circle beneath the oldest roots. Once activated, it opens
+a one-way route to Aetherfall’s outer ring.
+
+
+Important NPCs
+               NPC                 Role and Manner                   What They Know
+
+Archdruid Thalen Rootward    Patient elder; speaks softly,      Destroying Aetherfall
+                             asks difficult moral               incorrectly could release the
+                             questions.                         network’s stored mutation
+                                                                energy.
+
+Forge-Master Brunna          Duergar artificer; blunt,          Anti-lattice coatings can
+Deepiron                     tireless, distrustful of elegant   interrupt regeneration and
+                             solutions.                         sever relay links
+                                                                temporarily.
+
+Warden Erynd Mosscloak       Half-elf ranger; disciplined,      A Blackroot scout returned
+                             suspicious, fiercely               changed and may be
+                             protective.                        carrying a remote command.
+
+Sister Olyra                 Dwarven healer;                    The characters have
+                             compassionate, clinical,           accumulated faint adaptive
+                             unafraid of mutation.              residue but remain
+                                                                themselves.
+
+Archivist Kelm               Gnome resonance scholar;           Rabu Shin exists across
+                             excitable, sleep-deprived,         several relay layers, with
+                             brilliant.                         Aetherfall as the
+                                                                synchronization nexus.
+
+Scout Varik Thorn            Corrupted infiltrator;             He carries a seed-code
+                             courteous, controlled,             intended to sabotage the
+                             increasingly inhuman.              gateway and infect
+                                                                Blackroot’s tree.
+
+
+Blackroot Rumors
+                     d8                                            Rumor
+
+1                                             The central tree was planted before the
+                                              mountain formed.
+
+2                                             Aetherfall can see through every active
+                                              lattice shard.
+
+3                                             One of the returning scouts has not slept in
+                                              nine days.
+
+4                                             The Forge can make weapons that stop
+                                              Krasis regeneration.
+
+5                                             The gateway has never carried living people
+                                              and cannot be reopened from the far side.
+
+6                                             Some council members believe Rabu Shin’s
+                                              research should be preserved.
+
+
+                     d8                                           Rumor
+
+7                                              A captured angel whispered the names of
+                                               people who have not yet been born.
+
+8                                              Blackroot’s wards failed for exactly seven
+                                               heartbeats last night.
+
+
+Part 1: The Hollow Council
+ COUNCIL OF ROOTS
+ The council chamber is formed from the living interior of the great tree. Rings in
+ the dark wood glow like constellations. Elders sit in carved alcoves while your
+ recovered fragments float above a stone basin, each pulsing in time with the
+ others. Archdruid Thalen studies the pattern. “You did not bring us keys,” he says.
+ “You brought us pieces of a single mind.”
+
+
+Thalen explains that Rabu Shin’s consciousness is distributed through the lattice,
+but synchronization occurs in Aetherfall. Destroying the nexus will collapse the
+network. If the engine is shattered while fully charged, however, every connected
+node could discharge its stored biomantic energy into the surrounding region.
+The council asks the party to help complete three preparations: calibrate a
+containment sigil, test equipment in the Gravity Chamber, and investigate a
+suspected infiltrator. Completing all three grants the full Blackroot Support
+package.
+
+      Council Position                   Argument                    Representative
+
+Destroy Everything              No lattice research is worth   Warden Erynd
+                                preserving.
+
+Stabilize and Seal              Aetherfall can be shut down    Archdruid Thalen
+                                without erasing every
+                                discovery.
+
+Reprogram the Network           The technology might cure      Archivist Kelm
+                                disease if placed under
+                                consent-based safeguards.
+
+Seize the Engine                Power this great will be       Forge-Master Brunna,
+                                claimed by someone; better     privately
+                                Blackroot than an enemy.
+
+
+ DM NOTE. Do not force a final decision here. Let the council’s debate prepare the players
+ for the containment choice after Rabu Shin is defeated. The party can promise one course
+ and later choose another.
+
+
+Part 2: The Resonance Map
+Archivist Kelm leads the characters into the Rootbound Archive, where hundreds
+of suspended crystal needles trace pulses across a relief map of Vael Turog. Every
+settlement visited during the campaign glows as a dim node. Aetherfall burns
+above them like a second sun.
+
+ THE NETWORK REVEALED
+ Lines of pale light connect Greymoor Hollow, Stonewake Port, Emberfall,
+ Lunareth, High Bastion, Marrowfen, Silverreach, Duskmire Crossing,
+ Frostharbor, and Sunspire. Each pulse climbs toward a floating point above the
+ map. When the lights meet, the air fills with a whisper spoken in thousands of
+ overlapping voices: “Synchronization: ninety-seven percent.”
+
+
+A successful DC 16 Arcana check identifies three vulnerable network layers:
+regeneration, gravity control, and consciousness relay. The party can carry only
+two specialized disruptors through the gateway, forcing a strategic choice.
+
+                Disruptor                                   Finale Benefit
+
+Regeneration Breaker                        Suppresses Rabu Shin’s regeneration for 1
+                                            minute when activated; one use.
+
+Gravity Anchor Array                        The bearer and allies within 15 feet ignore
+                                            one gravity-flux effect; three charges.
+
+Consciousness Severance Seal                One Lattice Echo automatically fails its first
+                                            saving throw against a party effect.
+
+Pylon Inversion Key                         A destroyed Aetherfall pylon can be
+                                            converted into a temporary safe platform
+                                            instead of exploding.
+
+
+Part 3: Forge of Living Steel
+Forge-Master Brunna asks each character to choose one temporary enhancement.
+The devices remain functional only while near the Aetherfall lattice and become
+inert after the finale.
+              Enhancement                                       Effect
+
+Anti-Lattice Weapon Coating                 For the final chapter, one weapon or
+                                            spellcasting focus deals +1d6 radiant damage
+                                            once per turn against aberrations and
+                                            constructs.
+
+Gravity Anchor Boots                        Once per short rest, the wearer can ignore
+                                            forced movement and being knocked prone
+
+
+                  Enhancement                                     Effect
+
+                                             until the start of their next turn.
+
+Sigil Disruptor                              As a bonus action, suppress one creature’s
+                                             regeneration and magical healing until the
+                                             start of your next turn; one use.
+
+Living-Steel Aegis                           When the wearer takes force, psychic, or
+                                             radiant damage, reduce it by 1d10 +
+                                             proficiency bonus; three charges.
+
+Relay Lens                                   Advantage on one Arcana, Investigation, or
+                                             Perception check involving lattice
+                                             machinery; recharges after a short rest.
+
+
+Crafting the enhancements requires a calibration skill challenge: 5 successes
+before 3 failures, using Arcana, Smith’s Tools, Nature, Religion, or Sleight of Hand
+(DC 15). On success, each character receives their chosen enhancement. On failure,
+the gear still works, but each item has one fewer charge or use where applicable.
+
+Part 4: Trial of Shifting Gravity
+ THE GRAVITY CHAMBER
+ The circular chamber has no visible floor. Iron plates cover every surface, and
+ chains hang in six directions. Brunna seals the door behind you. A bell rings once.
+ Your stomach lurches as the wall becomes the ground and a training construct
+ drops sideways toward you.
+
+
+The trial lasts 4 rounds. At initiative count 20, gravity rotates to a new surface.
+Every creature must succeed on a DC 15 Dexterity saving throw or fall 20 feet
+toward the new floor, taking 2d6 bludgeoning damage and landing prone. A
+creature secured by a chain or using a gravity anchor automatically succeeds.
+The party faces 2 Reprogrammed Shield Guardians and 1 Helmed Horror. These
+constructs deal nonlethal damage. The objective is to touch three control sigils on
+different surfaces while avoiding being pinned by the guardians.
+Success teaches the party how to exploit Aetherfall’s flux. Each character gains one
+Gravity Adaptation token. During the final chapter, a token can be spent to reroll a
+failed saving throw against a gravity effect.
+
+Part 5: The Containment Vault
+Sister Olyra asks the party to witness Blackroot’s captured specimens before
+deciding the fate of Rabu Shin’s work. The vault contains lesser constructs, failed
+Krasis, and one Flesh-Construct Angel restrained inside a ring of roots and silver.
+
+ THE CAPTURED ANGEL
+
+
+ The figure kneels inside the ward, wings folded like blades. Its body is porcelain-
+ white flesh over golden framework. When you enter, every eye along its wings
+ opens. “You are late,” it says in Rabu Shin’s voice. “The city has already begun
+ dreaming of you.”
+
+
+The angel does not immediately attack. It answers three questions truthfully
+before attempting to overload the ward. Useful revelations include:
+• Rabu Shin monitors the party through residual lattice traces collected during
+   earlier chapters.
+• Aetherfall’s three outer nodes protect the Prime Krasis with regeneration,
+  legendary action capacity, and resistance to containment.
+• The Gateway of Realities is not a portal to another world; it is a device for
+   projecting adaptation instructions across this one.
+• Rabu Shin believes the party’s survival validates his theory and intends to offer
+   them ascension.
+After the third answer, the angel triggers a containment breach. The party must
+either defeat it or restore the wards with 3 successful DC 16 Arcana or Religion
+checks before 2 failures. A character can make a check as an action. Restoring the
+wards captures the angel intact and grants Kelm valuable data; destroying it
+prevents further danger.
+
+Part 6: The Infiltrator
+Warden Erynd reports that Scout Varik Thorn returned from a surveillance
+mission with no visible wounds, yet his memories contain impossible gaps. Varik is
+secretly a remote Krasis agent carrying a seed-code designed to infect Blackroot’s
+central tree when the gateway opens.
+
+            Clue                            Check                    Discovery
+
+Varik’s boots contain silver     Investigation DC 15        The residue can only come
+cloud-dust                                                  from Aetherfall’s lower
+                                                            structures.
+
+His pulse stops during lattice   Medicine DC 16             A second rhythm is
+surges                                                      controlling his body.
+
+His field report repeats a       Insight DC 14              The phrase is a command
+seven-word phrase                                           key, not ordinary wording.
+
+The central tree recoils from    Nature DC 15               Something in him is hostile
+his touch                                                   to living root-magic.
+
+His reflection moves a           Perception DC 16           His consciousness is being
+heartbeat late                                              relayed from elsewhere.
+
+
+If confronted privately, Varik begs the characters to kill him before the command
+activates. Removing the seed-code requires 4 successes before 2 failures using
+
+
+Arcana, Medicine, Nature, or Religion (DC 16). On success, Varik survives and
+reveals a hidden access phrase for Aetherfall. On failure, the seed erupts and he
+transforms into a Lattice Infiltrator.
+
+ VARIK’S WARNING
+ Varik grips the edge of the table until his knuckles split. Green light leaks through
+ the wounds. “It hears every word,” he gasps. “Do not open the gate while I am
+ here.” His shadow stretches toward the central tree though the lanterns burn
+ behind him. “Please. I can feel it learning the roots.”
+
+
+Chapter Boss: Lattice Infiltrator
+If the extraction fails or the party ignores Varik, he attacks in the Gateway Hollow
+during activation. His objective is not to defeat the heroes but to reach the root-
+heart and inject the seed-code. Place the root-heart 60 feet from his starting
+position.
+• At the end of each of his turns, the infiltrator moves up to 15 feet toward the root-
+  heart without provoking opportunity attacks.
+• A character adjacent to a control root can use an action and succeed on a DC 15
+  Nature or Arcana check to raise a barrier, reducing the infiltrator’s movement
+  by 15 feet for one round.
+• If the infiltrator reaches the root-heart, Blackroot’s wards fail and all characters
+   begin the Aetherfall chapter with one fewer Blackroot enhancement charge.
+• Radiant damage suppresses the infiltrator’s regeneration until the end of its next
+   turn.
+
+Part 7: Final Preparations
+After the infiltrator is stopped, Blackroot completes the containment sigil. The
+party receives a full rest, replacement ammunition, spell components worth up to
+500 gp per spellcaster, and one superior healing potion each. Sister Olyra can
+remove one curse, disease, or lingering mutation from every character.
+The council also offers the following shared equipment:
+• Three Greater Potions of Healing.
+• Two Potions of Flying, intended for broken Aetherfall bridges.
+• One Scroll of Mass Cure Wounds.
+• One Blackroot Containment Seal, required to stabilize or reprogram the
+  Ascension Engine.
+• A resonance compass that points toward the nearest active Aetherfall node.
+
+
+Optional Blackroot Quests
+The Root That Remembers
+A dying root contains memories of Rabu Shin visiting Blackroot before his exile.
+Entering the memory requires a DC 15 group Wisdom saving throw. The party
+witnesses Thalen refusing to help weaponize adaptive magic and learns the phrase
+“Choice is the boundary of life.” Speaking this phrase during the final
+confrontation grants advantage on one social check against Rabu Shin.
+
+The Broken Wardstone
+A wardstone in the lower caverns has been shattered by a tunneling Krasis.
+Repairing it requires defeating 2 Bulette-like Root Borers and completing 3 DC 15
+Arcana or Mason’s Tools checks. Success grants Blackroot enough power to send
+one healing pulse through the gateway during Aetherfall, restoring 4d8 + 4 hit
+points to the party once.
+
+Voices Below the Forge
+Workers hear whispers beneath the Forge of Living Steel. The source is a buried
+relay splinter attempting to mimic Brunna’s voice. Destroying it reveals an
+Aetherfall maintenance diagram and gives the party advantage on checks to
+disable the first tower node.
+
+The Unaltered Seed
+Thalen asks the party to recover a seed from the deepest root chamber before the
+gateway drains the area’s magic. The chamber is guarded by a Stone Golem
+overgrown with roots. Planting the seed after the campaign can restore one region
+damaged by lattice collapse.
+
+A Question of Mercy
+A stable Krasis captive retains its original personality and asks to be released. The
+council is divided. Freeing, containing, or euthanizing the captive has no
+mechanical answer, but the choice should influence the party’s later decision
+about destroying, stabilizing, or reprogramming the engine.
+
+The One-Way Gateway
+ THE SKY OPENS
+ The gateway circle ignites in silver-green light. Roots pull away from the stone as
+ gravity bends toward the center. Through the widening aperture, clouds move
+ below a city of crystal, bone, and impossible bridges. Archdruid Thalen presses the
+ containment seal into your hands. “When you return,” he says, “the world will be
+ different.” The floor vanishes. You fall upward.
+
+
+Once activated, the connection remains open for 1 minute and cannot be reopened
+from Blackroot. The party may delay before entering, but every hour of delay
+
+
+advances Aetherfall’s synchronization by 1 percent. At 100 percent, the final
+chapter begins with an immediate global mutation pulse.
+
+Blackroot Support
+         Preparations Completed                           Support in Aetherfall
+
+0-1                                            Each character chooses one enhancement,
+                                               but shared supplies are halved.
+
+2                                              Normal enhancements and supplies; one
+                                               Gravity Adaptation token each.
+
+3                                              Full support plus the Rootward Pulse: once
+                                               during the finale, all conscious heroes regain
+                                               4d8 + 4 hit points.
+
+All optional quests                            In addition, the party gains the maintenance
+                                               diagram, memory phrase, and Unaltered
+                                               Seed epilogue option.
+
+
+Chapter Resolution
+Blackroot Enclave is not saved by defeating a single enemy. It is preserved by
+preventing the seed-code, completing the containment plan, and leaving with a
+clear understanding of the stakes. The party does not automatically gain a level
+here; characters should reach Level 12 immediately before entering Aetherfall,
+either through milestone advancement now or through the campaign’s preferred
+progression method.
+The characters now know that defeating Rabu Shin is only the first half of the
+finale. They must also decide what to do with the Ascension Engine before its
+stored energy escapes.
+
+Rewards and Advancement
+• Milestone. Advance the characters to Level 12 when they enter the Gateway
+  Hollow for the final assault.
+• One Blackroot enhancement per character.
+• Two network disruptors chosen by the party.
+• Blackroot Containment Seal.
+• Shared healing supplies and resonance compass.
+• Gravity Adaptation token for each character who completes the training trial.
+
+Failure and Escalation
+                      Failure                                  Consequence
+
+Seed-code reaches the root-heart               Blackroot wards fail briefly; final
+
+
+                   Failure                                    Consequence
+
+                                               enhancements have reduced charges.
+
+Captured angel escapes                         Aetherfall is warned of the party’s chosen
+                                               disruptors and adjusts one outer node.
+
+Gateway calibration fails                      The party arrives scattered across two
+                                               adjacent outer-ring platforms.
+
+Party delays too long                          Aetherfall synchronization reaches 100
+                                               percent and the finale begins with a
+                                               mutation surge.
+
+Council alliance collapses                     The party receives only basic supplies and
+                                               no Rootward Pulse.
+
+
+Creature Reference
+Lattice Infiltrator
+Medium aberration, lawful evil
+
+ Armor Class 18 (grafted armor) | Hit Points 168 (16d8 + 96) | Speed 40 ft., climb 40
+ ft.
+ STR 18 (+4) DEX 20 (+5) CON 22 (+6) INT 16 (+3) WIS 15 (+2) CHA 14 (+2)
+ Saving Throws Dex +10, Con +11, Wis +7
+ Skills Acrobatics +10, Deception +7, Perception +7, Stealth +10
+ Damage Resistances cold, fire, lightning; bludgeoning, piercing, and slashing from
+ nonmagical attacks
+ Senses darkvision 120 ft., passive Perception 17 | Languages Common, Elvish,
+ telepathy 120 ft. | Challenge 11 (7,200 XP)
+ Adaptive Regeneration. The infiltrator regains 15 hit points at the start of its
+ turn if it has at least 1 hit point. This trait does not function until the end of its
+ next turn after it takes radiant damage.
+ Remote Consciousness. The infiltrator has advantage on saving throws against
+ being charmed or frightened. If reduced to 0 hit points while within 30 feet of an
+ active lattice device, it can make a DC 15 Constitution saving throw; on a success,
+ it drops to 1 hit point instead. Once successful, this trait cannot be used again.
+ Wall-Crawler. The infiltrator can climb difficult surfaces, including ceilings,
+ without making an ability check.
+ Evasive Advance. Opportunity attacks against the infiltrator are made with
+ disadvantage.
+ Actions
+ Multiattack. The infiltrator makes three attacks: two with its Lattice Blade and
+ one with Seed Tendril.
+
+
+ Lattice Blade. Melee Weapon Attack: +10 to hit, reach 5 ft., one target. Hit: 14
+ (2d8 + 5) slashing damage plus 7 (2d6) force damage.
+ Seed Tendril. Melee Weapon Attack: +10 to hit, reach 15 ft., one target. Hit: 12
+ (2d6 + 5) piercing damage, and the target must succeed on a DC 17 Constitution
+ saving throw or be restrained by crystalline growth. A restrained creature
+ repeats the save at the end of each of its turns, ending the effect on a success.
+ Relay Step (Recharge 4-6). The infiltrator teleports up to 60 feet to an
+ unoccupied space it can see. Each creature within 5 feet of the space it leaves or
+ enters must succeed on a DC 17 Dexterity saving throw or take 10 (3d6) force
+ damage.
+ Seed-Code Injection. The infiltrator touches a construct, plant, or lattice device
+ within 5 feet. The target takes 27 (6d8) force damage, ignoring resistance, and
+ becomes corrupted until the end of the infiltrator’s next turn. Against the
+ Blackroot root-heart, this action completes the sabotage objective.
+ Reactions
+ Predictive Deflection. When hit by an attack, the infiltrator adds 4 to its AC
+ against that attack, potentially causing it to miss.
+
+
+Flesh-Construct Angel
+Large construct, lawful neutral
+
+ Armor Class 20 (living plate) | Hit Points 225 (18d10 + 126) | Speed 30 ft., fly 60 ft.
+ STR 22 (+6) DEX 16 (+3) CON 24 (+7) INT 14 (+2) WIS 18 (+4) CHA 19 (+4)
+ Saving Throws Con +12, Wis +9, Cha +9
+ Skills Insight +9, Perception +9
+ Damage Resistances cold, fire, lightning, necrotic; Damage Immunities poison,
+ psychic; Condition Immunities charmed, exhaustion, frightened, poisoned
+ Senses truesight 60 ft., passive Perception 19 | Languages all languages, telepathy
+ 120 ft. | Challenge 14 (11,500 XP)
+ Magic Resistance. The angel has advantage on saving throws against spells and
+ other magical effects.
+ Radiant Lattice Aura. A hostile creature that starts its turn within 10 feet of the
+ angel takes 7 (2d6) radiant damage.
+ Tower Link. While within 60 feet of an active lattice pylon or containment node,
+ the angel regains 10 hit points at the start of its turn.
+ Immutable Form. The angel is immune to any spell or effect that would alter its
+ form.
+ Actions
+ Multiattack. The angel makes two Halo Blade attacks and one Wing Strike
+ attack.
+ Halo Blade. Melee Weapon Attack: +11 to hit, reach 10 ft., one target. Hit: 19 (3d8
+
+
++ 6) slashing damage plus 9 (2d8) radiant damage.
+Wing Strike. Melee Weapon Attack: +11 to hit, reach 15 ft., one target. Hit: 16
+(3d6 + 6) bludgeoning damage, and the target must succeed on a DC 19 Strength
+saving throw or be pushed 20 feet and knocked prone.
+Lattice Beam (Recharge 5-6). The angel releases a 60-foot line of radiant force
+that is 10 feet wide. Each creature in the line must make a DC 19 Dexterity saving
+throw, taking 45 (10d8) radiant damage on a failed save, or half as much on a
+successful one.
+Containment Overload (1/Day). Each ward, magical barrier, and construct
+within 30 feet must succeed on a DC 18 spellcasting ability check or be
+suppressed until the end of the angel’s next turn. Creatures in the area take 18
+(4d8) force damage.
+Reactions
+Interception Wing. When a creature the angel can see within 10 feet is hit by an
+attack, the angel reduces the damage by 18 (3d8 + 5).
+Legendary Actions
+The creature can take 3 legendary actions, choosing from the options below.
+Only one option can be used at a time and only at the end of another creature’s
+turn. It regains spent legendary actions at the start of its turn.
+Wingbeat. The angel moves up to half its flying speed without provoking
+opportunity attacks.
+Halo Strike. The angel makes one Halo Blade attack.
+Lattice Pulse (Costs 2 Actions). Each hostile creature within 15 feet must
+succeed on a DC 19 Constitution saving throw or take 13 (3d8) radiant damage
+and be blinded until the end of its next turn.
+
+
+Blackroot Equipment Reference
+            Item                          Use                         Duration
+
+Anti-Lattice Weapon Coating   Once per turn, +1d6 radiant   Final chapter only
+                              damage against aberrations
+                              and constructs.
+
+Gravity Anchor Boots          Ignore forced movement and Final chapter only
+                              prone until start of next turn;
+                              1/short rest.
+
+Sigil Disruptor               Suppress regeneration and     One use
+                              magical healing on one
+                              creature for 1 round.
+
+Living-Steel Aegis            Reduce force, psychic, or     Three charges
+                              radiant damage by 1d10 +
+
+
+             Item                         Use                          Duration
+
+                             proficiency bonus.
+
+Relay Lens                   Advantage on one lattice-       Recharges on short rest
+                             related Arcana,
+                             Investigation, or Perception
+                             check.
+
+Blackroot Containment Seal   Required for stabilization or   Single campaign use
+                             reprogramming of the
+                             Ascension Engine.
+
+
+Chapter Clue Chain
+         Discovery                     Meaning                         Leads To
+
+Resonance map                All prior settlement nodes      Outer tower nodes
+                             synchronize through
+                             Aetherfall.
+
+Captured angel testimony     Three defenses protect Rabu     Aetherfall objectives
+                             Shin and the Gateway of
+                             Realities.
+
+Varik’s seed-code            Rabu Shin can overwrite         Consciousness relay
+                             living and constructed
+                             systems remotely.
+
+Containment seal             Defeating Rabu Shin without     Final choice
+                             controlling the engine risks
+                             global mutation.
+
+One-way gateway              The final assault cannot be     Aetherfall finale
+                             abandoned once begun.
+
+
+Transition to the Final Chapter
+The party emerges from the gateway above the clouds, falling upward toward the
+outer ring of Aetherfall. Begin the final chapter with the city’s defenses activating
+and Rabu Shin welcoming the characters by name.

@@ -1,0 +1,583 @@
+Final Chapter: Aetherfall - The Ascension of
+Krasis
+Recommended Level: 12
+Expected Party Strength: Fully rested and equipped with Blackroot enhancements
+Campaign Finale: No further advancement is required.
+ AETHERFALL
+ The gateway opens above the clouds. Gravity catches the characters and pulls them upward
+ toward a city suspended against the stars. Towers bend inward around a radiant core of
+ crystal and bone. Bridges curve across open sky, waterfalls stream into nothing, and
+ geometric veins of silver-green light connect every structure. At the city’s center, a vast ring
+ turns around an opening filled with impossible horizons. A calm voice speaks through every
+ stone: “You have arrived precisely on schedule.”
+
+
+Chapter Overview
+Aetherfall is both a city and a continent-spanning arcane machine. Rabu Shin has encoded
+his consciousness into its lattice and intends to broadcast directed evolution through every
+node the characters encountered during the campaign. The final chapter is structured as a
+sequence of objectives rather than a single dungeon corridor. The party must disable the
+city’s defenses, sever the consciousness relay, confront the Prime Krasis, and decide the fate
+of the Ascension Engine.
+             Phase                          Location                       Primary Objective
+ I                                Fractured Causeway                Reach the city and disable the
+                                                                    first defensive node.
+ II                               Angelic Perimeter                 Destroy or subvert the
+                                                                    remaining outer nodes.
+ III                              Gravity Labyrinth                 Cross the unstable city and
+                                                                    reach the Mystic Spiral.
+ IV                               Mystic Spiral                     Defeat the Archbloom
+                                                                    Orbweaver and sever the
+                                                                    relay.
+ V                                Gateway of Realities              Confront Rabu Shin and
+                                                                    resolve the Ascension Engine.
+
+
+Using the Aetherfall Map
+
+
+                            Aetherfall: the floating nexus of the Krasis lattice.
+The city map identifies the Gateway of Realities, Mystic Spiral, Shattered Ring, Sorcerer’s Rise,
+Mystic Stronghold, and the Twin Halo Towers. The party’s route may vary, but all paths
+eventually converge on the Gateway of Realities.
+
+Aetherfall Environmental Rules
+                     Rule                                                     Effect
+ Gravity Flux                                           At initiative count 20, roll on the Gravity Flux
+                                                        table unless a node or encounter overrides it.
+ Open Sky                                               A creature pushed from a platform falls 40 feet
+                                                        before a reversal current catches it. It takes
+                                                        4d6 bludgeoning damage and lands prone on a
+                                                        lower platform unless it can fly.
+ Lattice Resonance                                      Rabu Shin can speak through walls,
+                                                        constructs, and reflections. This
+                                                        communication is not a spell and cannot be
+                                                        countered.
+ Blackroot Equipment                                    All temporary enhancements function
+                                                        throughout this chapter. Expended charges do
+                                                        not return unless specifically stated.
+ Node Defenses                                          Each active outer node strengthens Rabu Shin.
+                                                        Record every node disabled before the final
+                                                        battle.
+
+
+                       d6                                                Gravity Flux
+ 1                                                      Low gravity. Jump distance is tripled and
+                                                        falling damage is halved until the next count
+                                                        20.
+ 2                                                      Sideways pull. Each creature must succeed on
+
+
+                                                  a DC 14 Dexterity save or slide 15 feet toward
+                                                  the eastern edge.
+ 3                                                Heavy gravity. Speed is reduced by 10 feet and
+                                                  flying creatures descend 20 feet.
+ 4                                                Inversion pulse. Each creature not anchored
+                                                  makes a DC 15 Dexterity save or falls prone
+                                                  and rises 10 feet into the air until the end of its
+                                                  next turn.
+ 5                                                Stable interval. No additional effect.
+ 6                                                Lattice surge. Constructs and aberrations gain
+                                                  10 temporary hit points; a Blackroot disruptor
+                                                  can cancel the surge without using an action.
+
+
+Phase I: The Fractured Causeway
+ FALLING UPWARD
+ Cold wind tears at you as the gateway closes below. The world curves beneath your feet,
+ distant and blue. Ahead, shattered roads float in layers around Aetherfall’s outer ring.
+ Statues of winged figures turn their blank faces toward you. One after another, their eyes
+ ignite with green light.
+
+
+The party appears on three linked platforms 100 feet from the Shattered Ring. If Blackroot’s
+gateway calibration failed, divide the characters between two adjacent platforms. Reuniting
+requires crossing a 20-foot gap by jumping, flying, rope, or a successful DC 14 group Athletics
+or Acrobatics check.
+
+Outer-Ring Defenders
+The causeway is guarded by 1 Flesh-Construct Angel and 2 Shield Guardians. The angel
+begins airborne and attempts to force characters from the road. The guardians hold the
+narrow crossing and use their reactions to protect the angel.
+A character carrying the Resonance Compass can use a bonus action to identify the first node
+beneath a broken obelisk. The node has AC 17, 50 hit points, immunity to poison and psychic
+damage, and resistance to all damage until a character uses an action to succeed on a DC 16
+Arcana, Investigation, or Thieves’ Tools check to expose its core.
+
+Node One: Regeneration Matrix
+Disabling this node removes Rabu Shin’s Regeneration trait during Phase 1 of the final battle.
+If the party bypasses it, Rabu Shin regains 15 hit points at the start of each turn unless he took
+radiant damage since his previous turn.
+ RABU SHIN OBSERVES
+ “You have learned to target systems rather than symptoms. Efficient. Blackroot has
+ improved you.” The angel’s broken face turns toward the speaker’s voice, though the words
+ come from every direction. “Continue.”
+
+
+Phase II: The Angelic Perimeter
+Beyond the Shattered Ring, the party can approach either the Twin Halo Towers or Sorcerer’s
+Rise. Both routes contain one defensive node. The party may complete them in either order,
+split up, or skip one to conserve resources.
+
+
+Route A: Twin Halo Towers
+ THE HALO TOWERS
+ Two needle-thin towers orbit one another without touching. A bridge of transparent light
+ stretches between them. Above the bridge hangs a circular halo filled with hundreds of
+ preserved faces, each whispering a different possible future.
+
+
+The towers are guarded by 2 Flesh-Construct Angels. At initiative count 20, the halo selects
+one creature. That creature must make a DC 16 Wisdom saving throw or become restrained
+by visions until the end of its next turn. A creature can use an action to shatter a face within
+the halo, granting the target an immediate repeat of the save.
+
+Node Two: Legendary Conduit
+The node is suspended inside the halo. Reaching it requires flight, a DC 16 Athletics check
+while climbing the rotating tower, or activation of a Gravity Anchor Array. Destroying or
+disrupting it reduces Rabu Shin’s available legendary actions from 3 to 2. If both the
+Legendary Conduit and Consciousness Relay are disabled, he has only 1 legendary action per
+round in the final phase.
+
+Route B: Sorcerer’s Rise
+ SORCERER’S RISE
+ A staircase spirals upward through empty air, each step appearing only after weight touches
+ the one below. At the summit, six robed figures stand around a crystal pillar. Their faces are
+ smooth mirrors. In each reflection, you see yourself wearing a different body.
+
+
+The six figures are Lattice Echoes. Use the Mage stat block with 45 hit points, AC 15, and no
+5th-level spells. They coordinate counterspells and use mirror image, misty step, lightning
+bolt, and hold person. When an echo falls, its mirror-face cracks and releases the memory of
+a person absorbed by the lattice.
+
+Node Three: Resistance Matrix
+The crystal pillar adapts to damage. At the end of each round, it gains resistance to the
+damage type that dealt the most damage to it that round. It has AC 16 and 60 hit points. A Sigil
+Disruptor removes all resistances until the end of the next round. Disabling the node
+prevents Rabu Shin from gaining resistance through Mutation Surge result 3 and removes
+one Legendary Resistance.
+
+Optional Objective: The Mystic Stronghold
+The stronghold contains prisoners whose minds were copied during Rabu Shin’s
+experiments. Releasing them requires three successful DC 16 Arcana, Religion, or Medicine
+checks before two failures. Success grants the party the Memory Chorus: once during the
+final battle, one character can reroll a failed Intelligence, Wisdom, or Charisma saving throw.
+Failure awakens an Aetherfall Abomination.
+ THE PRESERVED MINDS
+ Crystal cylinders line the chamber. Within each, light twists into the outline of a person: a
+ miner from Emberfall, a sailor from Stonewake, a soldier from High Bastion, a child from
+ Silverreach. Their voices overlap. “He said we would survive. He never said we would remain
+ ourselves.”
+
+
+Phase III: The Gravity Labyrinth
+All routes converge on a district of rotating streets between the outer city and Mystic Spiral.
+The labyrinth is a moving skill challenge: 6 successes before 3 failures. Each character must
+contribute before the same character can act again.
+                      Skill                                        Example Use
+ Acrobatics                                       Leap between rotating roads or land safely
+                                                  when gravity changes.
+ Arcana                                           Predict a gravity inversion or briefly stabilize
+                                                  a bridge.
+ Athletics                                        Hold a collapsing span or pull an ally across a
+                                                  gap.
+ Investigation                                    Identify which floating structures are real and
+                                                  which are lattice projections.
+ Perception                                       Spot a safe current among drifting debris.
+ Survival                                         Use wind, cloud movement, and falling debris
+                                                  to judge orientation.
+ Blackroot Equipment                              Spend a charge from a Gravity Anchor Array
+                                                  for one automatic success.
+
+
+On a failure, each character takes 2d8 force damage and the party expends one hit die or one
+Blackroot equipment charge of its choice. At three failures, the party reaches Mystic Spiral
+but awakens the Aetherfall Abomination that patrols beneath the city.
+
+
+Phase IV: The Mystic Spiral
+ THE CONSCIOUSNESS RELAY
+ The tower’s interior is wider than the city outside. Rings of roots, crystal, eyes, and polished
+ metal rotate around a vertical void. A colossal shape hangs at the center: a beholder’s many-
+ eyed crown fused into the trunk of an ancient tree. Its roots disappear into thousands of
+ glowing memories. Every eye opens at once.
+
+
+The Archbloom Orbweaver guards the consciousness relay. The battle occurs on four circular
+platforms rotating around the central void. At initiative count 20, each platform rotates 90
+degrees and moves 10 feet vertically. A creature standing within 5 feet of an edge must
+succeed on a DC 15 Dexterity saving throw or fall to the next platform, taking 2d6
+bludgeoning damage and landing prone.
+
+Relay Roots
+Four relay roots connect the Orbweaver to the tower. Each root has AC 16, 30 hit points,
+immunity to psychic and poison damage, and vulnerability to radiant damage. A root
+destroyed during the battle reduces the Orbweaver’s regeneration by 5. Destroying all four
+shuts down its Mythic Reawakening and severs Rabu Shin’s distributed echo defense.
+
+Victory at the Spiral
+When the Orbweaver falls, the characters can sever the consciousness relay with the
+Consciousness Severance Seal or with 3 successful DC 17 Arcana, Religion, or Nature checks.
+On a failure, the acting character takes 4d8 psychic damage. Severing the relay removes Rabu
+Shin’s Lattice Echo phase. If it remains active, he divides into three echoes when reduced to
+half hit points.
+ RABU SHIN’S ADDRESS
+
+
+ The tower goes silent. A figure forms from the falling fragments: tall, calm, and threaded
+ with geometric light. “You have exceeded projected survivability parameters. Most subjects
+ fracture long before this stage. You adapt. Good.” He steps across the air as though gravity
+ were optional. “You have mistaken my work for corruption. It is correction.”
+
+
+Rabu Shin’s Offer
+Rabu Shin does not attack immediately. He offers the characters ascension, promising
+freedom from aging, disease, and death. Allow each player to answer. A character who
+engages him in debate can make one DC 18 Persuasion, Insight, Arcana, Nature, or Religion
+check. Each unique success reveals one truth and grants one Conviction token. The party can
+spend a Conviction token to add 1d6 to any saving throw during the final battle.
+           Argument or Discovery                              Rabu Shin’s Response
+ Evolution without consent is tyranny.           “Consent is a temporary preference produced
+                                                 by an imperfect nervous system.”
+ His methods preserve function but erase         “Identity is pattern. Pattern can be retained,
+ identity.                                       improved, and multiplied.”
+ The Krasis caused suffering he claims to        “Transitional loss is mathematically smaller
+ eliminate.                                      than perpetual natural loss.”
+ The party survived through cooperation, not     He pauses. “Cooperation is an adaptive
+ forced design.                                  mechanism. Your distinction is sentimental.”
+ He fears randomness because he cannot           For the first time, his expression tightens. The
+ control it.                                     speaker gains advantage on the next saving
+                                                 throw against him.
+
+
+Phase V: The Gateway of Realities
+ THE FINAL ARENA
+ The Gateway of Realities turns above an endless void. Through it flicker forests, oceans,
+ deserts, glaciers, and cities - every region touched by the lattice. Rabu Shin stands on a
+ circular platform of crystal and living bone. Behind him, a thousand threads descend toward
+ Vael Turog. “Aetherfall is not a throne,” he says. “It is proof.”
+
+
+The final arena is a 100-foot-diameter circular platform surrounded by four pylons. Each
+pylon has AC 18, 45 hit points, immunity to poison and psychic damage, and resistance to
+nonmagical attacks. Destroying a pylon suppresses one battlefield effect and contributes to
+safely resolving the Ascension Engine.
+                     Pylon                                Battlefield Effect While Active
+ Pylon of Flesh                                  Rabu Shin regains 10 hit points at initiative
+                                                 count 20.
+ Pylon of Force                                  A 60-foot line of force crosses the arena; DC 17
+                                                 Dexterity save, 4d10 force damage on failure,
+                                                 half on success.
+ Pylon of Gravity                                All creatures make a DC 16 Strength save or
+                                                 move 20 feet toward the nearest edge.
+ Pylon of Thought                                One character makes a DC 17 Wisdom save or
+                                                 is frightened of Rabu Shin until the next count
+                                                 20.
+
+
+Final Battle: Rabu Shin, the Prime Krasis
+Phase 1 - Architect of Flesh
+Rabu Shin begins with calculated battlefield control. He uses wall of force, reverse gravity,
+disintegrate, and his Warp Lash to separate characters and test their adaptations. He speaks
+throughout the battle and identifies successful tactics as though recording data.
+
+Phase 2 - Distributed Consciousness
+If the Mystic Spiral relay remains active, when Rabu Shin is first reduced to 125 hit points his
+body fractures into three Lattice Echoes. Each echo uses the Mage stat block with 60 hit
+points, AC 17, resistance to nonmagical damage, and one of the following themes: Force,
+Flesh, or Gravity. Rabu Shin cannot be damaged until all echoes are destroyed. If the relay
+was severed, skip this phase and Rabu Shin instead loses one Legendary Resistance.
+
+Phase 3 - Prime Krasis
+When Rabu Shin is reduced to 100 hit points after the echo phase, or immediately upon
+reaching 100 hit points if the phase was skipped, he fuses with the Ascension Engine. His size
+becomes Large, his reach increases by 5 feet, and he gains the Prime Form features in his stat
+block. The platform fractures into four sections. At initiative count 10 each round, one
+unoccupied 10-foot square falls into the void.
+ PRIME KRASIS
+ Rabu Shin’s body opens into wings of crystalline bone and luminous tendrils. His voice now
+ comes from the city, the gateway, and inside your own thoughts. “You cling to fragility. You
+ romanticize decay. I sought to free you from hunger, plague, and death.” The platform splits
+ beneath him. “Adapt.”
+
+
+Defeating Rabu Shin
+At 0 hit points, Rabu Shin does not die immediately. His body collapses into a geometric
+outline while the Ascension Engine begins an uncontrolled broadcast. Initiative continues.
+The party has 3 rounds to choose and complete one resolution. A character may use an action
+to attempt a required check, operate a pylon, protect an ally, or spend a Blackroot device for
+an automatic success when appropriate.
+
+Final Choice: Destroy the Engine
+Destroying the engine requires dealing 100 damage to its exposed core within 3 rounds. The
+core has AC 15, immunity to poison and psychic damage, and vulnerability to force and
+radiant damage. Each destroyed pylon reduces the required damage by 15. Success
+permanently collapses the lattice network, but Aetherfall begins to fall.
+Escape requires 4 group successes before 2 failures using Athletics, Acrobatics, Arcana,
+Perception, or Blackroot equipment. On success, the Blackroot Containment Seal opens a
+return corridor at the last moment. On failure, each character takes 10d6 force damage
+before being thrown into the gateway; survivors land in a random settlement.
+
+Final Choice: Stabilize and Shut Down
+Stabilization requires 5 successes before 3 failures using Arcana, Religion, Nature, Smith’s
+Tools, or the Resonance Phrase recovered in Sunspire. The base DC is 18, reduced by 1 for
+each disabled outer node or destroyed pylon. On success, Aetherfall slowly descends to a
+stable altitude and the lattice becomes inert. On failure, resolve the Mutation Surge table
+below, then allow one final attempt at DC 20.
+
+
+Final Choice: Reprogram the Lattice
+Reprogramming requires the Blackroot Containment Seal, the Ascension Engine Blueprint,
+and 5 successes before 3 failures at DC 19. Arcana, Nature, Religion, Medicine, and Persuasion
+may be used, but each skill can contribute only once. The party must define a governing
+principle such as voluntary adaptation, healing only, ecological restoration, or complete
+individual consent. Success preserves the network under that limitation. Failure allows the
+surviving fragment of Rabu Shin to influence the new directive.
+                       d6                                   Uncontrolled Mutation Surge
+ 1                                                 Every creature gains one level of exhaustion
+                                                   as its body briefly adapts to impossible gravity.
+ 2                                                 One destroyed pylon rebuilds with 20 hit
+                                                   points.
+ 3                                                 The engine creates 2 Lesser Krasis adjacent to
+                                                   the core.
+ 4                                                 Each spellcaster loses one unexpended spell
+                                                   slot of the highest level available.
+ 5                                                 The arena partially phases; all checks until the
+                                                   end of the next round are made with
+                                                   disadvantage.
+ 6                                                 A benevolent memory from the released
+                                                   prisoners intervenes; the party gains one
+                                                   automatic success.
+
+
+Rabu Shin’s Final Words
+ AT ZERO HIT POINTS
+ “So this is your answer.” He does not scream. Light fractures through him as the engine tears
+ open. “Understand this: evolution does not require me. You adapted to defeat me. You
+ changed.” His gaze passes across each of you. “You are my proof.”
+
+
+If the engine is destroyed, his final whisper is: “Iteration continues.”
+If the engine is stabilized, his final whisper is: “You chose control. Let us see how long you
+maintain it.”
+If the engine is reprogrammed, his final whisper is: “Refinement... collaborative.”
+
+
+Campaign Resolution
+If Aetherfall Is Destroyed
+The lattice goes silent across Vael Turog. Mutated creatures remain changed, but no new
+directed transformations occur. Aetherfall collapses in a radiant implosion visible from every
+settlement. Rabu Shin becomes a warning told by arcanists, soldiers, farmers, and survivors.
+
+If Aetherfall Is Stabilized
+Aetherfall survives as an inert floating city. Lunareth and Blackroot establish a joint order to
+guard its archives. The party must decide who controls access, whether victims may recover
+stored memories, and whether any portion of the research should be preserved.
+
+
+If the Lattice Is Reprogrammed
+Controlled adaptation becomes possible, but every use becomes a moral and political
+decision. Silverreach seeks commercial access, High Bastion requests military applications,
+Marrowfen asks for ecological restoration, and Frostharbor hopes to prevent future famine.
+The characters become guardians of a power that can heal the world or quietly repeat Rabu
+Shin’s mistake.
+
+Settlement Epilogues
+                     Settlement                                     Possible Epilogue
+ Greymoor Hollow                                   The stream clears. A memorial stands at
+                                                   Shepherd’s Croft, where the first warped sheep
+                                                   revealed the threat.
+ Stonewake Port                                    The harbor reopens and the Grey Tern is restored
+                                                   as a vessel dedicated to hunting remaining
+                                                   aquatic Krasis.
+ Emberfall                                         The volcano returns to a natural rhythm. Miners
+                                                   seal the deepest crucible chamber beneath rune-
+                                                   forged stone.
+ Lunareth                                          The Argent Conclave publicly records its role in
+                                                   funding Rabu Shin and writes new laws
+                                                   governing biomancy.
+ High Bastion                                      The fortress lowers its war banners and
+                                                   establishes a watch trained to recognize
+                                                   coordinated aberrant threats.
+ Marrowfen                                         Water returns to the fen. Strange but stable new
+                                                   species appear among the reeds, raising questions
+                                                   no victory can fully answer.
+ Silverreach                                       House Varin is dismantled, reformed, or replaced
+                                                   depending on the party’s choices. Victims demand
+                                                   restitution.
+ Duskmire Crossing                                 The caravan road becomes a memorial route,
+                                                   marked with names of those used in the mobile
+                                                   trials.
+ Frostharbor                                       The inward-cracking ice stops. The first spring
+                                                   thaw in years reveals ships long thought lost.
+ Sunspire                                          The Gene Vault becomes a sealed archive, a
+                                                   research sanctuary, or a ruin buried once more
+                                                   beneath the desert.
+ Blackroot Enclave                                 The council preserves the Blackroot Seal and
+                                                   begins studying how choice, not perfection, can
+                                                   guide change.
+ Aetherfall                                        Its fate becomes the defining legend of the age:
+                                                   fallen, guarded, or transformed.
+
+
+Final Boxed Text
+ THE LATTICE IS SILENT
+ The sky clears. Across Vael Turog, green light fades from rivers, roots, crystal, ice, and stone.
+ For a moment the world holds its breath. Then wind moves through the trees. Waves strike
+ the shore. Somewhere far below, a sheep gives an ordinary, irritated bleat. For the first time
+ since Greymoor Hollow, the lattice is silent.
+
+
+Final Chapter Creature Reference
+Aetherfall Beholder-Treant
+Huge aberration, lawful evil
+ Armor Class 19 (natural armor) | Hit Points 285 (22d12 + 132) | Speed 20 ft., fly 30 ft. (hover)
+ STR 24 (+7) DEX 10 (+0) CON 23 (+6) INT 18 (+4) WIS 17 (+3) CHA 19 (+4)
+ Saving Throws Con +12, Int +10, Wis +9 | Skills Arcana +10, Perception +15
+ Damage Resistances cold, fire, lightning; bludgeoning, piercing, and slashing from nonmagical attacks
+ Condition Immunities prone | Senses truesight 120 ft., passive Perception 25 | Languages Deep
+ Speech, Elvish, telepathy 120 ft. | Challenge 15
+ ANTIMAGIC CONE. The central eye creates a 150-foot cone of antimagic, as the beholder trait.
+ ROOTED REGENERATION. The creature regains 15 hit points at the start of its turn while at least one
+ relay root remains. Radiant damage suppresses this trait for one round.
+ ACTIONS
+ MULTIATTACK. The creature makes two Root Slam attacks and uses two different Eye Rays.
+ ROOT SLAM. Melee Weapon Attack: +13 to hit, reach 20 ft., one target. Hit: 20 (3d8 + 7) bludgeoning
+ damage, and the target is grappled (escape DC 18).
+ EYE RAYS. The creature fires two rays chosen from Charm, Paralyzing, Fear, Slowing, Enervation,
+ Telekinetic, Sleep, Petrification, Disintegration, or Death Ray. Save DC 18.
+ BRANCH STORM (Recharge 5-6). Creatures within 30 feet make a DC 18 Dexterity save, taking 36 (8d8)
+ bludgeoning damage and falling prone on a failure, or half damage on a success.
+ LEGENDARY ACTIONS
+ The creature takes 3 legendary actions: Eye Ray (1), Root Step (1; move up to half speed without
+ opportunity attacks), or Crushing Roots (2; one grappled target takes 18 bludgeoning damage).
+
+
+Archbloom Orbweaver
+Huge aberration, lawful evil
+ Armor Class 20 (lattice bark) | Hit Points 310 (23d12 + 161) | Speed 20 ft., fly 40 ft. (hover)
+ STR 22 (+6) DEX 14 (+2) CON 24 (+7) INT 21 (+5) WIS 18 (+4) CHA 20 (+5)
+ Saving Throws Con +13, Int +11, Wis +10, Cha +11 | Skills Arcana +17, Perception +16
+ Damage Resistances force, psychic; nonmagical bludgeoning, piercing, slashing
+ Condition Immunities charmed, frightened, prone | Senses truesight 120 ft., passive Perception 26 |
+ Challenge 17
+ SPELLCASTING. Spell save DC 19, +11 to hit. At will: mage hand, ray of frost, thorn whip. 3/day each:
+ counterspell, dispel magic, blight, wall of force. 1/day each: disintegrate, reverse gravity.
+ RELAY REGENERATION. The Orbweaver regains 20 hit points at the start of its turn, reduced by 5 for
+ each destroyed relay root.
+ ROTATING AWARENESS. The Orbweaver cannot be surprised and has advantage on saving throws
+ against spells.
+ ACTIONS
+ MULTIATTACK. The Orbweaver makes two Branch Lash attacks and uses two Eye Rays.
+ BRANCH LASH. Melee Weapon Attack: +12 to hit, reach 20 ft. Hit: 17 (2d10 + 6) slashing plus 9 (2d8)
+ force damage.
+ EYE RAYS. Fires two beholder eye rays; save DC 19.
+ BRANCH TEMPEST (Recharge 5-6). Each creature within 40 feet makes a DC 19 Dexterity save, taking 45
+ (10d8) slashing and force damage on a failure, half on a success. Failed targets are pushed 20 feet.
+ LEGENDARY ACTIONS
+ Eye Ray (1), Platform Shift (1; rotate one platform and move creatures on it 10 feet), Cast a Cantrip (1),
+ Severing Beam (2; one creature makes DC 19 Con save or takes 27 force damage and cannot regain hit
+ points until next turn).
+ MYTHIC REAWAKENING. If reduced to 0 hit points while any relay root remains, the Orbweaver
+ destroys one root, regains 100 hit points, and immediately uses Branch Tempest. This can occur
+ once.
+
+
+Aetherfall Abomination
+Large aberration, chaotic evil
+ Armor Class 18 | Hit Points 190 (20d10 + 80) | Speed 40 ft., climb 40 ft.
+ STR 22 (+6) DEX 16 (+3) CON 19 (+4) INT 8 (-1) WIS 15 (+2) CHA 10 (+0)
+ Saving Throws Str +11, Con +9, Wis +7 | Skills Athletics +11, Perception +7
+ Damage Resistances acid, cold, fire, lightning | Condition Immunities frightened
+ Senses darkvision 120 ft., passive Perception 17 | Languages understands Deep Speech but cannot
+ speak | Challenge 12
+ ADAPTIVE HIDE. When the abomination takes elemental damage, it gains resistance to that damage
+ type until the start of its next turn.
+ GRAVITY CLING. The abomination moves normally on any solid surface regardless of gravity.
+ ACTIONS
+ MULTIATTACK. Three attacks: two Claws and one Warp Bite.
+ CLAW. Melee Weapon Attack: +11 to hit, reach 10 ft. Hit: 17 (2d10 + 6) slashing damage.
+ WARP BITE. Melee Weapon Attack: +11 to hit, reach 5 ft. Hit: 24 (4d8 + 6) piercing and force damage;
+ target makes DC 17 Strength save or is teleported up to 30 feet to a space the abomination can see.
+ GRAVITY ROAR (Recharge 5-6). Creatures in a 30-foot cone make a DC 17 Strength save, taking 36 (8d8)
+ force damage and being pushed 30 feet on a failure, half damage and no push on success.
+
+
+Rabu Shin, the Prime Krasis
+Medium aberration (Large in Prime Form), lawful evil
+ Armor Class 20 (adaptive lattice) | Hit Points 250 (20d8 + 160) | Speed 30 ft., fly 40 ft. (hover)
+ STR 14 (+2) DEX 18 (+4) CON 22 (+6) INT 20 (+5) WIS 18 (+4) CHA 18 (+4)
+ Saving Throws Dex +10, Con +12, Int +11, Wis +10, Cha +10 | Skills Arcana +17, Insight +10, Perception
+ +10
+ Damage Resistances force, psychic; damage from nonmagical attacks | Damage Immunities poison
+ Condition Immunities charmed, frightened, poisoned | Senses truesight 120 ft., passive Perception 20
+ Languages all, telepathy 120 ft. | Challenge 20
+ LEGENDARY RESISTANCE (3/DAY). If Rabu Shin fails a saving throw, he can choose to succeed
+ instead. Reduce this by one if the Resistance Matrix was disabled.
+ REGENERATION. Rabu Shin regains 15 hit points at the start of his turn unless he took radiant damage
+ since his last turn. This trait is removed if the Regeneration Matrix was disabled.
+ MAGIC RESISTANCE. Rabu Shin has advantage on saving throws against spells and magical effects.
+ MUTATION SURGE. At the start of each turn, roll d6: 1 Chitin Armor (AC 23 until next turn); 2 Rapid
+ Regrowth (regain 20 hp); 3 Force Adaptation (resistance to last damage type taken until next turn); 4
+ Warp Step (teleport 30 ft.); 5 Tentacle Bloom (one extra Warp Lash attack); 6 Arcane Overload (next
+ spell deals maximum damage). Result 3 is unavailable if the Resistance Matrix was disabled.
+ SPELLCASTING. Spell save DC 19, +11 to hit. At will: mage hand, ray of frost, detect magic. 3/day each:
+ counterspell, shield, blight, wall of force. 2/day each: disintegrate, dominate monster, reverse gravity.
+ 1/day: power word stun.
+ ACTIONS
+ MULTIATTACK. Rabu Shin makes two Warp Lash attacks or casts a spell and makes one Warp Lash
+ attack.
+ WARP LASH. Melee Spell Attack: +11 to hit, reach 15 ft. Hit: 24 (4d8 + 6) force damage, and Rabu Shin
+ moves the target up to 15 feet.
+ LATTICE BOLT. Ranged Spell Attack: +11 to hit, range 120 ft. Hit: 31 (7d8) force and psychic damage.
+ FORCE NOVA (Recharge 5-6). Creatures within 30 feet make a DC 19 Strength save. Failure: 45 (10d8)
+ force damage, pushed 30 feet, and prone. Success: half damage and no push.
+ REACTIONS
+ ADAPTIVE COUNTER. When damaged by a spell, Rabu Shin gains advantage on the next save against a
+ spell cast by that creature before the end of his next turn.
+ LEGENDARY ACTIONS
+ Rabu Shin takes 3 legendary actions, reduced by disabled nodes: Warp Step (1; teleport 30 ft.), Lattice
+ Bolt (1), Cast a Cantrip (1), Warp Lash (2), or Restructure Space (3; create or remove a 15-foot wall of
+ force until the start of his next turn).
+ PRIME FORM (AT 100 HP). Rabu Shin becomes Large, gains 50 temporary hit points, his reach increases
+
+
+ by 5 feet, and he gains a flying speed of 60 feet. At the start of each of his turns, two Lesser Krasis
+ appear in unoccupied spaces within 30 feet unless the consciousness relay was severed. While in Prime
+ Form, Force Nova recharges on 4-6.
+
+
+Lesser Krasis
+Use the Thug stat block with AC 15, 32 hit points, aberration type, resistance to force damage,
+and the following attack: Lattice Claw, +5 to hit, 1d8 + 3 slashing plus 1d6 force damage.
+Lesser Krasis created during the final battle disappear when the Ascension Engine is
+resolved.
+
+
+Finale Reference: Disabled Defenses
+            Objective Completed                                         Final Benefit
+ Regeneration Matrix disabled                         Rabu Shin loses Regeneration.
+ Legendary Conduit disabled                           Rabu Shin has one fewer legendary action
+                                                      each round.
+ Resistance Matrix disabled                           Rabu Shin loses one Legendary Resistance and
+                                                      cannot gain adaptive damage resistance.
+ Mystic Stronghold prisoners freed                    Party gains the Memory Chorus reroll.
+ Consciousness Relay severed                          Skip the Lattice Echo phase; Rabu Shin cannot
+                                                      summon Lesser Krasis in Prime Form.
+ Each pylon destroyed                                 Removes its initiative effect and reduces final
+                                                      engine difficulty.
+ Blackroot preparations completed                     Apply the support tier and equipment earned
+                                                      in Chapter 11.
+
+
+Campaign Completion Checklist
+                    Question                                              Record
+ What became of the Ascension Engine?                 Destroyed / Stabilized / Reprogrammed
+ Did Aetherfall survive?
+ Which settlements did the party save or
+ transform?
+ Which allies survived the campaign?
+ What principle, if any, governs future
+ biomancy?
+ What final trace of Rabu Shin remains?

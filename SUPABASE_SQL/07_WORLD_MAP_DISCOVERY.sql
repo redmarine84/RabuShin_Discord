@@ -64,13 +64,13 @@ SELECT c.campaign_id, catalog.location_key, catalog.location_name, 'Reached thro
 FROM public.discord_campaigns c
 JOIN public.discord_world_map_catalog() catalog
   ON catalog.chapter_order <= GREATEST(1, LEAST(12, c.current_chapter))
-ON CONFLICT (campaign_id, location_key) DO NOTHING;
+ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
 INSERT INTO public.discord_world_map_discoveries(campaign_id, location_key, location_name, discovery_reason)
 SELECT c.campaign_id, r.location_key, r.location_name, 'Current campaign location'
 FROM public.discord_campaigns c
 CROSS JOIN LATERAL public.discord_world_map_resolve_location(c.current_location) r
-ON CONFLICT (campaign_id, location_key) DO NOTHING;
+ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
 DROP FUNCTION IF EXISTS public.discord_get_world_map_state(UUID, UUID);
 CREATE OR REPLACE FUNCTION public.discord_get_world_map_state(
@@ -115,12 +115,12 @@ BEGIN
     SELECT p_campaign_id, catalog.location_key, catalog.location_name, 'Reached through campaign progression'
     FROM public.discord_world_map_catalog() catalog
     WHERE catalog.chapter_order <= GREATEST(1, LEAST(12, v_current_chapter))
-    ON CONFLICT (campaign_id, location_key) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
     INSERT INTO public.discord_world_map_discoveries(campaign_id, location_key, location_name, discovery_reason)
     SELECT p_campaign_id, r.location_key, r.location_name, 'Current campaign location'
     FROM public.discord_world_map_resolve_location(v_current_location) r
-    ON CONFLICT (campaign_id, location_key) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
     RETURN QUERY
     SELECT
@@ -168,12 +168,12 @@ BEGIN
     SELECT p_campaign_id, catalog.location_key, catalog.location_name, 'Reached through campaign progression'
     FROM public.discord_world_map_catalog() catalog
     WHERE catalog.chapter_order <= GREATEST(1, LEAST(12, v_current_chapter))
-    ON CONFLICT (campaign_id, location_key) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
     INSERT INTO public.discord_world_map_discoveries(campaign_id, location_key, location_name, discovery_reason)
     SELECT p_campaign_id, r.location_key, r.location_name, 'Current campaign location'
     FROM public.discord_world_map_resolve_location(v_current_location) r
-    ON CONFLICT (campaign_id, location_key) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO NOTHING;
 
     RETURN QUERY
     SELECT
@@ -224,7 +224,7 @@ BEGIN
         campaign_id, location_key, location_name, discovery_reason, discovered_at)
     VALUES(
         p_campaign_id, v_key, v_name, LEFT(TRIM(COALESCE(p_reason, '')), 240), NOW())
-    ON CONFLICT (campaign_id, location_key) DO UPDATE SET
+    ON CONFLICT ON CONSTRAINT discord_world_map_discoveries_pkey DO UPDATE SET
         location_name = EXCLUDED.location_name,
         discovery_reason = CASE
             WHEN public.discord_world_map_discoveries.discovery_reason = '' THEN EXCLUDED.discovery_reason
