@@ -514,12 +514,12 @@ function scrollGmToLatestMessage() {
     const lastMessage = messages[messages.length - 1];
     requestAnimationFrame(() => {
         // First force the GM message window to the very bottom.
-        timeline.scrollTop = timeline.scrollHeight;
+        timeline.scrolltop = timeline.scrollHeight;
         requestAnimationFrame(() => {
             // Determine where the last message begins INSIDE the timeline.
             const timelineRect = timeline.getBoundingClientRect();
             const messageRect = lastMessage.getBoundingClientRect();
-            const messageTopInsideTimeline =                timeline.scrollTop +                (messageRect.top - timelineRect.top);
+            const messageTopInsideTimeline = timeline.scrollTop + (messageRect.top - timelineRect.top);
             // Now place the beginning of that message at the top
             // of the GM message window.
             timeline.scrollTop = messageTopInsideTimeline;
@@ -535,8 +535,8 @@ function renderGameMasterTab() {
     const input=document.querySelector('#gmInput'),message=input.value.trim();if(!message)return;
     const btn=document.querySelector('#sendGm');btn.disabled=true;btn.textContent='GM is thinking...';document.querySelector('#gmError').textContent='';
       try { await api(`/game-api/campaigns/${currentCampaignId}/gm`, { method: 'POST', body: JSON.stringify({ message }) }); input.value = ''; const d = await api(`/game-api/campaigns/${currentCampaignId}/gm`); currentGameData.gmMessages = d.messages; try { const inv = await api(`/game-api/campaigns/${currentCampaignId}/inventory`); currentGameData.inventory = inv.inventory || []; if (inv.gold !== undefined) currentGameData.character.gold = inv.gold; } catch (refreshError) { console.warn('Inventory refresh after GM turn failed:', refreshError); } renderGameMasterTab(); } catch (error) { document.querySelector('#gmError').textContent = error.message; if (error.data?.needsApiKey) showNotice('Open Settings and enter your OpenAI API key.', true); btn.disabled = false; btn.textContent = 'Send'; }
-      scrollGmToLatestMessage();
   };
+    scrollGmToLatestMessage();
 }
 
 function clearPortraitCache(characterId = null) {
