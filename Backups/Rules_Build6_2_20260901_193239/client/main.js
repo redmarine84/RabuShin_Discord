@@ -35,13 +35,6 @@ let campaignChatDraft = '';
 let gmMessageSignature = '';
 let chatMessageSignature = '';
 
-// RULES BUILD 6.2 - DEATH / RESPAWN LIVE STATE
-let deathStatePollTimer = null;
-let deathStatePollBusy = false;
-let deathActionBusy = false;
-let lastDeathState = null;
-let deathDonationMode = false;
-
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -203,9 +196,6 @@ async function showCampaignLauncher() {
   tacticalLastSignature = '';
   stopTacticalCombatPolling();
   stopConversationLiveSync();
-  stopDeathStatePolling();
-  document.querySelector('#deathOverlay')?.remove();
-  lastDeathState=null;
   activeGameTab = 'gm';
   gmTurnState = null;
   gmTurnToken = null;
@@ -617,7 +607,6 @@ async function enterCampaign(campaignId) {
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
     renderGameShell();
     renderGameMasterTab();
-    startDeathStatePolling();
   } catch(error){showNotice(error.message,true);}
 }
 
@@ -646,194 +635,6 @@ function switchGameTab(tab,button) {
   if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
-}
-
-function stopDeathStatePolling() {
-  if(deathStatePollTimer)clearInterval(deathStatePollTimer);
-  deathStatePollTimer=null;
-  deathStatePollBusy=false;
-}
-
-function startDeathStatePolling() {
-  stopDeathStatePolling();
-  if(!currentCampaignId)return;
-  void refreshDeathState(true);
-  deathStatePollTimer=setInterval(()=>void refreshDeathState(false),1000);
-}
-
-async function reloadCampaignAfterDeathResolution() {
-  if(!currentCampaignId)return;
-  currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-  activeGameTab='gm';
-  gmTurnState=null;
-  gmTurnToken=null;
-  gmTurnDraft='';
-  renderGameShell();
-  renderGameMasterTab();
-}
-
-async function refreshDeathState(force=false) {
-  if(!currentCampaignId||deathStatePollBusy||deathActionBusy)return;
-  deathStatePollBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death-state`);
-    const death=data.death||null;
-    const previous=lastDeathState;
-    if(!death) {
-      document.querySelector('#deathOverlay')?.remove();
-      lastDeathState=null;
-      deathDonationMode=false;
-      if(previous&&currentGameData&&(previous.viewerIsDeadPlayer||Number(previous.viewerDonatedGp)>0)) {
-        await reloadCampaignAfterDeathResolution();
-        if(previous.viewerIsDeadPlayer)showNotice(`${previous.deadCharacterName||'Your character'} has returned to play.`);
-      }
-      return;
-    }
-    if(previous?.deathId&&previous.deathId!==death.deathId)deathDonationMode=false;
-    const signature=`${death.deathId}:${death.status}:${death.donatedGp}:${death.viewerDecision}:${death.canFinalize}:${death.viewerGold}`;
-    const oldSignature=previous?`${previous.deathId}:${previous.status}:${previous.donatedGp}:${previous.viewerDecision}:${previous.canFinalize}:${previous.viewerGold}`:'';
-    lastDeathState=death;
-    if(force||signature!==oldSignature||!document.querySelector('#deathOverlay'))renderDeathOverlay(death);
-  } catch(error) {
-    console.warn('Death / Respawn live state refresh failed:',error);
-  } finally {
-    deathStatePollBusy=false;
-  }
-}
-
-function respawnProgressHtml(death) {
-  const required=Math.max(1,Number(death.requiredGp)||10);
-  const donated=Math.max(0,Number(death.donatedGp)||0);
-  const percent=Math.max(0,Math.min(100,(donated/required)*100));
-  return `<div class="respawn-fund">
-    <div class="respawn-fund-heading"><span>Party Respawn Fund</span><b>${donated} / ${required} GP</b></div>
-    <div class="respawn-progress"><i style="width:${percent}%"></i></div>
-    <small>${Math.max(0,required-donated)} GP still needed</small>
-  </div>`;
-}
-
-function renderDeathOverlay(death) {
-  let overlay=document.querySelector('#deathOverlay');
-  if(!overlay) {
-    overlay=document.createElement('div');
-    overlay.id='deathOverlay';
-    overlay.className='death-overlay';
-    document.body.appendChild(overlay);
-  }
-
-  const name=escapeHtml(death.deadCharacterName||'Character');
-  const cause=death.cause?`<p class="death-cause"><b>Cause:</b> ${escapeHtml(death.cause)}</p>`:'';
-  let body='';
-
-  if(death.viewerIsDeadPlayer&&death.status==='awaiting_choice') {
-    const gold=Math.max(0,Math.floor(Number(death.deadCharacterGold)||0));
-    body=`<div class="death-card dead-player-card">
-      <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
-      <p>Normal D&amp;D revival magic or a valid revival item can still return this character. You may also use the campaign Respawn system.</p>
-      <div class="death-price"><span>Respawn Price</span><b>10 GP</b><small>You currently have ${gold} GP.</small></div>
-      <p>If you choose Respawn and cannot pay 10 GP yourself, the living party will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
-      <div class="death-actions"><button id="deathRespawnYes" class="button primary">Yes — Respawn</button><button id="deathRespawnNo" class="button danger">No — Create New Character</button></div>
-      <div id="deathActionError" class="error"></div>
-    </div>`;
-  } else if(death.status==='awaiting_donations') {
-    const progress=respawnProgressHtml(death);
-    const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Revive ${name}</button>`:'';
-    if(death.viewerIsDeadPlayer) {
-      body=`<div class="death-card dead-player-card"><div class="death-icon">✦</div><h2>Waiting for Party Revival</h2>${cause}
-        <p>${name} did not have enough GP for Respawn. The living party has been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
-        <p class="muted">A valid D&amp;D revival spell or revival item can still revive you while this fund is open.</p><div id="deathActionError" class="error"></div></div>`;
-    } else if(death.viewerIsEligibleDonor) {
-      const decision=String(death.viewerDecision||'').toLowerCase();
-      const donatedByViewer=Math.max(0,Number(death.viewerDonatedGp)||0);
-      const viewerGold=Math.max(0,Math.floor(Number(death.viewerGold)||0));
-      const remaining=Math.max(0,Number(death.remainingGp)||0);
-      const maxDonation=Math.max(0,Math.min(viewerGold,remaining));
-      let controls='';
-      if(decision==='decline') {
-        controls='<div class="death-decision-note">You declined this donation request.</div>';
-      } else if(decision==='donate'||deathDonationMode) {
-        controls=`<div class="donation-controls"><label>Donation amount (you have ${viewerGold} GP)</label><div class="row gap"><input id="deathDonationAmount" class="input" type="number" min="1" max="${Math.max(1,maxDonation)}" value="${Math.max(1,Math.min(maxDonation||1,remaining||1))}" ${maxDonation<1?'disabled':''}><button id="deathDonateGp" class="button primary" ${maxDonation<1?'disabled':''}>Donate GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div>${donatedByViewer?`<small>You have already donated ${donatedByViewer} GP.</small>`:''}</div>`;
-      } else {
-        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerGold<1?'disabled':''}>Yes — Donate GP</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerGold<1?'<small class="muted">Your character currently has no GP available to donate.</small>':''}`;
-      }
-      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Party Member Needs Revival</h2>
-        <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to revive them? <b>10 GP needed for revival.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
-    } else {
-      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to revive <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
-    }
-  }
-
-  overlay.innerHTML=body;
-  wireDeathOverlayActions(death);
-}
-
-function setDeathActionError(message='') {
-  const el=document.querySelector('#deathActionError');
-  if(el)el.textContent=message;
-}
-
-async function runDeathAction(action) {
-  if(deathActionBusy)return;
-  deathActionBusy=true;
-  document.querySelectorAll('#deathOverlay button').forEach(b=>b.disabled=true);
-  setDeathActionError('');
-  try { await action(); }
-  catch(error) { setDeathActionError(error.message); showNotice(error.message,true); }
-  finally {
-    deathActionBusy=false;
-    await refreshDeathState(true);
-  }
-}
-
-function wireDeathOverlayActions(death) {
-  const yes=document.querySelector('#deathRespawnYes');
-  if(yes)yes.onclick=()=>runDeathAction(async()=>{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:true})});
-    if(data.result?.outcome==='self_paid_respawn'||data.result?.outcome==='rag_respawn') {
-      lastDeathState=null; document.querySelector('#deathOverlay')?.remove();
-      await reloadCampaignAfterDeathResolution();
-    }
-  });
-
-  const no=document.querySelector('#deathRespawnNo');
-  if(no)no.onclick=()=>runDeathAction(async()=>{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:false})});
-    if(data.result?.requiresNewCharacter||data.result?.outcome==='new_character') {
-      stopDeathStatePolling();
-      lastDeathState=null;
-      document.querySelector('#deathOverlay')?.remove();
-      currentGameData=null;
-      await showCharacterCreator(currentCampaignId);
-    }
-  });
-
-  const donateYes=document.querySelector('#deathDonationYes');
-  if(donateYes)donateYes.onclick=()=>{deathDonationMode=true;renderDeathOverlay(death);};
-  const cancel=document.querySelector('#deathDonationCancel');
-  if(cancel)cancel.onclick=()=>{deathDonationMode=false;renderDeathOverlay(death);};
-
-  const donate=document.querySelector('#deathDonateGp');
-  if(donate)donate.onclick=()=>runDeathAction(async()=>{
-    const amount=Math.floor(Number(document.querySelector('#deathDonationAmount')?.value)||0);
-    if(amount<1)throw new Error('Enter at least 1 GP to donate.');
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:amount})});
-    deathDonationMode=false;
-    if(currentGameData?.character&&data.result?.remainingGold!==undefined)currentGameData.character.gold=data.result.remainingGold;
-    const gp=document.querySelector('.quick-vitals span:nth-child(3) b'); if(gp&&currentGameData?.character)gp.textContent=currentGameData.character.gold;
-    showNotice(data.result?.outcome==='rag_respawn'?'Party Respawn could not be funded.':'Donation added to the Respawn fund.');
-  });
-
-  const decline=document.querySelector('#deathDonationNo');
-  if(decline)decline.onclick=()=>runDeathAction(async()=>{
-    deathDonationMode=false;
-    await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/decline`,{method:'POST'});
-  });
-
-  const revive=document.querySelector('#deathFinalizeRespawn');
-  if(revive)revive.onclick=()=>runDeathAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/revive`,{method:'POST'});
-    showNotice(`${death.deadCharacterName} has been revived at half health.`);
-  });
 }
 
 function timelineDisplayText(value) {

@@ -207,28 +207,3 @@
 }
 
 .button.resume-enemy-turn[hidden]{display:none!important}
-
-/* RULES BUILD 6.2 - DEATH / RESPAWN */
-.death-overlay{
-  position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
-  padding:22px;background:rgba(2,2,2,.88);backdrop-filter:blur(7px);
-}
-.death-card{
-  width:min(680px,96vw);max-height:92vh;overflow:auto;
-  border:1px solid #75513f;border-radius:14px;background:linear-gradient(180deg,#17100d,#090706);
-  box-shadow:0 28px 90px rgba(0,0,0,.72),0 0 35px rgba(145,64,45,.12);
-  padding:24px;color:#c9bca5;text-align:center;
-}
-.death-card h2{margin:3px 0 12px;color:#f0d5b3;font-family:Georgia,serif;font-size:27px}
-.death-card p{line-height:1.55}.death-icon{font-size:40px;line-height:1;color:#c77c67;text-shadow:0 0 18px rgba(199,124,103,.32)}
-.death-cause{padding:8px 10px;border:1px solid #49382d;border-radius:7px;background:#0d0907;color:#aa9980}
-.death-price{margin:16px auto;max-width:340px;border:1px solid #82643b;border-radius:10px;background:#191207;padding:14px;display:grid;gap:3px}
-.death-price span{text-transform:uppercase;letter-spacing:1.2px;font-size:10px;color:#9f8a66}.death-price b{font-size:26px;color:#e2bf74}.death-price small{color:#a79980}
-.death-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}.death-actions .button{min-width:180px}
-.respawn-fund{margin:18px auto;padding:13px;border:1px solid #55432d;border-radius:9px;background:#0d0a07;text-align:left;max-width:500px}
-.respawn-fund-heading{display:flex;justify-content:space-between;gap:12px;color:#c7b083}.respawn-fund-heading b{color:#f0cd82}
-.respawn-progress{height:12px;margin:9px 0 6px;border:1px solid #594528;border-radius:999px;background:#080604;overflow:hidden}.respawn-progress i{display:block;height:100%;background:linear-gradient(90deg,#725029,#d3a64e);transition:width .25s ease}
-.respawn-fund small{color:#8e806b}.donation-controls{margin-top:16px;text-align:left;border:1px solid #493b29;border-radius:8px;padding:12px;background:#0b0907}.donation-controls label{display:block;margin-bottom:8px;color:#b6a37c}.donation-controls small{display:block;margin-top:7px;color:#8f8068}
-.death-decision-note{margin-top:16px;padding:12px;border:1px solid #4b4334;border-radius:7px;color:#978d7b;background:#0c0b08}
-.death-card .error{min-height:18px;margin-top:12px}.death-card .wide{width:100%;margin-top:12px}
-@media(max-width:560px){.death-overlay{padding:10px}.death-card{padding:18px}.death-card h2{font-size:23px}.death-actions{flex-direction:column}.death-actions .button{width:100%}.donation-controls .row{flex-direction:column}.donation-controls .button,.donation-controls .input{width:100%}}

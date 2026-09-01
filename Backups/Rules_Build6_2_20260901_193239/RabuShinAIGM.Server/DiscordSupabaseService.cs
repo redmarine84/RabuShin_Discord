@@ -727,63 +727,6 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException("Supabase returned an invalid combat turn result.");
     }
 
-    // RULES BUILD 6.2 - DEATH / RESPAWN STATE
-    public async Task<DeathStateRow?> GetDeathStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_death_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DeathStateRow>(response, "Unable to load death / respawn state");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<DeathActionResult> ChooseRespawnAsync(Guid playerId, Guid campaignId, bool respawn)
-        => await ReadDeathActionAsync(await CallRpcAsync("discord_choose_respawn", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_respawn = respawn
-        }), "Unable to resolve respawn choice");
-
-    public async Task<DeathActionResult> DonateToRespawnAsync(Guid playerId, Guid campaignId, Guid deathId, int amountGp)
-        => await ReadDeathActionAsync(await CallRpcAsync("discord_donate_to_respawn", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_death_id = deathId,
-            p_amount_gp = Math.Max(0, amountGp)
-        }), "Unable to donate to revival");
-
-    public async Task<DeathActionResult> DeclineRespawnDonationAsync(Guid playerId, Guid campaignId, Guid deathId)
-        => await ReadDeathActionAsync(await CallRpcAsync("discord_decline_respawn_donation", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_death_id = deathId
-        }), "Unable to decline revival donation");
-
-    public async Task<DeathActionResult> FinalizePartyRespawnAsync(Guid playerId, Guid campaignId, Guid deathId)
-        => await ReadDeathActionAsync(await CallRpcAsync("discord_finalize_party_respawn", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_death_id = deathId
-        }), "Unable to finalize party revival");
-
-    private static async Task<DeathActionResult> ReadDeathActionAsync(HttpResponseMessage response, string prefix)
-    {
-        using (response)
-        {
-            var json = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException($"{prefix}: {json}");
-            return JsonSerializer.Deserialize<DeathActionResult>(json, JsonOptions)
-                ?? throw new InvalidOperationException($"{prefix}: Supabase returned an invalid result.");
-        }
-    }
-
     // MULTIPLAYER LIVE CHAT - AI GAME MASTER TURN LEASE
     public async Task<GmTurnStateResult> GetGmTurnStateAsync(Guid playerId, Guid campaignId)
     {
@@ -894,47 +837,6 @@ public sealed class DiscordSupabaseService
             throw new InvalidOperationException($"{prefix}: Supabase returned an invalid numeric ID.");
         }
     }
-}
-
-public sealed class DeathStateRow
-{
-    [JsonPropertyName("death_id")] public Guid DeathId { get; set; }
-    [JsonPropertyName("dead_player_id")] public Guid DeadPlayerId { get; set; }
-    [JsonPropertyName("dead_character_name")] public string DeadCharacterName { get; set; } = string.Empty;
-    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
-    [JsonPropertyName("required_gp")] public int RequiredGp { get; set; }
-    [JsonPropertyName("donated_gp")] public int DonatedGp { get; set; }
-    [JsonPropertyName("remaining_gp")] public int RemainingGp { get; set; }
-    [JsonPropertyName("viewer_is_dead_player")] public bool ViewerIsDeadPlayer { get; set; }
-    [JsonPropertyName("viewer_is_eligible_donor")] public bool ViewerIsEligibleDonor { get; set; }
-    [JsonPropertyName("viewer_decision")] public string ViewerDecision { get; set; } = string.Empty;
-    [JsonPropertyName("viewer_donated_gp")] public int ViewerDonatedGp { get; set; }
-    [JsonPropertyName("viewer_gold")] public decimal ViewerGold { get; set; }
-    [JsonPropertyName("dead_character_gold")] public decimal DeadCharacterGold { get; set; }
-    [JsonPropertyName("eligible_donor_count")] public int EligibleDonorCount { get; set; }
-    [JsonPropertyName("answered_donor_count")] public int AnsweredDonorCount { get; set; }
-    [JsonPropertyName("can_finalize")] public bool CanFinalize { get; set; }
-    [JsonPropertyName("cause")] public string Cause { get; set; } = string.Empty;
-    [JsonPropertyName("created_at")] public DateTimeOffset CreatedAt { get; set; }
-}
-
-public sealed class DeathActionResult
-{
-    [JsonPropertyName("outcome")] public string Outcome { get; set; } = string.Empty;
-    [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-    [JsonPropertyName("requires_new_character")] public bool RequiresNewCharacter { get; set; }
-    [JsonPropertyName("required_gp")] public int RequiredGp { get; set; }
-    [JsonPropertyName("dead_character_gold")] public decimal DeadCharacterGold { get; set; }
-    [JsonPropertyName("paid_gp")] public int PaidGp { get; set; }
-    [JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
-    [JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-    [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
-    [JsonPropertyName("donor_character_name")] public string DonorCharacterName { get; set; } = string.Empty;
-    [JsonPropertyName("donated_now")] public int DonatedNow { get; set; }
-    [JsonPropertyName("donated_gp")] public int DonatedGp { get; set; }
-    [JsonPropertyName("remaining_gp")] public int RemainingGp { get; set; }
-    [JsonPropertyName("can_finalize")] public bool CanFinalize { get; set; }
-    [JsonPropertyName("refunded_gp")] public int RefundedGp { get; set; }
 }
 
 public sealed class CombatInitiativeRow

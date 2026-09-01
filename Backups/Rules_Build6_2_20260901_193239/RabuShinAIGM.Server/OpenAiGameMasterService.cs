@@ -109,18 +109,7 @@ COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 - A complete enemy turn means adjudicate legal movement/action/bonus action as appropriate, use server dice for attacks/saves/damage, persist damage to a character with update_character_hp, persist enemy HP/status with update_combat_monster, and then advance.
 - Never narrate persistent HP changes without the matching trusted state tool. hpDelta is negative for damage and positive for healing.
 - Round number advances automatically when strict initiative wraps. Do not manually change rounds during strict initiative.
-- Enemy hostility is authoritative state. When an enemy flees, surrenders, becomes friendly/non-hostile, or otherwise leaves the fight without being killed, call set_enemy_disposition immediately. Do not leave a departed enemy marked hostile.
-- update_combat_monster automatically ends combat when that update defeats the final hostile enemy. set_enemy_disposition automatically ends combat when the final hostile enemy flees, surrenders, or becomes non-hostile. If either tool reports combatEnded=true, STOP resolving initiative immediately and do not call advance_combat_turn afterward.
-- If the PLAYER PARTY successfully escapes/pursuit ends and no enemy can immediately continue the fight, call end_combat immediately with the escape reason.
-- Combat is over when all enemies are defeated, fled, surrendered/non-hostile, or the party successfully escapes. Do not keep initiative running merely because defeated or departed combatants still exist in history.
-
-CHARACTER DEATH / REVIVAL AUTHORITY — MANDATORY:
-- Reaching 0 HP is NOT automatically death. A character at 0 HP is unconscious and follows normal D&D death-saving-throw / instant-death rules unless a rule explicitly says otherwise.
-- Use roll_dice for death saving throws when they are required. Do not call mark_character_dead merely because HP reached 0.
-- Call mark_character_dead exactly once only when the character is truly dead: for example after the normal death-save failure threshold, massive/instant death, or another rule/effect that explicitly kills them. Include the cause.
-- Once mark_character_dead succeeds, the server creates the player's Respawn decision state. Do not decide Yes/No for the player and do not deduct Respawn gold yourself.
-- Normal D&D revival remains valid. If Revivify, another legal revival spell/effect, or an owned revival item is successfully used on a truly dead character, resolve all normal spell/item requirements first and then call revive_character with the HP the rule grants. The server cancels any open Respawn fund and refunds party donations.
-- Ordinary healing via update_character_hp cannot revive a truly dead character. Use revive_character only for a valid rules-based revival effect.
+- Call end_combat when tactical combat is actually over. Ending combat also closes the Encounter Map.
 
 TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 left-to-right; y=0..19 top-to-bottom. Each square represents 5 feet.
@@ -260,7 +249,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
             foreach (var enemy in combatState.Monsters)
             {
-                inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Disposition: {enemy.Disposition}; Defeated: {enemy.Defeated}");
+                inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Defeated: {enemy.Defeated}");
                 var codexEnemy = MonsterCodexService.Shared.Find(enemy.MonsterName);
                 if (codexEnemy is not null && !string.IsNullOrWhiteSpace(codexEnemy.Details))
                 {
@@ -330,10 +319,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildStageCombatTokensTool(),
             BuildInitializeCombatInitiativeTool(),
             BuildUpdateCombatMonsterTool(),
-            BuildSetEnemyDispositionTool(),
             BuildUpdateCharacterHpTool(),
-            BuildMarkCharacterDeadTool(),
-            BuildReviveCharacterTool(),
             BuildAdvanceCombatTurnTool(),
             BuildEndCombatTool(),
             BuildPositionCombatTokenTool(),
@@ -342,7 +328,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
         var rollAudits = new List<GameMasterDiceAudit>();
         var stateAudits = new List<GameMasterStateAudit>();
-        var combatEndedDuringTurn = false;
 
         object initialBody = new
         {
@@ -552,18 +537,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<UpdateCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster update");
                         var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
-                        combatEndedDuringTurn |= updated.CombatEnded;
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {updated.Disposition}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
-                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated, updated.Disposition, combatEnded=updated.CombatEnded, endReason=updated.EndReason };
-                        break;
-                    }
-                    case "set_enemy_disposition":
-                    {
-                        var args = DeserializeArguments<SetEnemyDispositionToolArguments>(call.ArgumentsJson, "enemy disposition");
-                        var result = await SetEnemyDispositionAsync(campaign.CampaignId, args);
-                        if (result.TryGetProperty("combat_ended", out var ended) && ended.ValueKind == JsonValueKind.True) combatEndedDuringTurn = true;
-                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{args.DisplayName}: disposition set to {args.Disposition} ({CleanReason(args.Reason, "combat state change")})"));
-                        toolResult = result;
+                        stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
+                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated };
                         break;
                     }
                     case "update_character_hp":
@@ -574,33 +549,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative=true, action="update_character_hp", result.CharacterName, result.CurrentHp, result.MaxHp, hpDelta=args.HpDelta, result.Reason };
                         break;
                     }
-                    case "mark_character_dead":
-                    {
-                        var args = DeserializeArguments<MarkCharacterDeadToolArguments>(call.ArgumentsJson, "character death");
-                        var result = await MarkCharacterDeadAsync(campaign.CampaignId, args);
-                        if (result.TryGetProperty("combat_advanced", out var advancedState) && advancedState.ValueKind == JsonValueKind.Object &&
-                            advancedState.TryGetProperty("combat_ended", out var deathEnded) && deathEnded.ValueKind == JsonValueKind.True)
-                            combatEndedDuringTurn = true;
-                        stateAudits.Add(new GameMasterStateAudit("Death", $"{args.CharacterName} died ({CleanReason(args.Cause, "death")})"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "revive_character":
-                    {
-                        var args = DeserializeArguments<ReviveCharacterToolArguments>(call.ArgumentsJson, "character revival");
-                        var result = await ReviveCharacterAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Revival", $"{args.CharacterName} revived by normal D&D rules ({CleanReason(args.Reason, "revival")})"));
-                        toolResult = result;
-                        break;
-                    }
                     case "advance_combat_turn":
                     {
                         var args = DeserializeArguments<AdvanceCombatTurnToolArguments>(call.ArgumentsJson, "combat turn advance");
-                        if (combatEndedDuringTurn)
-                        {
-                            toolResult = new { authoritative=true, action="advance_combat_turn", skipped=true, combatEnded=true, reason="Combat already ended during this GM resolution." };
-                            break;
-                        }
                         var result = await AdvanceCombatTurnAsync(campaign.CampaignId,args.Reason);
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"Initiative advanced ({CleanReason(args.Reason,"turn complete")})"));
                         toolResult = result;
@@ -618,9 +569,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<EndCombatToolArguments>(call.ArgumentsJson, "combat end");
                         var reason = CleanReason(args.Reason, "Encounter resolved");
                         await EndCombatAsync(campaign.CampaignId, reason);
-                        combatEndedDuringTurn = true;
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"Combat ended ({reason})"));
-                        toolResult = new { authoritative=true, action="end_combat", reason, combatEnded=true };
+                        toolResult = new { authoritative=true, action="end_combat", reason };
                         break;
                     }                    case "set_combat_turn":
                     {
@@ -1021,41 +971,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }, required=new[]{"displayName","hpDelta","conditions","defeated"}, additionalProperties=false }
     };
 
-    private static object BuildSetEnemyDispositionTool() => new
-    {
-        type="function", name="set_enemy_disposition",
-        description="Persist that an active enemy fled, surrendered, became non-hostile, or returned to hostile status. This automatically ends combat when no hostile enemies remain.",
-        strict=true,
-        parameters=new { type="object", properties=new {
-            displayName=new { type="string", description="Exact stable enemy display name from COMBAT STATE." },
-            disposition=new { type="string", @enum=new[]{"fled","surrendered","nonhostile","hostile"} },
-            reason=new { type="string", description="Why the enemy changed participation/hostility." }
-        }, required=new[]{"displayName","disposition","reason"}, additionalProperties=false }
-    };
-
-    private static object BuildMarkCharacterDeadTool() => new
-    {
-        type="function", name="mark_character_dead",
-        description="Mark a party character truly dead only after normal D&D death rules have actually killed them. Never use merely for reaching 0 HP.",
-        strict=true,
-        parameters=new { type="object", properties=new {
-            characterName=new { type="string", description="Exact party character name." },
-            cause=new { type="string", description="Concise mechanical/narrative cause of actual death." }
-        }, required=new[]{"characterName","cause"}, additionalProperties=false }
-    };
-
-    private static object BuildReviveCharacterTool() => new
-    {
-        type="function", name="revive_character",
-        description="Revive a truly dead character only after a valid D&D revival spell, item, or effect has been successfully resolved. Cancels/refunds any Respawn fund.",
-        strict=true,
-        parameters=new { type="object", properties=new {
-            characterName=new { type="string", description="Exact dead party character name." },
-            hitPoints=new { type="integer", minimum=1, maximum=100000, description="HP granted by the revival rule/effect." },
-            reason=new { type="string", description="Spell/item/effect that performed the revival." }
-        }, required=new[]{"characterName","hitPoints","reason"}, additionalProperties=false }
-    };
-
     private static object BuildSetCombatRoundTool() => new
     {
         type="function", name="set_combat_round", description="Set the current combat round when a new round begins.", strict=true,
@@ -1353,38 +1268,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         var raw=await CallSupabaseRpcAsync("discord_gm_update_combat_monster",new { p_campaign_id=campaignId,p_display_name=(args.DisplayName??string.Empty).Trim(),p_hp_delta=args.HpDelta,p_conditions=args.Conditions??string.Empty,p_defeated=args.Defeated },"Unable to update combat monster");
         return JsonSerializer.Deserialize<CombatMonsterForGm>(raw,JsonOptions)??throw new InvalidOperationException("Supabase returned invalid combat monster state.");
-    }
-
-    private async Task<JsonElement> SetEnemyDispositionAsync(Guid campaignId, SetEnemyDispositionToolArguments args)
-    {
-        var disposition=(args.Disposition??string.Empty).Trim().ToLowerInvariant();
-        if (disposition is not ("fled" or "surrendered" or "nonhostile" or "hostile"))
-            throw new InvalidOperationException("Enemy disposition must be fled, surrendered, nonhostile, or hostile.");
-        var raw=await CallSupabaseRpcAsync("discord_gm_set_enemy_disposition",new {
-            p_campaign_id=campaignId,p_display_name=(args.DisplayName??string.Empty).Trim(),p_disposition=disposition,
-            p_reason=CleanReason(args.Reason,"Enemy disposition changed")
-        },"Unable to update enemy disposition");
-        using var document=JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> MarkCharacterDeadAsync(Guid campaignId, MarkCharacterDeadToolArguments args)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_mark_character_dead",new {
-            p_campaign_id=campaignId,p_character_name=(args.CharacterName??string.Empty).Trim(),p_cause=CleanReason(args.Cause,"Death")
-        },"Unable to mark character dead");
-        using var document=JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> ReviveCharacterAsync(Guid campaignId, ReviveCharacterToolArguments args)
-    {
-        var raw=await CallSupabaseRpcAsync("discord_gm_revive_character",new {
-            p_campaign_id=campaignId,p_character_name=(args.CharacterName??string.Empty).Trim(),
-            p_hit_points=Math.Max(1,args.HitPoints),p_reason=CleanReason(args.Reason,"Rules-based revival")
-        },"Unable to revive character");
-        using var document=JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
     }
 
     private async Task<int> SetCombatRoundAsync(Guid campaignId,int roundNumber)
@@ -1985,13 +1868,10 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     private sealed class StartCombatToolArguments { public string Title { get; set; } = string.Empty; }
     private sealed class AddCombatMonsterToolArguments { public string MonsterName { get; set; } = string.Empty; public string DisplayName { get; set; } = string.Empty; public int Count { get; set; } public int MaxHp { get; set; } public int ArmorClass { get; set; } }
     private sealed class UpdateCombatMonsterToolArguments { public string DisplayName { get; set; } = string.Empty; public int HpDelta { get; set; } public string Conditions { get; set; } = string.Empty; public bool Defeated { get; set; } }
-    private sealed class SetEnemyDispositionToolArguments { public string DisplayName { get; set; } = string.Empty; public string Disposition { get; set; } = string.Empty; public string Reason { get; set; } = string.Empty; }
-    private sealed class MarkCharacterDeadToolArguments { public string CharacterName { get; set; } = string.Empty; public string Cause { get; set; } = string.Empty; }
-    private sealed class ReviveCharacterToolArguments { public string CharacterName { get; set; } = string.Empty; public int HitPoints { get; set; } public string Reason { get; set; } = string.Empty; }
     private sealed class SetCombatRoundToolArguments { public int RoundNumber { get; set; } }
     private sealed class EndCombatToolArguments { public string Reason { get; set; } = string.Empty; }
     private sealed class CombatStateRowRaw { [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; } [System.Text.Json.Serialization.JsonPropertyName("title")] public string Title { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monsters")] public JsonElement Monsters { get; set; } }
-    private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } [System.Text.Json.Serialization.JsonPropertyName("disposition")] public string Disposition { get; set; } = "hostile"; [System.Text.Json.Serialization.JsonPropertyName("combat_ended")] public bool CombatEnded { get; set; } [System.Text.Json.Serialization.JsonPropertyName("end_reason")] public string EndReason { get; set; } = string.Empty; }
+    private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } }
     private sealed record CombatStateForGm(bool Active,string Title,int RoundNumber,List<CombatMonsterForGm> Monsters);
     private sealed class CheckTacticalLineOfSightArguments
     {

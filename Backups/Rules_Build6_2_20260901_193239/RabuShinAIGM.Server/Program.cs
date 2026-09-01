@@ -1306,148 +1306,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
     }
 });
 
-// RULES BUILD 6.2 - SERVER-AUTHORITATIVE DEATH / RESPAWN WORKFLOW
-app.MapGet("/game-api/campaigns/{campaignId:guid}/death-state", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var death = await service.GetDeathStateAsync(player, campaignId);
-        return Results.Ok(new { success = true, death });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/death/choice", async (
-    Guid campaignId,
-    RespawnChoiceRequest body,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.ChooseRespawnAsync(player, campaignId, body.Respawn);
-
-        var characterName = string.IsNullOrWhiteSpace(result.CharacterName) ? "A party member" : result.CharacterName;
-        if (result.Outcome.Equals("awaiting_donations", StringComparison.OrdinalIgnoreCase))
-        {
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{characterName} has died and does not have enough gold to respawn. Do you want to donate GP to revive them? 10 GP needed for revival.");
-        }
-        else if (result.Outcome.Equals("self_paid_respawn", StringComparison.OrdinalIgnoreCase))
-        {
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{characterName} paid 10 GP for Respawn and returns at half health.");
-        }
-        else if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
-        {
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"The party could not fund {characterName}'s Respawn. {characterName} returns at half health wearing only Cloth Rags; all carried items and GP were lost.");
-        }
-        else if (result.Outcome.Equals("new_character", StringComparison.OrdinalIgnoreCase))
-        {
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{characterName} will not Respawn. That character's story has ended, and the player will create a new character to replace them in this campaign.");
-        }
-
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/donate", async (
-    Guid campaignId,
-    Guid deathId,
-    RespawnDonationRequest body,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.DonateToRespawnAsync(player, campaignId, deathId, body.AmountGp);
-
-        if (result.Outcome.Equals("donated", StringComparison.OrdinalIgnoreCase))
-        {
-            var donor = string.IsNullOrWhiteSpace(result.DonorCharacterName) ? (user.GlobalName ?? user.Username) : result.DonorCharacterName;
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{donor} donated {result.DonatedNow} GP to the Respawn fund. {result.RemainingGp} GP still needed.");
-        }
-        else if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
-        {
-            var name = string.IsNullOrWhiteSpace(result.CharacterName) ? "The fallen party member" : result.CharacterName;
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"The party could not fund {name}'s Respawn. {name} returns at half health wearing only Cloth Rags; all carried items and GP were lost.");
-        }
-
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/decline", async (
-    Guid campaignId,
-    Guid deathId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.DeclineRespawnDonationAsync(player, campaignId, deathId);
-        if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
-        {
-            var name = string.IsNullOrWhiteSpace(result.CharacterName) ? "The fallen party member" : result.CharacterName;
-            await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"No viable 10 GP party Respawn fund remains for {name}. {name} returns at half health wearing only Cloth Rags; all carried items and GP were lost.");
-        }
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/revive", async (
-    Guid campaignId,
-    Guid deathId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.FinalizePartyRespawnAsync(player, campaignId, deathId);
-        var name = string.IsNullOrWhiteSpace(result.CharacterName) ? "The fallen party member" : result.CharacterName;
-        await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-            $"The party completed the 10 GP Respawn fund. {name} returns at half health.");
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     Guid campaignId,
     HttpRequest request,
@@ -1457,9 +1315,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        var deathState = await service.GetDeathStateAsync(player, campaignId);
-        if (deathState?.ViewerIsDeadPlayer == true)
-            return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before taking another Game Master action.", deadCharacter = true });
         var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
         if (tactical?.Active == true &&
             !(tactical.ViewerCharacterId.HasValue &&
@@ -1519,9 +1374,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/end-turn", async (
         var character = await service.GetCharacterAsync(player, campaignId);
         if (character is null)
             return Results.NotFound(new { success = false, error = "Character could not be found." });
-        var deathState = await service.GetDeathStateAsync(player, campaignId);
-        if (deathState?.ViewerIsDeadPlayer == true)
-            return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before ending another turn.", deadCharacter = true });
 
         var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
         if (tactical?.Active != true)
@@ -1745,10 +1597,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         player = await service.GetOrCreatePlayerAsync(user);
 
-        var deathState = await service.GetDeathStateAsync(player, campaignId);
-        if (deathState?.ViewerIsDeadPlayer == true)
-            return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before taking another Game Master action.", deadCharacter = true });
-
         var combatAccess = await service.GetTacticalCombatStateAsync(player, campaignId);
         if (combatAccess?.Active == true &&
             !(combatAccess.ViewerCharacterId.HasValue &&
@@ -1863,5 +1711,3 @@ app.MapFallbackToFile("index.html");
 app.Run();
 
 public sealed record DiscordTokenRequest(string Code);
-public sealed record RespawnChoiceRequest(bool Respawn);
-public sealed record RespawnDonationRequest(int AmountGp);
