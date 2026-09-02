@@ -1457,7 +1457,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             new
             {
                 p_campaign_id = campaignId,
-                p_display_name = monster.DisplayName,
+                p_combatant_name = monster.DisplayName,
                 p_challenge_rating = xp.ChallengeRating,
                 p_total_xp = xp.Xp
             },
