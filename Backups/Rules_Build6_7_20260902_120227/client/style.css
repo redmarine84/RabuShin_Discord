@@ -257,12 +257,3 @@ body.death-modal-open{overflow:hidden!important}
 
 /* RULES BUILD 6.6.1 - Multi-currency wallet */
 .currency-purse-card{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:10px 0 16px;padding:11px 13px;border:1px solid #5a482d;border-radius:8px;background:#0d0b07}.currency-purse-card>span{color:#93856d;font-size:11px;text-transform:uppercase;letter-spacing:.8px}.currency-purse-card>b{color:#e7ca86}.currency-purse-card>small{width:100%;color:#786e5c}.inventory-currency{color:#e2c27d;font-weight:700;white-space:nowrap}.quick-vitals [data-live-self-currency]{white-space:nowrap}
-
-/* RULES BUILD 6.7 - INVENTORY RARITY / VALUE */
-.item-value-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;font-size:.78rem;color:var(--muted,#9ba7b4)}
-.item-rarity{display:inline-flex;align-items:center;border:1px solid currentColor;border-radius:999px;padding:2px 8px;font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-.rarity-common{opacity:.9}.rarity-uncommon{font-weight:900}.rarity-rare{font-weight:900;text-decoration:underline;text-decoration-thickness:1px}.rarity-very-rare{font-weight:900;box-shadow:0 0 0 1px currentColor inset}.rarity-legendary{font-weight:900;letter-spacing:.08em}.rarity-artifact{font-weight:900;border-style:double;border-width:3px}
-.inventory-value-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.16)}
-.inventory-value-card>div{display:flex;flex-direction:column;gap:3px;min-width:0}.inventory-value-card small{font-size:.68rem;letter-spacing:.06em;color:var(--muted,#9ba7b4)}.inventory-value-card b{font-size:.92rem;overflow-wrap:anywhere}
-.inventory-price-band{margin-top:-4px;margin-bottom:12px}
-@media(max-width:700px){.inventory-value-card{grid-template-columns:1fr}.item-value-line{font-size:.72rem}}

@@ -23,15 +23,11 @@ public sealed record SettlementShopItemDefinition(
     string ItemName,
     string Category,
     int PriceGp,
-    string Description,
-    string Rarity,
-    string ValueClass);
+    string Description);
 
 public sealed record SettlementSellOffer(
     string ItemName,
     string Category,
-    string Rarity,
-    decimal BaseValueGp,
     decimal UnitPriceGp);
 
 public static class SettlementInteractionCatalog
@@ -303,21 +299,7 @@ public static class SettlementInteractionCatalog
         .ToList();
 
     private static SettlementShopItemDefinition I(string key,string name,string category,int price,string description)
-    {
-        var rarity = category switch
-        {
-            "Potion" or "Wondrous Curio" => "Common",
-            _ => "Common"
-        };
-        var valueClass = category switch
-        {
-            "Potion" or "Poison" or "Salve" or "Remedy" => "Potion / Consumable",
-            "Wondrous Curio" => "Magic Item",
-            "Weapon" or "Armor" or "Ammunition" => "Mundane Equipment",
-            _ => "General Goods"
-        };
-        return new SettlementShopItemDefinition(key,name,category,price,description,rarity,valueClass);
-    }
+        => new(key,name,category,price,description);
 
     public static SettlementDefinition? FindByLocation(string? location)
     {
@@ -350,53 +332,35 @@ public static class SettlementInteractionCatalog
         };
     }
 
-    public static SettlementShopItemDefinition? FindKnownItem(string? itemName)
+    public static SettlementSellOffer? GetSellOffer(SettlementPoiDefinition poi, string? inventoryItemName)
     {
-        var normalized=Normalize(itemName);
-        if(normalized.Length==0)return null;
-        return AllKnownItems.FirstOrDefault(i => Normalize(i.ItemName)==normalized);
-    }
+        var itemName=(inventoryItemName??string.Empty).Trim();
+        if(itemName.Length==0)return null;
 
-    public static SettlementSellOffer? GetSellOffer(SettlementPoiDefinition poi, DiscordInventoryInfo inventoryItem)
-    {
-        var valuation=inventoryItem.Valuation ?? ItemValuationService.Classify(inventoryItem);
-        if(!valuation.Sellable || valuation.Priceless || valuation.BaseValueGp<=0)return null;
-        if(!MerchantAccepts(poi,inventoryItem,valuation))return null;
+        var known=AllKnownItems.FirstOrDefault(i => Normalize(i.ItemName)==Normalize(itemName));
+        if(known is null)return null;
 
-        var resale=valuation.StandardMerchantOfferGp;
-        if(resale<=0)return null;
-        return new SettlementSellOffer(inventoryItem.ItemName,valuation.Category,valuation.Rarity,valuation.BaseValueGp,resale);
-    }
-
-    public static bool MerchantAccepts(SettlementPoiDefinition poi, DiscordInventoryInfo item, InventoryItemValuation valuation)
-    {
         var kind=(poi.ShopKind??string.Empty).Trim().ToLowerInvariant();
-        var category=(valuation.Category??string.Empty).Trim().ToLowerInvariant();
-        var name=(item.ItemName??string.Empty).Trim().ToLowerInvariant();
-
-        if(valuation.Priceless || !valuation.Sellable || valuation.Rarity.Equals("Artifact",StringComparison.OrdinalIgnoreCase))return false;
-        if(kind=="market")return true;
-
-        return kind switch
+        var accepted=kind switch
         {
-            "smithy" => category is "weapon" or "armor" or "ammunition" or "tool" ||
-                         name.Contains("metal") || name.Contains("ore") || name.Contains("ingot"),
-            "arms" => category is "weapon" or "armor" or "ammunition",
-            "apothecary" => category is "potion" or "poison" or "salve" or "remedy" or "animal loot" or "monster loot" or "boss loot" ||
-                            name.Contains("herb") || name.Contains("blood") || name.Contains("organ") || name.Contains("venom"),
-            "alchemy" => category is "potion" or "poison" or "salve" or "remedy" or "animal loot" or "monster loot" or "boss loot" or "alchemical" ||
-                         name.Contains("reagent") || name.Contains("acid") || name.Contains("oil"),
-            "general" => category is not "quest item" && category is not "artifact",
-            "fletcher" => category is "ammunition" ||
-                          (category=="weapon" && (name.Contains("bow") || name.Contains("crossbow"))) ||
-                          name.Contains("arrow") || name.Contains("bolt") || name.Contains("quiver") || name.Contains("feather"),
-            "fishmarket" => category is "food" or "animal loot" or "trade good" ||
-                            name.Contains("fish") || name.Contains("eel") || name.Contains("crab") || name.Contains("salt"),
-            "ceramics" => category is "container" || name.Contains("ceramic") || name.Contains("jug") || name.Contains("flask") || name.Contains("crucible"),
-            "enchanter" => category is "magic item" or "arcane gear" or "potion" or "boss loot" ||
-                           (category=="monster loot" && valuation.Rarity is "Rare" or "Very Rare" or "Legendary"),
+            "smithy" => SmithyItems.Any(i => SameItem(i,known)),
+            "arms" => ArmsItems.Any(i => SameItem(i,known)),
+            "apothecary" => ApothecaryItems.Any(i => SameItem(i,known)),
+            "alchemy" => AlchemyItems.Any(i => SameItem(i,known)),
+            "general" => GeneralItems.Any(i => SameItem(i,known)),
+            "fletcher" => FletcherItems.Any(i => SameItem(i,known)),
+            "fishmarket" => FishMarketItems.Any(i => SameItem(i,known)),
+            "ceramics" => CeramicsItems.Any(i => SameItem(i,known)),
+            "enchanter" => EnchanterItems.Any(i => SameItem(i,known)),
+            "market" => MarketPool.Any(i => SameItem(i,known)),
             _ => false
         };
+        if(!accepted)return null;
+
+        // Standard merchant resale: 50% of catalog price. Decimal GP preserves 5 sp values.
+        var resale=known.PriceGp/2m;
+        if(resale<=0)return null;
+        return new SettlementSellOffer(known.ItemName,known.Category,resale);
     }
 
     private static bool SameItem(SettlementShopItemDefinition left, SettlementShopItemDefinition right)

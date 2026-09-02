@@ -665,7 +665,6 @@ async function enterCampaign(campaignId, initialTab='gm') {
     gmTurnDraft='';
     campaignChatDraft='';
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
-    currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
     renderGameShell();
     renderGameMasterTab();
     startDeathStatePolling();
@@ -831,7 +830,6 @@ async function saveLevelUpChoices(progression) {
       await showSpellSelection(currentCampaignId,currentGameData.character,true);
     } else {
       currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
       renderGameShell();
       const tab=document.querySelector('.game-tab[data-tab="character"]');
       switchGameTab('character',tab);
@@ -978,14 +976,12 @@ function renderLongRestOverlay(rest) {
     await api(`/game-api/campaigns/${currentCampaignId}/rest/long/review`,{method:'POST',body:JSON.stringify({reviewSpells:false})});
     document.querySelector('#restOverlay')?.remove();restOverlaySignature='';showNotice('Long Rest complete. Current spells kept.');
     currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
     renderGameShell();renderGameMasterTab();
   });
   const finish=overlay.querySelector('#finishLongRest');if(finish)finish.onclick=()=>runRestAction(async()=>{
     await api(`/game-api/campaigns/${currentCampaignId}/rest/long/review`,{method:'POST',body:JSON.stringify({reviewSpells:false})});
     document.querySelector('#restOverlay')?.remove();restOverlaySignature='';showNotice('Long Rest complete.');
     currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
     renderGameShell();renderGameMasterTab();
   });
 }
@@ -1016,7 +1012,6 @@ function startDeathStatePolling() {
 async function reloadCampaignAfterDeathResolution() {
   if(!currentCampaignId)return;
   currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
   activeGameTab='gm';
   gmTurnState=null;
   gmTurnToken=null;
@@ -1690,17 +1685,6 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
 }
 
 // RULES BUILD 6.6.1 - Multi-currency PP/GP/SP/CP wallet
-function mergeInventoryValuations(items,valuations) {
-  const values=new Map((valuations||[]).map(v=>[String(v.inventoryItemId||''),v]));
-  return (items||[]).map(item=>Object.assign({},item,values.get(String(item.inventoryItemId||''))||{}));
-}
-
-function applyInventoryPayload(payload) {
-  if(!currentGameData)return;
-  currentGameData.inventory=mergeInventoryValuations(payload?.inventory||[],payload?.inventoryValuations||[]);
-  if(payload?.gold!==undefined&&currentGameData.character)currentGameData.character.gold=payload.gold;
-}
-
 function currencyParts(goldValue) {
   const totalCp=Math.max(0,Math.round((Number(goldValue)||0)*100));
   const pp=Math.floor(totalCp/1000);
@@ -1813,7 +1797,7 @@ function renderSettlementShop(shop,initialMode='buy') {
     if(!groups.has(category))groups.set(category,[]);
     groups.get(category).push(item);
   });
-  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>${escapeHtml(item.valueClass||category)}</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${formatShopGp(item.priceGp)}</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
+  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${formatShopGp(item.priceGp)}</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
 
   const sellItems=shop.sellItems||[];
   const sellCatalog=sellItems.length?sellItems.map(item=>{
@@ -1821,13 +1805,13 @@ function renderSettlementShop(shop,initialMode='buy') {
     const sellControls=item.canSell
       ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${Math.max(1,Number(item.quantity)||1)}" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)} to sell"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
       : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item.')}</div>`;
-    return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} • Carried: ${Number(item.quantity)||0}${status?` • ${escapeHtml(status)}`:''}</p>${item.priceBand?`<small class="muted">${escapeHtml(item.priceBand)}</small>`:''}</div>${sellControls}</article>`;
+    return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} • Carried: ${Number(item.quantity)||0}${status?` • ${escapeHtml(status)}`:''}</p></div>${sellControls}</article>`;
   }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
 
   overlay.innerHTML=`<div class="settlement-shop-modal">
     <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
     <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Buying and selling update this character's authoritative inventory and GP.</span></div>
-    <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy" role="tab">Buy</button><button class="button shop-mode-button" data-shop-mode="sell" role="tab">Sell</button><span class="muted shop-resale-note">Merchants normally pay 50% of the item's authoritative base value. Rarity and item category determine that value; Artifact items are priceless and protected.</span></div>
+    <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy" role="tab">Buy</button><button class="button shop-mode-button" data-shop-mode="sell" role="tab">Sell</button><span class="muted shop-resale-note">Merchants pay 50% of catalog value and only buy goods appropriate to their trade.</span></div>
     <div id="shopError" class="error"></div>
     <div id="shopBuyPane" class="settlement-shop-catalog shop-mode-pane">${buyCatalog||'<div class="empty">This merchant has nothing for sale right now.</div>'}</div>
     <div id="shopSellPane" class="settlement-shop-catalog shop-mode-pane" hidden>${sellCatalog}</div>
@@ -1880,7 +1864,8 @@ async function buySettlementShopItem(button,shop) {
     }
     try {
       const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-      applyInventoryPayload(inv);
+      currentGameData.inventory=inv.inventory||[];
+      if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
       updateLiveGoldDisplay();
     } catch(refreshError) {
       console.warn('Inventory refresh after shop purchase failed:',refreshError);
@@ -1918,7 +1903,8 @@ async function sellSettlementShopItem(button,shop) {
     }
     try {
       const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-      applyInventoryPayload(inv);
+      currentGameData.inventory=inv.inventory||[];
+      if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
       updateLiveGoldDisplay();
     } catch(refreshError) {
       console.warn('Inventory refresh after shop sale failed:',refreshError);
@@ -2330,7 +2316,8 @@ function renderGameMasterTab() {
 
       try {
         const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-        applyInventoryPayload(inv);
+        currentGameData.inventory=inv.inventory||[];
+        if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
       } catch(refreshError) {
         console.warn('Inventory refresh after GM turn failed:',refreshError);
       }
@@ -2361,7 +2348,8 @@ function renderGameMasterTab() {
       await api(`/game-api/campaigns/${currentCampaignId}/combat/end-turn`,{method:'POST'});
       try {
         const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-        applyInventoryPayload(inv);
+        currentGameData.inventory=inv.inventory||[];
+        if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
       } catch(refreshError) {
         console.warn('Inventory refresh after enemy turns failed:',refreshError);
       }
@@ -2391,7 +2379,8 @@ function renderGameMasterTab() {
       await api(`/game-api/campaigns/${currentCampaignId}/combat/resume-enemy-turns`,{method:'POST'});
       try {
         const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-        applyInventoryPayload(inv);
+        currentGameData.inventory=inv.inventory||[];
+        if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
       } catch(refreshError) {
         console.warn('Inventory refresh after resumed enemy turns failed:',refreshError);
       }
@@ -2671,7 +2660,7 @@ function renderInventoryTab() {
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
           <button class="inventory-list-item ${i.inventoryItemId===selectedInventoryId?'selected':''}" data-id="${i.inventoryItemId}">
-            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.equipped?' • Equipped':''}</small></span>
+            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.itemType||'Item')}${i.equipped?' • Equipped':''}</small></span>
             <strong>×${i.quantity}</strong>
           </button>`).join(''):'<div class="empty small">No inventory items.</div>'}
       </section>
@@ -2691,13 +2680,9 @@ function renderInventoryTab() {
 }
 
 function inventoryDetailHtml(item) {
-  const meta=[item.rarity||'Common',item.valuationCategory||item.itemType||'Item',item.equipmentSlot?`Slot: ${item.equipmentSlot}`:'',`Quantity: ${item.quantity}`,item.equipped?'Equipped':''].filter(Boolean).join(' • ');
-  const valueText=item.priceless?'Priceless':formatShopGp(item.baseValueGp||0);
-  const resaleText=item.sellable&&!item.priceless?formatShopGp(item.standardSellValueGp||0):'Not normally sellable';
+  const meta=[item.itemType||'Item',item.equipmentSlot?`Slot: ${item.equipmentSlot}`:'',`Quantity: ${item.quantity}`,item.equipped?'Equipped':''].filter(Boolean).join(' • ');
   return `
     <div class="inventory-detail-heading"><div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(meta)}</p></div>${item.equipped?'<span class="badge">EQUIPPED</span>':''}</div>
-    <div class="inventory-value-card"><div><small>RARITY</small><b>${escapeHtml(item.rarity||'Common')}</b></div><div><small>BASE VALUE</small><b>${valueText}</b></div><div><small>TYPICAL SHOP OFFER</small><b>${resaleText}</b></div></div>
-    ${item.priceBand?`<p class="muted inventory-price-band">${escapeHtml(item.priceBand)}</p>`:''}
     <div class="inventory-description">${escapeHtml(item.description||'No description is available for this item.').replaceAll('\n','<br>')}</div>
     ${item.rulesSummary?`<div class="inventory-rules"><b>Equipment Details</b><div>${escapeHtml(item.rulesSummary).replaceAll('\n','<br>')}</div></div>`:''}
     ${item.notes?`<div class="inventory-notes"><b>Notes:</b> ${escapeHtml(item.notes)}</div>`:''}
@@ -2711,7 +2696,8 @@ function inventoryDetailHtml(item) {
 
 async function refreshInventoryData() {
   const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-  applyInventoryPayload(data);
+  currentGameData.inventory=data.inventory||[];
+  if(data.gold!==undefined)currentGameData.character.gold=data.gold;
   renderInventoryTab();
 }
 

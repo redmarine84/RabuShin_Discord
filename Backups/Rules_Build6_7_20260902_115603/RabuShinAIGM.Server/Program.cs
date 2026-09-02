@@ -699,7 +699,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
             party = party.Select(ProgramHelpers.ToClientPartyMember),
             inventory = inventory.Select(InventoryPresentationService.ToClientItem),
-            inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
             spells = spells.Select(s => new { characterSpellId=s.CharacterSpellId,spellName=s.SpellName,spellLevel=s.SpellLevel,prepared=s.Prepared,sourceTag=s.SourceTag,spellData=s.SpellData }),
             spellSlots = slots.Select(s => new { spellLevel=s.SpellLevel,maxSlots=s.MaxSlots,usedSlots=s.UsedSlots }),
             gmMessages = gm.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
@@ -1235,16 +1234,12 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var sellItems = inventory.Select(i =>
         {
-            var offer = SettlementInteractionCatalog.GetSellOffer(poi, i);
-            var reason = i.Valuation?.Priceless == true
-                ? "This is an Artifact or protected campaign item. It is priceless and cannot be sold."
-                : offer is null
-                    ? "This merchant does not buy this item category."
-                    : i.Equipped
+            var offer = SettlementInteractionCatalog.GetSellOffer(poi, i.ItemName);
+            var reason = offer is null
+                ? "This merchant does not buy this item or it has no defined shop value."
+                : i.Equipped
                     ? "Unequip this item before selling it."
-                    : i.Attuned
-                        ? "Unattune this item before selling it."
-                        : string.Empty;
+                    : string.Empty;
             return new
             {
                 inventoryItemId = i.InventoryItemId,
@@ -1252,12 +1247,9 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
                 quantity = i.Quantity,
                 equipped = i.Equipped,
                 attuned = i.Attuned,
-                canSell = offer is not null && !i.Equipped && !i.Attuned && i.Quantity > 0,
-                category = offer?.Category ?? (i.Valuation?.Category ?? string.Empty),
-                rarity = offer?.Rarity ?? (i.Valuation?.Rarity ?? "Common"),
-                baseValueGp = offer?.BaseValueGp ?? (i.Valuation?.BaseValueGp ?? 0m),
+                canSell = offer is not null && !i.Equipped && i.Quantity > 0,
+                category = offer?.Category ?? string.Empty,
                 unitPriceGp = offer?.UnitPriceGp ?? 0m,
-                priceBand = i.Valuation?.PriceBand ?? string.Empty,
                 reason
             };
         }).ToList();
@@ -1275,9 +1267,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
                 itemKey = i.ItemKey,
                 itemName = i.ItemName,
                 category = i.Category,
-                rarity = i.Rarity,
-                valueClass = i.ValueClass,
-                baseValueGp = i.PriceGp,
                 priceGp = i.PriceGp,
                 description = i.Description
             }),
@@ -1368,13 +1357,11 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/sell", async 
             return Results.NotFound(new { success = false, error = "Inventory item could not be found." });
         if (item.Equipped)
             return Results.BadRequest(new { success = false, error = "Unequip this item before selling it." });
-        if (item.Attuned)
-            return Results.BadRequest(new { success = false, error = "Unattune this item before selling it." });
         var quantity = body.Quantity;
         if (quantity < 1 || quantity > item.Quantity)
             return Results.BadRequest(new { success = false, error = $"Sell quantity must be between 1 and {item.Quantity}." });
 
-        var offer = SettlementInteractionCatalog.GetSellOffer(poi, item);
+        var offer = SettlementInteractionCatalog.GetSellOffer(poi, item.ItemName);
         if (offer is null)
             return Results.BadRequest(new { success = false, error = "This merchant does not buy that item or it has no defined shop value." });
 
@@ -1390,9 +1377,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/sell", async 
             itemName = result.ItemName,
             quantitySold = result.QuantitySold,
             quantityRemaining = result.QuantityRemaining,
-            rarity = offer.Rarity,
-            category = offer.Category,
-            baseValueGp = offer.BaseValueGp,
             unitPriceGp = result.UnitPriceGp,
             totalPriceGp = result.TotalPriceGp,
             remainingGold = result.RemainingGold
@@ -1419,8 +1403,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
         {
             success = true,
             gold = character.Gold,
-            inventory = inventory.Select(InventoryPresentationService.ToClientItem),
-            inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation)
+            inventory = inventory.Select(InventoryPresentationService.ToClientItem)
         });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }

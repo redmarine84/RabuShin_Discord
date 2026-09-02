@@ -473,56 +473,7 @@ public sealed class DiscordSupabaseService
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
-        var items = await ReadListAsync<DiscordInventoryInfo>(response, "Unable to load inventory");
-
-        foreach (var item in items)
-            item.Valuation = ItemValuationService.Classify(item);
-
-        var patches = items
-            .Where(item => !ItemValuationService.HasCurrentPersistedValuation(item.ItemData))
-            .Select(ItemValuationService.ToPatch)
-            .ToList();
-
-        if (patches.Count > 0)
-        {
-            try
-            {
-                await ApplyInventoryValuationsAsync(playerId, campaignId, patches);
-            }
-            catch (Exception ex)
-            {
-                // Valuations are already computed in memory, so inventory remains usable even
-                // if migration 25 has not reached the database yet. Persist on a later read.
-                Console.WriteLine($"Inventory valuation persistence deferred: {ex.Message}");
-            }
-        }
-
-        return items;
-    }
-
-    private async Task ApplyInventoryValuationsAsync(
-        Guid playerId, Guid campaignId, IReadOnlyList<InventoryItemValuationPatch> patches)
-    {
-        if (patches.Count == 0) return;
-        using var response = await CallRpcAsync("discord_apply_inventory_valuations", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_items = patches.Select(p => new
-            {
-                inventory_item_id = p.InventoryItemId,
-                rarity = p.Rarity,
-                valuation_category = p.Category,
-                value_class = p.ValueClass,
-                base_value_gp = p.BaseValueGp,
-                sellable = p.Sellable,
-                priceless = p.Priceless,
-                valuation_source = p.ValuationSource,
-                price_band = p.PriceBand,
-                valuation_version = ItemValuationService.ValuationVersion
-            }).ToList()
-        });
-        await EnsureSuccessAsync(response, "Unable to persist inventory valuations");
+        return await ReadListAsync<DiscordInventoryInfo>(response, "Unable to load inventory");
     }
 
     public async Task SetInventoryEquippedAsync(
@@ -1385,7 +1336,6 @@ public sealed class DiscordInventoryInfo
     [JsonPropertyName("source_name")] public string SourceName { get; set; } = string.Empty;
     [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
     [JsonPropertyName("item_data")] public JsonElement ItemData { get; set; }
-    [JsonIgnore] public InventoryItemValuation? Valuation { get; set; }
 }
 
 public sealed class DiscordSpellSaveItem
