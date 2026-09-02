@@ -208,9 +208,6 @@
 
 .button.resume-enemy-turn[hidden]{display:none!important}
 
-/* RULES BUILD 6.4.1 - RESPAWN OVERLAY HARDENING */
-body.death-modal-open{overflow:hidden!important}
-
 /* RULES BUILD 6.2 - DEATH / RESPAWN */
 .death-overlay{
   position:fixed;inset:0;z-index:10000;display:grid;place-items:center;

@@ -222,7 +222,6 @@ async function showCampaignLauncher() {
   stopProgressionPolling();
   stopRestStatePolling();
   document.querySelector('#deathOverlay')?.remove();
-  document.body.classList.remove('death-modal-open');
   document.querySelector('#levelUpOverlay')?.remove();
   document.querySelector('#restOverlay')?.remove();
   currentProgression=null;
@@ -1021,7 +1020,6 @@ async function refreshDeathState(force=false) {
     const previous=lastDeathState;
     if(!death) {
       document.querySelector('#deathOverlay')?.remove();
-      document.body.classList.remove('death-modal-open');
       lastDeathState=null;
       deathDonationMode=false;
       if(previous&&currentGameData&&(previous.viewerIsDeadPlayer||Number(previous.viewerDonatedGp)>0)) {
@@ -1061,18 +1059,12 @@ function renderDeathOverlay(death) {
     overlay.className='death-overlay';
     document.body.appendChild(overlay);
   }
-  document.body.classList.add('death-modal-open');
 
   const name=escapeHtml(death.deadCharacterName||'Character');
   const cause=death.cause?`<p class="death-cause"><b>Cause:</b> ${escapeHtml(death.cause)}</p>`:'';
-  const status=String(death.status||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
-  // discord_get_death_state only returns awaiting_choice to the player who died.
-  // Treat that status itself as authoritative so a missing/mis-serialized viewer flag
-  // can never leave the player staring at an empty dark overlay.
-  const viewerIsDeadPlayer=death.viewerIsDeadPlayer===true||status==='awaiting_choice';
   let body='';
 
-  if(viewerIsDeadPlayer&&status==='awaiting_choice') {
+  if(death.viewerIsDeadPlayer&&death.status==='awaiting_choice') {
     const gold=Math.max(0,Math.floor(Number(death.deadCharacterGold)||0));
     body=`<div class="death-card dead-player-card">
       <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
@@ -1082,10 +1074,10 @@ function renderDeathOverlay(death) {
       <div class="death-actions"><button id="deathRespawnYes" class="button primary">Yes — Respawn</button><button id="deathRespawnNo" class="button danger">No — Create New Character</button></div>
       <div id="deathActionError" class="error"></div>
     </div>`;
-  } else if(status==='awaiting_donations') {
+  } else if(death.status==='awaiting_donations') {
     const progress=respawnProgressHtml(death);
     const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Revive ${name}</button>`:'';
-    if(viewerIsDeadPlayer) {
+    if(death.viewerIsDeadPlayer) {
       body=`<div class="death-card dead-player-card"><div class="death-icon">✦</div><h2>Waiting for Party Revival</h2>${cause}
         <p>${name} did not have enough GP for Respawn. The living party has been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
         <p class="muted">A valid D&amp;D revival spell or revival item can still revive you while this fund is open.</p><div id="deathActionError" class="error"></div></div>`;
@@ -1108,16 +1100,6 @@ function renderDeathOverlay(death) {
     } else {
       body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to revive <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
     }
-  }
-
-  if(!body) {
-    const safeStatus=escapeHtml(status||'unknown');
-    body=`<div class="death-card dead-player-card">
-      <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
-      <p>The Respawn state is active, but this client received an unexpected state (<b>${safeStatus}</b>).</p>
-      <p>Please refresh the Activity. Your character and Respawn record are still stored safely on the server.</p>
-      <div id="deathActionError" class="error"></div>
-    </div>`;
   }
 
   overlay.innerHTML=body;
@@ -1148,7 +1130,6 @@ function wireDeathOverlayActions(death) {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:true})});
     if(data.result?.outcome==='self_paid_respawn'||data.result?.outcome==='rag_respawn') {
       lastDeathState=null; document.querySelector('#deathOverlay')?.remove();
-      document.body.classList.remove('death-modal-open');
       await reloadCampaignAfterDeathResolution();
     }
   });
@@ -1160,7 +1141,6 @@ function wireDeathOverlayActions(death) {
       stopDeathStatePolling();
       lastDeathState=null;
       document.querySelector('#deathOverlay')?.remove();
-      document.body.classList.remove('death-modal-open');
       currentGameData=null;
       await showCharacterCreator(currentCampaignId);
     }
