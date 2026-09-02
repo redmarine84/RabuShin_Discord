@@ -294,60 +294,6 @@ public sealed class DiscordSupabaseService
         return rows.FirstOrDefault();
     }
 
-    public async Task<DiscordRestState?> GetRestStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_rest_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordRestState>(response, "Unable to load rest state");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<JsonElement> SpendShortRestHitDieAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_spend_short_rest_hit_die", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to spend Short Rest Hit Die: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
-    public async Task<JsonElement> FinishShortRestAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_finish_short_rest", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to finish Short Rest: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
-    public async Task<JsonElement> FinishLongRestSpellReviewAsync(Guid playerId, Guid campaignId, bool reviewSpells)
-    {
-        using var response = await CallRpcAsync("discord_finish_long_rest_review", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_review_spells = reviewSpells
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to finish Long Rest spell review: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
     public async Task<JsonElement> SaveLevelUpChoicesAsync(Guid playerId, Guid campaignId, JsonElement choices)
     {
         var safeChoices = choices.ValueKind == JsonValueKind.Object
@@ -1171,28 +1117,6 @@ public sealed class DiscordCharacterSetupState
     [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
     [JsonPropertyName("equipment_complete")] public bool EquipmentComplete { get; set; }
     [JsonPropertyName("spells_complete")] public bool SpellsComplete { get; set; }
-}
-
-public sealed class DiscordRestState
-{
-    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-    [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
-    [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-    [JsonPropertyName("class_name")] public string ClassName { get; set; } = string.Empty;
-    [JsonPropertyName("level")] public int Level { get; set; }
-    [JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
-    [JsonPropertyName("max_hp")] public int MaxHp { get; set; }
-    [JsonPropertyName("constitution")] public int Constitution { get; set; }
-    [JsonPropertyName("hit_die_sides")] public int HitDieSides { get; set; }
-    [JsonPropertyName("hit_dice_total")] public int HitDiceTotal { get; set; }
-    [JsonPropertyName("hit_dice_spent")] public int HitDiceSpent { get; set; }
-    [JsonPropertyName("hit_dice_available")] public int HitDiceAvailable { get; set; }
-    [JsonPropertyName("rest_type")] public string RestType { get; set; } = string.Empty;
-    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
-    [JsonPropertyName("hit_dice_spent_this_rest")] public int HitDiceSpentThisRest { get; set; }
-    [JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    [JsonPropertyName("roll_log")] public JsonElement RollLog { get; set; }
-    [JsonPropertyName("result_data")] public JsonElement ResultData { get; set; }
 }
 
 public sealed class DiscordLevelUpState

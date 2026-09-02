@@ -50,13 +50,6 @@ let levelUpActionBusy = false;
 let levelUpOverlaySignature = '';
 let levelUpSpellRecoveryBusy = false;
 
-// RULES BUILD 6.4 - SHORT / LONG REST RESOLUTION
-let restStatePollTimer = null;
-let restStatePollBusy = false;
-let restActionBusy = false;
-let lastRestState = null;
-let restOverlaySignature = '';
-
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -220,16 +213,12 @@ async function showCampaignLauncher() {
   stopConversationLiveSync();
   stopDeathStatePolling();
   stopProgressionPolling();
-  stopRestStatePolling();
   document.querySelector('#deathOverlay')?.remove();
   document.querySelector('#levelUpOverlay')?.remove();
-  document.querySelector('#restOverlay')?.remove();
   currentProgression=null;
   levelUpOverlaySignature='';
   levelUpSpellRecoveryBusy=false;
   lastDeathState=null;
-  lastRestState=null;
-  restOverlaySignature='';
   activeGameTab = 'gm';
   gmTurnState = null;
   gmTurnToken = null;
@@ -668,7 +657,6 @@ async function enterCampaign(campaignId, initialTab='gm') {
     renderGameMasterTab();
     startDeathStatePolling();
     startProgressionPolling();
-    startRestStatePolling();
     if(initialTab&&initialTab!=='gm'){
       const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
       if(target)switchGameTab(initialTab,target);
@@ -840,151 +828,6 @@ async function saveLevelUpChoices(progression) {
   } finally {
     levelUpActionBusy=false;
   }
-}
-
-function stopRestStatePolling() {
-  if(restStatePollTimer)clearInterval(restStatePollTimer);
-  restStatePollTimer=null;
-  restStatePollBusy=false;
-}
-
-function startRestStatePolling() {
-  stopRestStatePolling();
-  if(!currentCampaignId)return;
-  void refreshRestState(true);
-  restStatePollTimer=setInterval(()=>void refreshRestState(false),1000);
-}
-
-function restResourceHtml(rest) {
-  if(!rest)return '<div class="rest-resource-card"><span>Hit Dice</span><b>Loading...</b></div>';
-  const total=Math.max(1,Number(rest.hitDiceTotal)||Number(rest.level)||1);
-  const available=Math.max(0,Number(rest.hitDiceAvailable)||0);
-  const sides=Math.max(4,Number(rest.hitDieSides)||8);
-  return `<div class="rest-resource-card"><span>Hit Dice</span><b>${available}/${total} d${sides}</b><small>${Math.max(0,total-available)} spent • Long Rest restores all</small></div>`;
-}
-
-function updateRestResourceUi(rest) {
-  const host=document.querySelector('#restResourceHost');
-  if(host)host.innerHTML=restResourceHtml(rest);
-}
-
-async function refreshRestState(force=false) {
-  if(!currentCampaignId||!currentGameData||restStatePollBusy||restActionBusy)return;
-  restStatePollBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/rest-state`);
-    const rest=data.rest||null;
-    const previous=lastRestState;
-    lastRestState=rest;
-    updateRestResourceUi(rest);
-
-    if(rest&&currentGameData?.character){
-      const hp=Number(rest.currentHp);
-      const maxHp=Number(rest.maxHp);
-      if(Number.isFinite(hp))currentGameData.character.currentHp=hp;
-      if(Number.isFinite(maxHp)&&maxHp>0)currentGameData.character.maxHp=maxHp;
-      const quickHp=document.querySelector('.quick-vitals span:first-child b');
-      if(quickHp)quickHp.textContent=`${currentGameData.character.currentHp}/${currentGameData.character.maxHp}`;
-    }
-
-    const status=String(rest?.status||'');
-    if(!status){
-      document.querySelector('#restOverlay')?.remove();
-      restOverlaySignature='';
-      return;
-    }
-
-    // A level-up overlay owns the screen first. The long-rest spell workflow follows it.
-    if(document.querySelector('#levelUpOverlay'))return;
-
-    const rolls=Array.isArray(rest?.rollLog)?rest.rollLog:[];
-    const signature=`${rest.characterId}:${status}:${rest.currentHp}:${rest.hitDiceAvailable}:${rest.hitDiceSpentThisRest}:${rolls.length}`;
-    if(force||signature!==restOverlaySignature||!document.querySelector('#restOverlay')){
-      restOverlaySignature=signature;
-      if(status==='awaiting_hit_dice')renderShortRestOverlay(rest);
-      else if(status==='spell_review'||status==='long_complete')renderLongRestOverlay(rest);
-    }
-
-  } catch(error) {
-    console.warn('Rest state refresh failed:',error);
-  } finally {
-    restStatePollBusy=false;
-  }
-}
-
-function restRollLogHtml(rest) {
-  const rolls=Array.isArray(rest?.rollLog)?rest.rollLog:[];
-  if(!rolls.length)return '<div class="rest-roll-empty">No Hit Dice spent yet.</div>';
-  return `<div class="rest-roll-log">${rolls.map((r,index)=>`<div><span>Die ${index+1}: d${Number(r.dieSides)||Number(rest.hitDieSides)||8}</span><b>${Number(r.roll)||0} ${formatSigned(Number(r.constitutionModifier)||0)} = ${Number(r.healing)||0} HP</b><small>HP ${Number(r.hpAfter)||0}/${Number(rest.maxHp)||0}</small></div>`).join('')}</div>`;
-}
-
-function renderShortRestOverlay(rest) {
-  let overlay=document.querySelector('#restOverlay');
-  if(!overlay){overlay=document.createElement('div');overlay.id='restOverlay';overlay.className='rest-overlay';document.body.appendChild(overlay);}
-  const hp=Math.max(0,Number(rest.currentHp)||0),maxHp=Math.max(1,Number(rest.maxHp)||1);
-  const total=Math.max(1,Number(rest.hitDiceTotal)||Number(rest.level)||1),available=Math.max(0,Number(rest.hitDiceAvailable)||0);
-  const sides=Math.max(4,Number(rest.hitDieSides)||8),spentThis=Math.max(0,Number(rest.hitDiceSpentThisRest)||0);
-  const canRoll=hp<maxHp&&available>0&&spentThis<total;
-  overlay.innerHTML=`<section class="rest-card short-rest-card">
-    <div class="rest-icon">☕</div><p class="eyebrow">Short Rest Complete</p><h2>${escapeHtml(rest.characterName||'Character')}</h2>
-    <p>The rest was completed successfully. You may now spend any of your available Hit Dice, one at a time.</p>
-    <div class="rest-vitals"><div><span>HP</span><b>${hp}/${maxHp}</b></div><div><span>Hit Dice Available</span><b>${available}/${total} d${sides}</b></div><div><span>Spent This Rest</span><b>${spentThis}/${total}</b></div></div>
-    <p class="rest-rule-note">Each d${sides} roll adds your Constitution modifier. Healing from each die is at least 1 HP. You may stop after any roll.</p>
-    ${restRollLogHtml(rest)}
-    <div class="rest-actions"><button id="rollRestHitDie" class="button primary" ${canRoll?'':'disabled'}>Roll 1 d${sides} Hit Die</button><button id="finishShortRest" class="button">Finish Short Rest</button></div>
-    ${hp>=maxHp?'<small class="rest-hint">You are already at full HP; you do not need to spend a Hit Die.</small>':available<1?'<small class="rest-hint">No Hit Dice remain. Complete a Long Rest to restore them.</small>':''}
-    <div id="restActionError" class="error"></div>
-  </section>`;
-  const roll=overlay.querySelector('#rollRestHitDie');if(roll)roll.onclick=()=>runRestAction(async()=>{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/rest/short/hit-die`,{method:'POST'});
-    const r=data.result||{};showNotice(`Hit Die: ${Number(r.roll)||0} ${formatSigned(Number(r.constitutionModifier)||0)} = ${Number(r.healing)||0} HP recovered.`);
-  });
-  overlay.querySelector('#finishShortRest').onclick=()=>runRestAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/rest/short/finish`,{method:'POST'});
-    document.querySelector('#restOverlay')?.remove();restOverlaySignature='';showNotice('Short Rest finished.');
-  });
-}
-
-function renderLongRestOverlay(rest) {
-  let overlay=document.querySelector('#restOverlay');
-  if(!overlay){overlay=document.createElement('div');overlay.id='restOverlay';overlay.className='rest-overlay';document.body.appendChild(overlay);}
-  const canReview=String(rest.status||'')==='spell_review';
-  overlay.innerHTML=`<section class="rest-card long-rest-card">
-    <div class="rest-icon">✦</div><p class="eyebrow">You Wake from a Long Rest</p><h2>Long Rest Complete</h2>
-    <p>${escapeHtml(rest.characterName||'Your character')} is fully rested.</p>
-    <div class="rest-summary-list"><span>HP restored to <b>${Number(rest.currentHp)||0}/${Number(rest.maxHp)||0}</b></span><span>All spent Hit Dice restored: <b>${Number(rest.hitDiceAvailable)||0}/${Number(rest.hitDiceTotal)||0}</b></span><span>Tracked spell slots/resources restored to full.</span></div>
-    ${canReview?'<p class="rest-spell-review">Your class uses spells. Would you like to review or change your spell choices before continuing?</p>':''}
-    <div class="rest-actions">${canReview?'<button id="reviewRestSpells" class="button primary">Review / Change Spells</button><button id="keepRestSpells" class="button">Keep Current Spells</button>':'<button id="finishLongRest" class="button primary">Continue</button>'}</div>
-    <div id="restActionError" class="error"></div>
-  </section>`;
-  const review=overlay.querySelector('#reviewRestSpells');if(review)review.onclick=()=>runRestAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/rest/long/review`,{method:'POST',body:JSON.stringify({reviewSpells:true})});
-    document.querySelector('#restOverlay')?.remove();restOverlaySignature='';
-    const fresh=await api(`/game-api/campaigns/${currentCampaignId}/character`);if(fresh.hasCharacter&&fresh.character)currentGameData.character=fresh.character;
-    stopConversationLiveSync();stopRestStatePolling();await showSpellSelection(currentCampaignId,currentGameData.character,false);
-  });
-  const keep=overlay.querySelector('#keepRestSpells');if(keep)keep.onclick=()=>runRestAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/rest/long/review`,{method:'POST',body:JSON.stringify({reviewSpells:false})});
-    document.querySelector('#restOverlay')?.remove();restOverlaySignature='';showNotice('Long Rest complete. Current spells kept.');
-    currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    renderGameShell();renderGameMasterTab();
-  });
-  const finish=overlay.querySelector('#finishLongRest');if(finish)finish.onclick=()=>runRestAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/rest/long/review`,{method:'POST',body:JSON.stringify({reviewSpells:false})});
-    document.querySelector('#restOverlay')?.remove();restOverlaySignature='';showNotice('Long Rest complete.');
-    currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-    renderGameShell();renderGameMasterTab();
-  });
-}
-
-async function runRestAction(action) {
-  if(restActionBusy)return;
-  restActionBusy=true;
-  document.querySelectorAll('#restOverlay button').forEach(b=>b.disabled=true);
-  const error=document.querySelector('#restActionError');if(error)error.textContent='';
-  try{await action();}
-  catch(ex){const e=document.querySelector('#restActionError');if(e)e.textContent=ex.message;showNotice(ex.message,true);}
-  finally{restActionBusy=false;if(currentCampaignId)await refreshRestState(true);}
 }
 
 function stopDeathStatePolling() {
@@ -2328,7 +2171,6 @@ function renderCharacterTab(){
             <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
             <div id="experienceProgressHost" class="experience-progress-host">${experienceProgressHtml(currentProgression)}</div>
-            <div id="restResourceHost" class="rest-resource-host">${restResourceHtml(lastRestState)}</div>
             <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
             <div id="alignmentGaugeHost" class="alignment-gauge-host"><div class="loading mini">Loading alignment...</div></div>
           </div>
@@ -2350,7 +2192,6 @@ function renderCharacterTab(){
   hydratePortraits(view);
   void loadCharacterFeatureSummary();
   void refreshCharacterProgression(true);
-  void refreshRestState(true);
 }
 
 async function refreshPartyData() {

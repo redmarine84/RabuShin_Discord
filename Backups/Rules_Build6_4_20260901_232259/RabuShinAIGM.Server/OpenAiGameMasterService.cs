@@ -145,12 +145,9 @@ EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
 - Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
 - Earning enough XP does NOT immediately change a character's level. It only makes that character Level Up Ready.
 - A character levels only after actually completing an in-game LONG REST. Do not call complete_long_rest merely because the player says they intend to sleep; resolve whether the Long Rest successfully completes first.
-- A first-person request such as "I take a Short Rest" or "I take a Long Rest" applies only to the speaking player's character unless the players explicitly establish that the party is resting together. Never silently rest absent or nonparticipating party members.
-- When one or more characters actually wake from a completed Long Rest, call complete_long_rest and pass only the characters who completed it. The server restores HP to full, restores all spent Hit Dice, restores tracked spell slots/resources, and, if XP qualifies, advances them to the earned level.
+- When one or more characters actually wake from a completed Long Rest, call complete_long_rest and pass only the characters who completed it. The server heals/restores them and, if their XP qualifies, advances them to the earned level.
 - If complete_long_rest reports a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
-- A spellcasting character who completes a Long Rest without leveling can optionally review/change their spells after waking. The client presents that choice; do not choose spells for the player.
-- A Short Rest never triggers an XP level increase. A Short Rest must actually complete before you call complete_short_rest. The server then presents each named player with their own Hit Dice screen. Do NOT roll or spend their Hit Dice for them.
-- On that Short Rest screen, the player may spend zero or more of their AVAILABLE Hit Dice. Each spent die is rolled by the server and adds the character's Constitution modifier; healing is at least 1 HP per die and cannot exceed max HP. A character cannot spend more Hit Dice in one Short Rest than their total character level, and previously spent Hit Dice stay unavailable until a completed Long Rest restores them.
+- A Short Rest never triggers an XP level increase.
 
 ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
 - The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
@@ -343,7 +340,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
             BuildCompleteQuestTool(),
-            BuildCompleteShortRestTool(),
             BuildCompleteLongRestTool(),
             BuildSetEncounterMapTool(),
             BuildStartCombatTool(),
@@ -517,18 +513,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var result = await CompleteQuestAsync(campaign.CampaignId, character.Level, args);
                         stateAudits.Add(new GameMasterStateAudit("Experience", $"Quest completed: {args.QuestName}; XP reward processed as {args.Difficulty}."));
                         toolResult = result;
-                        break;
-                    }
-                    case "complete_short_rest":
-                    {
-                        var args = DeserializeArguments<CompleteShortRestToolArguments>(call.ArgumentsJson, "short rest completion");
-                        var result = await CompleteShortRestAsync(campaign.CampaignId, args);
-                        var waiting = result.Where(r => r.Status.Equals("awaiting_hit_dice", StringComparison.OrdinalIgnoreCase))
-                            .Select(r => r.CharacterName).ToArray();
-                        stateAudits.Add(new GameMasterStateAudit("Rest", waiting.Length > 0
-                            ? $"Short Rest completed; Hit Dice choices waiting for: {string.Join(", ", waiting)}"
-                            : "Short Rest completed."));
-                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result };
                         break;
                     }
                     case "complete_long_rest":
@@ -985,35 +969,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
     }
 
-    private static object BuildCompleteShortRestTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "complete_short_rest",
-            description = "Commit a successfully completed in-game Short Rest for the named player characters. Use only after the full Short Rest actually finishes without interruption. The trusted server opens each player's Hit Dice recovery screen; never choose, roll, or spend Hit Dice for a player.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterNames = new
-                    {
-                        type = "array",
-                        minItems = 1,
-                        maxItems = 20,
-                        items = new { type = "string" },
-                        description = "Exact character names that successfully completed this Short Rest."
-                    },
-                    reason = new { type = "string", description = "Short story reason/location for the completed rest." }
-                },
-                required = new[] { "characterNames", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
     private static object BuildCompleteLongRestTool()
     {
         return new
@@ -1455,31 +1410,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             "Unable to award quest experience");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
-    }
-
-    private async Task<List<ShortRestResult>> CompleteShortRestAsync(Guid campaignId, CompleteShortRestToolArguments args)
-    {
-        var names = (args.CharacterNames ?? Array.Empty<string>())
-            .Select(name => (name ?? string.Empty).Trim())
-            .Where(name => name.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToArray();
-        if (names.Length == 0) throw new InvalidOperationException("A completed Short Rest requires at least one character name.");
-        var reason = CleanReason(args.Reason, "Completed Short Rest");
-        var results = new List<ShortRestResult>();
-
-        foreach (var name in names)
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_complete_short_rest",
-                new { p_campaign_id = campaignId, p_character_name = name, p_reason = reason },
-                $"Unable to complete Short Rest for {name}");
-            var result = JsonSerializer.Deserialize<ShortRestResult>(raw, JsonOptions)
-                ?? throw new InvalidOperationException($"Short Rest returned no result for {name}.");
-            results.Add(result);
-        }
-        return results;
     }
 
     private async Task<List<LongRestResult>> CompleteLongRestAsync(Guid campaignId, CompleteLongRestToolArguments args)
@@ -2386,24 +2316,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string Difficulty { get; set; } = "side";
     }
 
-    private sealed class CompleteShortRestToolArguments
-    {
-        public string[] CharacterNames { get; set; } = Array.Empty<string>();
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class ShortRestResult
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("characterName")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("currentHp")] public int CurrentHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("maxHp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hitDieSides")] public int HitDieSides { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hitDiceTotal")] public int HitDiceTotal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hitDiceAvailable")] public int HitDiceAvailable { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    }
-
     private sealed class CompleteLongRestToolArguments
     {
         public string[] CharacterNames { get; set; } = Array.Empty<string>();
@@ -2422,8 +2334,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("maxHp")] public int MaxHp { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("proficiencyBonus")] public int ProficiencyBonus { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("spellSelectionRequired")] public bool SpellSelectionRequired { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("spellReviewAvailable")] public bool SpellReviewAvailable { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hitDiceRestored")] public int HitDiceRestored { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
     }
 

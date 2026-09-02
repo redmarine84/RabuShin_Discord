@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using QuestsOfRabuShinAIGM;
 
@@ -172,3 +172,4 @@ public static class ExperienceProgression
 
 public sealed record MonsterExperience(string ChallengeRating, int Xp, bool Found);
 public sealed record LevelUpChoicePrompt(string Key, string Label, string Description, bool Optional = false);
+

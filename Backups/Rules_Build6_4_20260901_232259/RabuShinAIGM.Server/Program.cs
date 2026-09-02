@@ -232,58 +232,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/progression", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-app.MapGet("/game-api/campaigns/{campaignId:guid}/rest-state", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var rest = await service.GetRestStateAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, rest });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/short/hit-die", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.SpendShortRestHitDieAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/short/finish", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.FinishShortRestAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/long/review", async (
-    Guid campaignId, RestSpellReviewRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.FinishLongRestSpellReviewAsync(playerId, campaignId, body.ReviewSpells);
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/level-up/choices", async (
     Guid campaignId, LevelUpChoicesRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -1988,4 +1936,3 @@ public sealed record DiscordTokenRequest(string Code);
 public sealed record RespawnChoiceRequest(bool Respawn);
 public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
-public sealed record RestSpellReviewRequest(bool ReviewSpells);
