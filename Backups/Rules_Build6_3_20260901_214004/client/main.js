@@ -42,14 +42,6 @@ let deathActionBusy = false;
 let lastDeathState = null;
 let deathDonationMode = false;
 
-// RULES BUILD 6.3 - EXPERIENCE / REST-GATED LEVELING
-let progressionPollTimer = null;
-let progressionPollBusy = false;
-let currentProgression = null;
-let levelUpActionBusy = false;
-let levelUpOverlaySignature = '';
-let levelUpSpellRecoveryBusy = false;
-
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -212,12 +204,7 @@ async function showCampaignLauncher() {
   stopTacticalCombatPolling();
   stopConversationLiveSync();
   stopDeathStatePolling();
-  stopProgressionPolling();
   document.querySelector('#deathOverlay')?.remove();
-  document.querySelector('#levelUpOverlay')?.remove();
-  currentProgression=null;
-  levelUpOverlaySignature='';
-  levelUpSpellRecoveryBusy=false;
   lastDeathState=null;
   activeGameTab = 'gm';
   gmTurnState = null;
@@ -593,7 +580,7 @@ async function showStartingEquipment(campaignId, character) {
   }catch(error){document.querySelector('#equipLoading').textContent='Unable to load starting equipment.';showNotice(error.message,true);}
 }
 
-async function showSpellSelection(campaignId, character, fromLevelUp=false) {
+async function showSpellSelection(campaignId, character) {
   const main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Spells & Cantrips</h2><p>${escapeHtml(character.characterName)} • Level ${character.level} ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="spellLoading" class="loading">Loading spell rules...</div><div id="spellForm" hidden></div><div id="spellError" class="error"></div></section></div>`;
   try {
@@ -610,41 +597,16 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
     document.querySelector('#spellLoading').hidden=true;form.hidden=false;
     if(wizard){document.querySelectorAll('.spell-check').forEach(ch=>ch.onchange=()=>{const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===ch.value);prep.disabled=!ch.checked;if(!ch.checked)prep.checked=false;});}
     if(p.warlockArcanumLevels?.length){const ar=document.querySelector('#arcanumArea');ar.innerHTML='<h3 class="subhead">Mystic Arcanum</h3>'+p.warlockArcanumLevels.map(level=>`<label>Level ${level}<select class="input arcanum" data-level="${level}">${data.spells.filter(s=>s.level===level).map(s=>`<option>${escapeHtml(s.name)}</option>`).join('')}</select></label>`).join('');}
-
-    // During a post-rest level up, keep the character's existing spell choices checked
-    // so the player only needs to add/replace whatever the new level grants.
-    const existingSpells=Array.isArray(data.existingSpells)?data.existingSpells:[];
-    existingSpells.forEach(existing=>{
-      const name=String(existing.name||'');
-      if(Number(existing.level)===0){
-        const box=[...document.querySelectorAll('.cantrip-check')].find(x=>x.value===name);if(box)box.checked=true;
-        return;
-      }
-      if(String(existing.sourceTag||'').toLowerCase()==='mysticarcanum'){
-        const select=document.querySelector(`.arcanum[data-level="${Number(existing.level)}"]`);
-        if(select&&[...select.options].some(o=>o.value===name))select.value=name;
-        return;
-      }
-      const box=[...document.querySelectorAll('.spell-check')].find(x=>x.value===name);
-      if(box){
-        box.checked=true;
-        if(wizard){
-          const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===name);
-          if(prep){prep.disabled=false;prep.checked=Boolean(existing.prepared);}
-        }
-      }
-    });
-
     document.querySelector('#saveSpells').onclick=async()=>{
       const cantrips=[...document.querySelectorAll('.cantrip-check:checked')].map(x=>x.value),spells=[...document.querySelectorAll('.spell-check:checked')].map(x=>x.value),preparedWizardSpells=[...document.querySelectorAll('.prepare-check:checked')].map(x=>x.value),mysticArcanum={};
       document.querySelectorAll('.arcanum').forEach(x=>mysticArcanum[x.dataset.level]=x.value);
       const btn=document.querySelector('#saveSpells');btn.disabled=true;btn.textContent='Saving Spells...';
-      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});levelUpSpellRecoveryBusy=false;showNotice(fromLevelUp?'Level-up spell choices saved.':'Spell selection saved.');await enterCampaign(campaignId,fromLevelUp?'character':'gm');}catch(error){document.querySelector('#spellError').textContent=error.message;btn.disabled=false;btn.textContent='Save Spell Selection';}
+      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});showNotice('Spell selection saved.');await enterCampaign(campaignId);}catch(error){document.querySelector('#spellError').textContent=error.message;btn.disabled=false;btn.textContent='Save Spell Selection';}
     };
   }catch(error){document.querySelector('#spellLoading').textContent='Unable to load spell selection.';document.querySelector('#spellError').textContent=error.message;}
 }
 
-async function enterCampaign(campaignId, initialTab='gm') {
+async function enterCampaign(campaignId) {
   try {
     currentCampaignId=campaignId;
     activeGameTab='gm';
@@ -656,11 +618,6 @@ async function enterCampaign(campaignId, initialTab='gm') {
     renderGameShell();
     renderGameMasterTab();
     startDeathStatePolling();
-    startProgressionPolling();
-    if(initialTab&&initialTab!=='gm'){
-      const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
-      if(target)switchGameTab(initialTab,target);
-    }
   } catch(error){showNotice(error.message,true);}
 }
 
@@ -689,145 +646,6 @@ function switchGameTab(tab,button) {
   if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
-}
-
-function stopProgressionPolling() {
-  if(progressionPollTimer)clearInterval(progressionPollTimer);
-  progressionPollTimer=null;
-  progressionPollBusy=false;
-}
-
-function startProgressionPolling() {
-  stopProgressionPolling();
-  if(!currentCampaignId)return;
-  void refreshCharacterProgression(true);
-  progressionPollTimer=setInterval(()=>void refreshCharacterProgression(false),3000);
-}
-
-function experienceProgressHtml(progression) {
-  if(!progression)return '<div class="loading mini">Loading experience...</div>';
-  const xp=Math.max(0,Number(progression.experience)||0);
-  const level=Math.max(1,Number(progression.currentLevel)||1);
-  const earned=Math.max(level,Number(progression.earnedLevel)||level);
-  const maxLevel=level>=20;
-  const start=Math.max(0,Number(progression.currentLevelXp)||0);
-  const next=Math.max(start,Number(progression.nextLevelXp)||start);
-  const into=Math.max(0,Number(progression.xpIntoLevel)||0);
-  const span=Math.max(1,Number(progression.xpNeededThisLevel)||1);
-  const percent=maxLevel?100:Math.max(0,Math.min(100,(into/span)*100));
-  let status=maxLevel?'Maximum Level Reached':`${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
-  let badge='';
-  if(progression.pendingLevelUp){badge='<span class="xp-ready-badge wake">LEVEL UP — CHOICES WAITING</span>';status=`Level ${progression.fromLevel} → ${progression.toLevel} after Long Rest`;}
-  else if(progression.readyForLevelUp){badge='<span class="xp-ready-badge">LEVEL UP READY</span>';status=`${xp.toLocaleString()} XP • Rest to reach Level ${earned}`;}
-  return `<div class="experience-card ${progression.readyForLevelUp||progression.pendingLevelUp?'ready':''}">
-    <div class="experience-heading"><div><span>Experience</span><b>Level ${level}</b></div>${badge}</div>
-    <div class="experience-track" role="progressbar" aria-valuemin="${start}" aria-valuemax="${maxLevel?xp:next}" aria-valuenow="${xp}"><i style="width:${percent}%"></i></div>
-    <div class="experience-meta"><strong>${escapeHtml(status)}</strong><small>${maxLevel?'355,000 XP threshold reached':`${Math.max(0,next-xp).toLocaleString()} XP until the next threshold`}</small></div>
-    ${progression.readyForLevelUp&&!progression.pendingLevelUp?'<p class="experience-rest-note">Enough XP has been earned. Your level will not change until your character successfully completes an in-game <b>Long Rest</b>.</p>':''}
-  </div>`;
-}
-
-async function refreshCharacterProgression(force=false) {
-  if(!currentCampaignId||!currentGameData||progressionPollBusy||levelUpActionBusy)return;
-  progressionPollBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/progression`);
-    const progression=data.progression||null;
-    currentProgression=progression;
-    const host=document.querySelector('#experienceProgressHost');
-    if(host)host.innerHTML=experienceProgressHtml(progression);
-
-    if(progression&&currentGameData?.character&&Number(currentGameData.character.level)!==Number(progression.currentLevel)){
-      const fresh=await api(`/game-api/campaigns/${currentCampaignId}/character`);
-      if(fresh.hasCharacter&&fresh.character)currentGameData.character=fresh.character;
-    }
-
-    if(progression?.pendingLevelUp){
-      const sig=`${progression.fromLevel}:${progression.toLevel}:${(progression.prompts||[]).map(p=>p.key).join('|')}`;
-      if(force||!document.querySelector('#levelUpOverlay')||sig!==levelUpOverlaySignature)renderLevelUpOverlay(progression,sig);
-    } else {
-      document.querySelector('#levelUpOverlay')?.remove();
-      levelUpOverlaySignature='';
-      if(progression?.spellSelectionPending&&!levelUpSpellRecoveryBusy){
-        levelUpSpellRecoveryBusy=true;
-        stopConversationLiveSync();
-        stopProgressionPolling();
-        const fresh=await api(`/game-api/campaigns/${currentCampaignId}/character`);
-        if(fresh.hasCharacter&&fresh.character)currentGameData.character=fresh.character;
-        await showSpellSelection(currentCampaignId,currentGameData.character,true);
-        return;
-      }
-    }
-  } catch(error) {
-    console.warn('Experience / level-up refresh failed:',error);
-  } finally {
-    progressionPollBusy=false;
-  }
-}
-
-function renderLevelUpOverlay(progression,signature='') {
-  document.querySelector('#levelUpOverlay')?.remove();
-  levelUpOverlaySignature=signature;
-  const prompts=Array.isArray(progression.prompts)?progression.prompts:[];
-  const overlay=document.createElement('div');
-  overlay.id='levelUpOverlay';
-  overlay.className='level-up-overlay';
-  const promptHtml=prompts.map(prompt=>`<label class="level-up-choice"><span><b>${escapeHtml(prompt.label)}</b>${prompt.optional?'<em>Optional</em>':''}</span><small>${escapeHtml(prompt.description||'')}</small><textarea class="input level-up-choice-input" data-choice-key="${escapeHtml(prompt.key)}" rows="2" placeholder="${prompt.optional?'Leave blank if none':'Enter your choice'}"></textarea></label>`).join('');
-  overlay.innerHTML=`<section class="level-up-card">
-    <div class="level-up-sun">✦</div>
-    <p class="eyebrow">You wake from your Long Rest</p>
-    <h2>Level Up!</h2>
-    <div class="level-up-levels"><b>Level ${Number(progression.fromLevel)||1}</b><span>→</span><b>Level ${Number(progression.toLevel)||1}</b></div>
-    <p>Your XP qualified you to advance, but the level increase waited until this completed Long Rest. Your new level and proficiency are now recognized by the Game Master.</p>
-    ${progression.restReason?`<p class="level-up-rest-reason">${escapeHtml(progression.restReason)}</p>`:''}
-    <div class="level-up-choices">${promptHtml||'<p>No additional class-feature choices are required for this level.</p>'}</div>
-    <p class="level-up-spell-note">After these class choices, spellcasting classes will be shown their spell selection when needed so existing spells can be kept and new choices added.</p>
-    <div id="levelUpError" class="error"></div>
-    <button id="finishLevelUpChoices" class="button primary wide">Continue Level Up</button>
-  </section>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#finishLevelUpChoices').onclick=()=>void saveLevelUpChoices(progression);
-}
-
-async function saveLevelUpChoices(progression) {
-  if(levelUpActionBusy||!currentCampaignId)return;
-  const overlay=document.querySelector('#levelUpOverlay');
-  if(!overlay)return;
-  const choices={};
-  let missing='';
-  (progression.prompts||[]).forEach(prompt=>{
-    const input=overlay.querySelector(`[data-choice-key="${CSS.escape(prompt.key)}"]`);
-    const value=String(input?.value||'').trim();
-    choices[prompt.key]=value;
-    if(!prompt.optional&&!value&&!missing)missing=prompt.label;
-  });
-  if(missing){overlay.querySelector('#levelUpError').textContent=`Choose or record your ${missing} before continuing.`;return;}
-  levelUpActionBusy=true;
-  const btn=overlay.querySelector('#finishLevelUpChoices');
-  btn.disabled=true;btn.textContent='Saving Level Up...';
-  try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/level-up/choices`,{method:'POST',body:JSON.stringify({choices})});
-    overlay.remove();levelUpOverlaySignature='';currentProgression=null;
-    const fresh=await api(`/game-api/campaigns/${currentCampaignId}/character`);
-    if(fresh.hasCharacter&&fresh.character)currentGameData.character=fresh.character;
-    showNotice(`Level ${result.toLevel} choices saved.`);
-    if(result.needsSpellSelection){
-      stopConversationLiveSync();
-      stopProgressionPolling();
-      await showSpellSelection(currentCampaignId,currentGameData.character,true);
-    } else {
-      currentGameData=await api(`/game-api/campaigns/${currentCampaignId}/bootstrap`);
-      renderGameShell();
-      const tab=document.querySelector('.game-tab[data-tab="character"]');
-      switchGameTab('character',tab);
-      await refreshCharacterProgression(true);
-    }
-  } catch(error) {
-    overlay.querySelector('#levelUpError').textContent=error.message;
-    btn.disabled=false;btn.textContent='Continue Level Up';
-  } finally {
-    levelUpActionBusy=false;
-  }
 }
 
 function stopDeathStatePolling() {
@@ -2170,7 +1988,6 @@ function renderCharacterTab(){
             <h2>${escapeHtml(c.characterName)}</h2>
             <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
-            <div id="experienceProgressHost" class="experience-progress-host">${experienceProgressHtml(currentProgression)}</div>
             <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
             <div id="alignmentGaugeHost" class="alignment-gauge-host"><div class="loading mini">Loading alignment...</div></div>
           </div>
@@ -2191,7 +2008,6 @@ function renderCharacterTab(){
   document.querySelectorAll('[data-party-index]').forEach(button=>button.onclick=()=>showPartyMemberDetails(party[Number(button.dataset.partyIndex)]));
   hydratePortraits(view);
   void loadCharacterFeatureSummary();
-  void refreshCharacterProgression(true);
 }
 
 async function refreshPartyData() {

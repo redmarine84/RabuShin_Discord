@@ -139,16 +139,6 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
 - Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
 
-EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
-- Character XP is server-authoritative. Never invent, subtract, or manually narrate an XP award that was not returned by a trusted tool.
-- When update_combat_monster first marks a monster defeated, RabuShin automatically reads that monster's trusted Challenge Rating / XP value from the Monster Codex and awards the encounter XP to the player characters who received initiative in that fight. Do not call a separate monster-XP tool and do not award the same monster twice.
-- Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
-- Earning enough XP does NOT immediately change a character's level. It only makes that character Level Up Ready.
-- A character levels only after actually completing an in-game LONG REST. Do not call complete_long_rest merely because the player says they intend to sleep; resolve whether the Long Rest successfully completes first.
-- When one or more characters actually wake from a completed Long Rest, call complete_long_rest and pass only the characters who completed it. The server heals/restores them and, if their XP qualifies, advances them to the earned level.
-- If complete_long_rest reports a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
-- A Short Rest never triggers an XP level increase.
-
 ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
 - The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
 - A morally significant GOOD deed moves the hidden alignment gauge one point toward the good side. A morally significant EVIL deed moves it one point toward the evil side.
@@ -177,10 +167,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine("PLAYER CHARACTER:");
         inputBuilder.AppendLine($"{character.CharacterName}, Level {character.Level} {character.SpeciesName} {character.ClassName}");
         inputBuilder.AppendLine($"HP {character.CurrentHp}/{character.MaxHp}; AC {character.ArmorClass}; Proficiency Bonus +{character.ProficiencyBonus}; GP {character.Gold:0.##}");
-        var earnedXpLevel = ExperienceProgression.LevelForXp(character.Experience);
-        inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " — LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");
-        if (character.CharacterData.ValueKind == JsonValueKind.Object && character.CharacterData.TryGetProperty("lastLevelUp", out var lastLevelUp))
-            inputBuilder.AppendLine($"LAST PLAYER-CHOSEN LEVEL-UP OPTIONS: {lastLevelUp.GetRawText()}");
         inputBuilder.AppendLine(
             $"STR {character.Strength} ({FormatModifier(AbilityModifier(character.Strength))}), " +
             $"DEX {character.Dexterity} ({FormatModifier(AbilityModifier(character.Dexterity))}), " +
@@ -339,8 +325,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildRemoveInventoryItemTool(),
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
-            BuildCompleteQuestTool(),
-            BuildCompleteLongRestTool(),
             BuildSetEncounterMapTool(),
             BuildStartCombatTool(),
             BuildAddCombatMonsterTool(),
@@ -507,25 +491,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative = true, action = "travel_to_world_location", currentLocation = arrived };
                         break;
                     }
-                    case "complete_quest":
-                    {
-                        var args = DeserializeArguments<CompleteQuestToolArguments>(call.ArgumentsJson, "quest completion");
-                        var result = await CompleteQuestAsync(campaign.CampaignId, character.Level, args);
-                        stateAudits.Add(new GameMasterStateAudit("Experience", $"Quest completed: {args.QuestName}; XP reward processed as {args.Difficulty}."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "complete_long_rest":
-                    {
-                        var args = DeserializeArguments<CompleteLongRestToolArguments>(call.ArgumentsJson, "long rest completion");
-                        var result = await CompleteLongRestAsync(campaign.CampaignId, args);
-                        var leveled = result.Where(r => r.LeveledUp).Select(r => $"{r.CharacterName} {r.FromLevel}→{r.ToLevel}").ToArray();
-                        stateAudits.Add(new GameMasterStateAudit("Rest", leveled.Length > 0
-                            ? $"Long Rest completed; level up: {string.Join(", ", leveled)}"
-                            : "Long Rest completed; no XP level increase."));
-                        toolResult = new { authoritative = true, action = "complete_long_rest", characters = result };
-                        break;
-                    }
                     case "set_encounter_map":
                     {
                         var args = DeserializeArguments<SetEncounterMapToolArguments>(call.ArgumentsJson, "encounter map state");
@@ -589,15 +554,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<UpdateCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster update");
                         var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
                         combatEndedDuringTurn |= updated.CombatEnded;
-                        JsonElement? xpAward = null;
-                        if (updated.Defeated)
-                        {
-                            xpAward = await AwardMonsterExperienceAsync(campaign.CampaignId, updated);
-                            if (xpAward.Value.TryGetProperty("awarded", out var awarded) && awarded.ValueKind == JsonValueKind.True)
-                                stateAudits.Add(new GameMasterStateAudit("Experience", $"{updated.DisplayName} XP awarded from trusted Challenge Rating."));
-                        }
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {updated.Disposition}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
-                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated, updated.Disposition, combatEnded=updated.CombatEnded, endReason=updated.EndReason, experienceAward=xpAward };
+                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated, updated.Disposition, combatEnded=updated.CombatEnded, endReason=updated.EndReason };
                         break;
                     }
                     case "set_enemy_disposition":
@@ -942,57 +900,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     locationName = new { type = "string", description = "Canonical discovered settlement that the party has actually reached." }
                 },
                 required = new[] { "locationName" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildCompleteQuestTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "complete_quest",
-            description = "Award the shared campaign quest XP after a quest has been definitively completed. Call exactly once per completed quest. The trusted server calculates the per-character XP from the quest category and current progression; never invent or pass a raw XP amount.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    questName = new { type = "string", description = "Stable canonical quest name, e.g. The Sheep That Howled." },
-                    difficulty = new { type = "string", @enum = new[] { "minor", "side", "main" }, description = "minor for a small optional objective, side for a substantial side quest, main for a main-story quest." }
-                },
-                required = new[] { "questName", "difficulty" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildCompleteLongRestTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "complete_long_rest",
-            description = "Commit a successfully completed in-game Long Rest for the named player characters. Use only after the rest actually finishes and the characters wake. This restores Long Rest resources and is the ONLY operation that converts enough accumulated XP into a higher character level. Never use for a Short Rest or merely intending to sleep.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterNames = new
-                    {
-                        type = "array",
-                        minItems = 1,
-                        maxItems = 20,
-                        items = new { type = "string" },
-                        description = "Exact character names that successfully completed this Long Rest."
-                    },
-                    reason = new { type = "string", description = "Short story reason/location for the completed rest, e.g. Slept safely at the Greymoor inn." }
-                },
-                required = new[] { "characterNames", "reason" },
                 additionalProperties = false
             }
         };
@@ -1380,90 +1287,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidOperationException("Supabase returned an invalid World Map travel result.");
         return value;
-    }
-
-    private async Task<JsonElement> CompleteQuestAsync(Guid campaignId, int currentLevel, CompleteQuestToolArguments args)
-    {
-        var questName = (args.QuestName ?? string.Empty).Trim();
-        if (questName.Length == 0) throw new InvalidOperationException("Quest completion requires a quest name.");
-        if (questName.Length > 160) questName = questName[..160];
-
-        var difficulty = (args.Difficulty ?? string.Empty).Trim().ToLowerInvariant();
-        if (difficulty is not ("minor" or "side" or "main"))
-            throw new InvalidOperationException("Quest difficulty must be minor, side, or main.");
-
-        var key = Regex.Replace(questName.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
-        if (key.Length == 0) key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(questName))).ToLowerInvariant()[..16];
-        if (key.Length > 120) key = key[..120];
-        var xp = ExperienceProgression.QuestXpPerCharacter(currentLevel, difficulty);
-
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_award_quest_xp",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_quest_key = key,
-                p_quest_name = questName,
-                p_xp_per_character = xp,
-                p_difficulty = difficulty
-            },
-            "Unable to award quest experience");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<List<LongRestResult>> CompleteLongRestAsync(Guid campaignId, CompleteLongRestToolArguments args)
-    {
-        var names = (args.CharacterNames ?? Array.Empty<string>())
-            .Select(name => (name ?? string.Empty).Trim())
-            .Where(name => name.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToArray();
-        if (names.Length == 0) throw new InvalidOperationException("A completed Long Rest requires at least one character name.");
-        var reason = CleanReason(args.Reason, "Completed Long Rest");
-        var results = new List<LongRestResult>();
-
-        foreach (var name in names)
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_complete_long_rest",
-                new { p_campaign_id = campaignId, p_character_name = name, p_reason = reason },
-                $"Unable to complete Long Rest for {name}");
-            var result = JsonSerializer.Deserialize<LongRestResult>(raw, JsonOptions)
-                ?? throw new InvalidOperationException($"Long Rest returned no result for {name}.");
-            results.Add(result);
-        }
-        return results;
-    }
-
-    private async Task<JsonElement> AwardMonsterExperienceAsync(Guid campaignId, CombatMonsterForGm monster)
-    {
-        var xp = ExperienceProgression.GetMonsterExperience(monster.MonsterName);
-        if (!xp.Found || xp.Xp <= 0)
-        {
-            using var missing = JsonDocument.Parse(JsonSerializer.Serialize(new
-            {
-                awarded = false,
-                monsterName = monster.MonsterName,
-                displayName = monster.DisplayName,
-                reason = "No trusted Challenge Rating / XP value was found in the Monster Codex stat block."
-            }));
-            return missing.RootElement.Clone();
-        }
-
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_award_monster_xp",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_combatant_name = monster.DisplayName,
-                p_challenge_rating = xp.ChallengeRating,
-                p_total_xp = xp.Xp
-            },
-            $"Unable to award experience for {monster.DisplayName}");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
     }
 
     private async Task<LocalMapStateRow?> GetLocalMapStateAsync(Guid campaignId)
@@ -2310,33 +2133,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         string CurrentTurnType,
         string CurrentTurnName,
         List<TacticalTokenForGm> Tokens);
-    private sealed class CompleteQuestToolArguments
-    {
-        public string QuestName { get; set; } = string.Empty;
-        public string Difficulty { get; set; } = "side";
-    }
-
-    private sealed class CompleteLongRestToolArguments
-    {
-        public string[] CharacterNames { get; set; } = Array.Empty<string>();
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class LongRestResult
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("characterId")] public Guid CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("characterName")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("leveledUp")] public bool LeveledUp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("fromLevel")] public int FromLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("toLevel")] public int ToLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("experience")] public int Experience { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hpGain")] public int HpGain { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("maxHp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("proficiencyBonus")] public int ProficiencyBonus { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("spellSelectionRequired")] public bool SpellSelectionRequired { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    }
-
     private sealed class SetEncounterMapToolArguments
     {
         public bool Active { get; set; }

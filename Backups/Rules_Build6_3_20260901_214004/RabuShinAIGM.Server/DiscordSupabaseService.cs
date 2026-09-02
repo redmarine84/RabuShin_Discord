@@ -283,35 +283,6 @@ public sealed class DiscordSupabaseService
         return list.FirstOrDefault();
     }
 
-    public async Task<DiscordLevelUpState?> GetLevelUpStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_level_up_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordLevelUpState>(response, "Unable to load character level-up state");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<JsonElement> SaveLevelUpChoicesAsync(Guid playerId, Guid campaignId, JsonElement choices)
-    {
-        var safeChoices = choices.ValueKind == JsonValueKind.Object
-            ? choices
-            : JsonSerializer.Deserialize<JsonElement>("{}");
-        using var response = await CallRpcAsync("discord_save_level_up_choices", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_choices = safeChoices
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to save level-up choices: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
     public async Task UpdateCharacterDetailsAsync(
         Guid playerId, Guid campaignId, string background, string appearance,
         string personality, string backstory, string notes)
@@ -1118,20 +1089,6 @@ public sealed class DiscordCharacterSetupState
     [JsonPropertyName("equipment_complete")] public bool EquipmentComplete { get; set; }
     [JsonPropertyName("spells_complete")] public bool SpellsComplete { get; set; }
 }
-
-public sealed class DiscordLevelUpState
-{
-    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-    [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
-    [JsonPropertyName("pending")] public bool Pending { get; set; }
-    [JsonPropertyName("from_level")] public int FromLevel { get; set; }
-    [JsonPropertyName("to_level")] public int ToLevel { get; set; }
-    [JsonPropertyName("rest_reason")] public string RestReason { get; set; } = string.Empty;
-    [JsonPropertyName("ability_choices")] public JsonElement AbilityChoices { get; set; }
-    [JsonPropertyName("created_at")] public DateTimeOffset CreatedAt { get; set; }
-    [JsonPropertyName("completed_at")] public DateTimeOffset? CompletedAt { get; set; }
-}
-
 
 public sealed class DiscordStartingInventoryItem
 {

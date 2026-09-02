@@ -217,54 +217,6 @@ app.MapPut("/game-api/campaigns/{campaignId:guid}/character/details", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-app.MapGet("/game-api/campaigns/{campaignId:guid}/progression", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
-        var levelUp = await service.GetLevelUpStateAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, progression = ExperienceProgression.BuildClientProgression(character, levelUp) });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/level-up/choices", async (
-    Guid campaignId, LevelUpChoicesRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
-        var levelUp = await service.GetLevelUpStateAsync(playerId, campaignId);
-        if (levelUp is null || !levelUp.Pending)
-            return Results.Conflict(new { success = false, error = "No post-rest level-up choices are waiting for this character." });
-
-        var choices = body.Choices.ValueKind == JsonValueKind.Object ? body.Choices : JsonSerializer.Deserialize<JsonElement>("{}");
-        var prompts = ExperienceProgression.GetAbilityChoicePrompts(character.ClassName, levelUp.FromLevel, levelUp.ToLevel);
-        foreach (var prompt in prompts.Where(p => !p.Optional))
-        {
-            if (!choices.TryGetProperty(prompt.Key, out var value) || string.IsNullOrWhiteSpace(value.GetString()))
-                return Results.BadRequest(new { success = false, error = $"Choose or record your {prompt.Label} before finishing the level up." });
-        }
-
-        await service.SaveLevelUpChoicesAsync(playerId, campaignId, choices);
-        return Results.Ok(new
-        {
-            success = true,
-            fromLevel = levelUp.FromLevel,
-            toLevel = levelUp.ToLevel,
-            needsSpellSelection = DiscordSpellService.IsSupportedCaster(character.ClassName)
-        });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
     Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -503,7 +455,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/spell-options", async (Guid ca
 
         var progression = DiscordSpellService.GetProgression(character.ClassName, character.Level);
         var available = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level);
-        var existingSpells = await service.GetSpellsAsync(playerId, campaignId);
         object MapSpell(SrdSpellReference s) => new
         {
             name = s.Name, level = s.Level, school = s.School, castingTime = s.CastingTime,
@@ -525,10 +476,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/spell-options", async (Guid ca
                 warlockArcanumLevels = progression.WarlockArcanumLevels
             },
             alwaysPrepared = DiscordSpellService.GetBaseAlwaysPreparedSpellNames(character.ClassName, character.Level),
-            existingSpells = existingSpells.Select(s => new
-            {
-                name = s.SpellName, level = s.SpellLevel, prepared = s.Prepared, sourceTag = s.SourceTag
-            }),
             cantrips = available.Where(s => s.Level == 0).Select(MapSpell),
             spells = available.Where(s => s.Level > 0).Select(MapSpell)
         });
@@ -1935,4 +1882,3 @@ app.Run();
 public sealed record DiscordTokenRequest(string Code);
 public sealed record RespawnChoiceRequest(bool Respawn);
 public sealed record RespawnDonationRequest(int AmountGp);
-public sealed record LevelUpChoicesRequest(JsonElement Choices);
