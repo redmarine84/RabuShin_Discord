@@ -703,59 +703,6 @@ public sealed class DiscordSupabaseService
         var list = await ReadListAsync<DiscordLocalMapState>(response, "Unable to load Settlement/Encounter Map state");
         return list.FirstOrDefault();
     }
-    // RULES BUILD 6.5 - PLAYER-SPECIFIC SETTLEMENT LOCATION + SHOP PURCHASES
-    public async Task<DiscordSettlementLocationInfo?> GetPlayerSettlementLocationAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_player_settlement_location", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordSettlementLocationInfo>(response, "Unable to load personal settlement location");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<DiscordSettlementLocationInfo?> MovePlayerSettlementLocationAsync(
-        Guid playerId, Guid campaignId, string settlementKey, string poiKey, string poiName)
-    {
-        using var response = await CallRpcAsync("discord_set_player_settlement_location", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_settlement_key = settlementKey,
-            p_poi_key = poiKey,
-            p_poi_name = poiName
-        });
-        var rows = await ReadListAsync<DiscordSettlementLocationInfo>(response, "Unable to move to settlement location");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<DiscordSettlementShopPurchaseResult> BuySettlementShopItemAsync(
-        Guid playerId, Guid campaignId, string settlementKey, string poiKey,
-        SettlementShopItemDefinition item, int quantity, string shopName)
-    {
-        using var response = await CallRpcAsync("discord_buy_settlement_item", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_settlement_key = settlementKey,
-            p_poi_key = poiKey,
-            p_item_name = item.ItemName,
-            p_quantity = quantity,
-            p_unit_price_gp = item.PriceGp,
-            p_description = item.Description,
-            p_source_name = shopName,
-            p_notes = $"Purchased from {shopName}. Category: {item.Category}."
-        });
-
-        var json = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to purchase shop item: " + json);
-
-        return JsonSerializer.Deserialize<DiscordSettlementShopPurchaseResult>(json, JsonOptions)
-            ?? throw new InvalidOperationException("Supabase returned an invalid shop purchase result.");
-    }
-
     // VISUALS BUILD 4 - MONSTER COMBAT STATE
     public async Task<DiscordCombatStateRow?> GetCombatStateAsync(Guid playerId, Guid campaignId)
     {
@@ -1224,25 +1171,6 @@ public sealed class DiscordCharacterSetupState
     [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
     [JsonPropertyName("equipment_complete")] public bool EquipmentComplete { get; set; }
     [JsonPropertyName("spells_complete")] public bool SpellsComplete { get; set; }
-}
-
-public sealed class DiscordSettlementLocationInfo
-{
-    [JsonPropertyName("settlement_key")] public string SettlementKey { get; set; } = string.Empty;
-    [JsonPropertyName("poi_key")] public string PoiKey { get; set; } = string.Empty;
-    [JsonPropertyName("poi_name")] public string PoiName { get; set; } = string.Empty;
-    [JsonPropertyName("updated_at")] public DateTimeOffset UpdatedAt { get; set; }
-}
-
-public sealed class DiscordSettlementShopPurchaseResult
-{
-    [JsonPropertyName("success")] public bool Success { get; set; }
-    [JsonPropertyName("item_name")] public string ItemName { get; set; } = string.Empty;
-    [JsonPropertyName("quantity_purchased")] public int QuantityPurchased { get; set; }
-    [JsonPropertyName("quantity_carried")] public int QuantityCarried { get; set; }
-    [JsonPropertyName("unit_price_gp")] public int UnitPriceGp { get; set; }
-    [JsonPropertyName("total_price_gp")] public int TotalPriceGp { get; set; }
-    [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
 }
 
 public sealed class DiscordRestState

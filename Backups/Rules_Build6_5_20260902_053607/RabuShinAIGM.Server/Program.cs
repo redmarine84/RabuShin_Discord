@@ -1082,12 +1082,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/local-maps", async (
             return Results.NotFound(new { success = false, error = "Campaign could not be found." });
 
         var definition = LocalMapCatalog.FindByLocation(campaign.CurrentLocation);
-        var settlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
         var state = await service.GetLocalMapStateAsync(playerId, campaignId);
-        var viewerLocation = await service.GetPlayerSettlementLocationAsync(playerId, campaignId);
-        if (viewerLocation is not null && settlement is not null &&
-            !viewerLocation.SettlementKey.Equals(settlement.SettlementKey, StringComparison.OrdinalIgnoreCase))
-            viewerLocation = null;
 
         object? settlementMap = null;
         object? encounterMap = null;
@@ -1097,26 +1092,11 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/local-maps", async (
             settlementMap = new
             {
                 available = true,
-                interactive = settlement is not null,
                 locationKey = definition.LocationKey,
-                settlementKey = settlement?.SettlementKey ?? string.Empty,
                 name = $"{definition.LocationName} Settlement Map",
                 imageUrl = definition.SettlementImageUrl,
                 imageWidth = definition.SettlementImageWidth,
-                imageHeight = definition.SettlementImageHeight,
-                viewerPoiKey = viewerLocation?.PoiKey ?? string.Empty,
-                viewerPoiName = viewerLocation?.PoiName ?? string.Empty,
-                pois = settlement is null
-                    ? Array.Empty<object>()
-                    : settlement.Pois.Select(p => (object)new
-                    {
-                        poiKey = p.PoiKey,
-                        name = p.Name,
-                        kind = p.Kind,
-                        isShop = p.IsShop,
-                        shopKind = p.ShopKind ?? string.Empty,
-                        hotspots = p.Hotspots.Select(h => new { x = h.X, y = h.Y, width = h.Width, height = h.Height })
-                    }).ToArray()
+                imageHeight = definition.SettlementImageHeight
             };
 
             var encounterActive = state?.EncounterActive == true &&
@@ -1139,164 +1119,8 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/local-maps", async (
         {
             success = true,
             currentLocation = campaign.CurrentLocation,
-            personalLocation = viewerLocation is null ? null : new
-            {
-                settlementKey = viewerLocation.SettlementKey,
-                poiKey = viewerLocation.PoiKey,
-                poiName = viewerLocation.PoiName
-            },
             settlementMap,
             encounterMap
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/move", async (
-    Guid campaignId, SettlementMoveRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(playerId, campaignId);
-
-        var deathState = await service.GetDeathStateAsync(playerId, campaignId);
-        if (deathState?.ViewerIsDeadPlayer == true)
-            return Results.Conflict(new { success = false, error = "A dead character cannot travel around the settlement until death is resolved." });
-
-        var combat = await service.GetTacticalCombatStateAsync(playerId, campaignId);
-        if (combat?.Active == true)
-            return Results.Conflict(new { success = false, error = "Settlement-map movement is unavailable during active combat." });
-
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        var settlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
-        if (settlement is null)
-            return Results.BadRequest(new { success = false, error = "This campaign location does not have an interactive settlement map." });
-
-        var poi = settlement.Pois.FirstOrDefault(p => p.PoiKey.Equals((body.PoiKey ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase));
-        if (poi is null)
-            return Results.BadRequest(new { success = false, error = "That settlement location could not be found." });
-
-        var moved = await service.MovePlayerSettlementLocationAsync(playerId, campaignId, settlement.SettlementKey, poi.PoiKey, poi.Name);
-        return Results.Ok(new
-        {
-            success = true,
-            settlementKey = settlement.SettlementKey,
-            settlementName = settlement.SettlementName,
-            poiKey = moved?.PoiKey ?? poi.PoiKey,
-            poiName = moved?.PoiName ?? poi.Name,
-            kind = poi.Kind,
-            isShop = poi.IsShop,
-            shopKind = poi.ShopKind ?? string.Empty
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        var settlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
-        var location = await service.GetPlayerSettlementLocationAsync(playerId, campaignId);
-        if (settlement is null || location is null ||
-            !location.SettlementKey.Equals(settlement.SettlementKey, StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { success = false, error = "Move to a shop on the Settlement Map first." });
-
-        var poi = settlement.Pois.FirstOrDefault(p => p.PoiKey.Equals(location.PoiKey, StringComparison.OrdinalIgnoreCase));
-        if (poi is null || !poi.IsShop)
-            return Results.BadRequest(new { success = false, error = "Your character is not currently at a shop." });
-
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        if (character is null)
-            return Results.NotFound(new { success = false, error = "Character could not be found." });
-
-        var items = SettlementInteractionCatalog.GetShopItems(campaignId, settlement, poi);
-        return Results.Ok(new
-        {
-            success = true,
-            settlementName = settlement.SettlementName,
-            poiKey = poi.PoiKey,
-            shopName = poi.Name,
-            shopKind = poi.ShopKind ?? string.Empty,
-            gold = character.Gold,
-            items = items.Select(i => new
-            {
-                itemKey = i.ItemKey,
-                itemName = i.ItemName,
-                category = i.Category,
-                priceGp = i.PriceGp,
-                description = i.Description
-            })
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
-    Guid campaignId, SettlementShopPurchaseRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var quantity = Math.Clamp(body.Quantity, 1, 20);
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null)
-            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-
-        var settlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
-        var location = await service.GetPlayerSettlementLocationAsync(playerId, campaignId);
-        if (settlement is null || location is null ||
-            !location.SettlementKey.Equals(settlement.SettlementKey, StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { success = false, error = "Move to a shop on the Settlement Map first." });
-
-        var poi = settlement.Pois.FirstOrDefault(p => p.PoiKey.Equals(location.PoiKey, StringComparison.OrdinalIgnoreCase));
-        if (poi is null || !poi.IsShop)
-            return Results.BadRequest(new { success = false, error = "Your character is not currently at a shop." });
-
-        var items = SettlementInteractionCatalog.GetShopItems(campaignId, settlement, poi);
-        var item = items.FirstOrDefault(i => i.ItemKey.Equals((body.ItemKey ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase));
-        if (item is null)
-            return Results.BadRequest(new { success = false, error = "That item is not sold by this shop." });
-
-        var result = await service.BuySettlementShopItemAsync(
-            playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
-
-        return Results.Ok(new
-        {
-            success = result.Success,
-            shopName = poi.Name,
-            itemKey = item.ItemKey,
-            itemName = result.ItemName,
-            quantityPurchased = result.QuantityPurchased,
-            quantityCarried = result.QuantityCarried,
-            unitPriceGp = result.UnitPriceGp,
-            totalPriceGp = result.TotalPriceGp,
-            remainingGold = result.RemainingGold
         });
     }
     catch (Exception ex)
@@ -2097,15 +1921,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
             throw new OpenAiConfigurationException("No OpenAI API key is saved for your Discord account. Open Settings and use Test & Save API Key.");
 
         var apiKey = encryption.Decrypt(storedKey.EncryptedValue);
-        var settlementLocation = await service.GetPlayerSettlementLocationAsync(player, campaignId);
-        var gmPlayerMessage = body.Message;
-        var interactiveSettlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
-        if (settlementLocation is not null && interactiveSettlement is not null &&
-            settlementLocation.SettlementKey.Equals(interactiveSettlement.SettlementKey, StringComparison.OrdinalIgnoreCase))
-        {
-            gmPlayerMessage = $"[PERSONAL SETTLEMENT LOCATION: {character.CharacterName} is currently at {settlementLocation.PoiName} in {interactiveSettlement.SettlementName}. This location applies only to this character, not the entire party.]\n{body.Message}";
-        }
-        var turn = await ai.AskGameMasterAsync(user.Id, apiKey, campaign, character, history, gmPlayerMessage, inventory, spells);
+        var turn = await ai.AskGameMasterAsync(user.Id, apiKey, campaign, character, history, body.Message, inventory, spells);
         await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM", turn.Message);
 
         return Results.Ok(new
@@ -2173,5 +1989,3 @@ public sealed record RespawnChoiceRequest(bool Respawn);
 public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
-public sealed record SettlementMoveRequest(string PoiKey);
-public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);

@@ -1204,9 +1204,7 @@ function wireDeathOverlayActions(death) {
 }
 
 function timelineDisplayText(value) {
-  return String(value ?? '')
-    .replace(/^\[WORLD MAP TRAVEL REQUEST\]\s*/i, '')
-    .replace(/^\[SETTLEMENT MOVE\]\s*/i, '');
+  return String(value ?? '').replace(/^\[WORLD MAP TRAVEL REQUEST\]\s*/i, '');
 }
 function timelineHtml(messages, emptyText='No messages yet.') {
   if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
@@ -1640,16 +1638,11 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
   overlay.id='localMapOverlay';
   overlay.className='modal-overlay local-map-overlay';
   const reason=kind==='encounter'&&map.reason ? `<p class="muted">${escapeHtml(map.reason)}</p>` : '';
-  const interactive=kind==='settlement'&&map.interactive&&Array.isArray(map.pois)&&map.pois.length>0;
-  const viewerLocation=map.viewerPoiName ? `<p class="settlement-personal-location">Your location: <b>${escapeHtml(map.viewerPoiName)}</b></p>` : '<p class="settlement-personal-location muted">Your character has not selected a location in this settlement yet.</p>';
-  const hotspots=interactive ? map.pois.flatMap(poi=>(poi.hotspots||[]).map((hotspot,index)=>`<button type="button" class="settlement-poi-hotspot ${poi.isShop?'shop':''} ${map.viewerPoiKey===poi.poiKey?'current':''}" data-poi-key="${escapeHtml(poi.poiKey)}" data-hotspot-index="${index}" style="left:${Number(hotspot.x)||0}%;top:${Number(hotspot.y)||0}%;width:${Number(hotspot.width)||1}%;height:${Number(hotspot.height)||1}%;" title="${escapeHtml(poi.name)}${poi.isShop?' — Shop':''}" aria-label="Go to ${escapeHtml(poi.name)}">${map.viewerPoiKey===poi.poiKey?'<span class="settlement-current-pin">●</span>':''}</button>`)).join('') : '';
-  const instruction=interactive ? '<p class="settlement-map-instruction">Click any highlighted map location to move <b>your character only</b>. Merchant locations are marked with a shop symbol and open the Shop screen.</p>' : '';
   overlay.innerHTML=`<div class="local-map-modal">
     <div class="local-map-header">
-      <div><h2>${escapeHtml(map.name)}</h2><p>Settlement: <b>${escapeHtml(currentLocation||'Unknown')}</b></p>${kind==='settlement'?viewerLocation:''}${reason}</div>
+      <div><h2>${escapeHtml(map.name)}</h2><p>Current location: <b>${escapeHtml(currentLocation||'Unknown')}</b></p>${reason}</div>
       <button id="closeLocalMap" class="modal-close" aria-label="Close">×</button>
     </div>
-    ${instruction}
     <div class="local-map-toolbar">
       <button id="localMapZoomOut" class="button small">−</button>
       <span id="localMapZoomLabel">100%</span>
@@ -1657,18 +1650,16 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
       <button id="localMapFit" class="button small">Fit to Screen</button>
     </div>
     <div id="localMapViewport" class="local-map-viewport">
-      <div id="localMapStage" class="local-map-stage">
-        <img id="localMapImage" class="local-map-image" src="${escapeHtml(map.imageUrl)}" width="${Number(map.imageWidth)||''}" height="${Number(map.imageHeight)||''}" alt="${escapeHtml(map.name)}">
-        ${hotspots}
-      </div>
+      <img id="localMapImage" class="local-map-image" src="${escapeHtml(map.imageUrl)}" width="${Number(map.imageWidth)||''}" height="${Number(map.imageHeight)||''}" alt="${escapeHtml(map.name)}">
     </div>
   </div>`;
   document.body.appendChild(overlay);
-  const stage=overlay.querySelector('#localMapStage');
+  const image=overlay.querySelector('#localMapImage');
   const label=overlay.querySelector('#localMapZoomLabel');
   let zoom=1;
   const applyZoom=()=>{
-    stage.style.width=`${Math.round(zoom*100)}%`;
+    image.style.width=`${Math.round(zoom*100)}%`;
+    image.style.height='auto';
     label.textContent=`${Math.round(zoom*100)}%`;
   };
   overlay.querySelector('#localMapZoomOut').onclick=()=>{zoom=Math.max(.5,Math.round((zoom-.25)*100)/100);applyZoom();};
@@ -1676,148 +1667,8 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
   overlay.querySelector('#localMapFit').onclick=()=>{zoom=1;applyZoom();overlay.querySelector('#localMapViewport').scrollTo(0,0);};
   overlay.querySelector('#closeLocalMap').onclick=()=>overlay.remove();
   overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
-  overlay.querySelectorAll('.settlement-poi-hotspot').forEach(button=>button.onclick=async event=>{
-    event.stopPropagation();
-    await moveToSettlementPoi(button.dataset.poiKey,map,currentLocation,button);
-  });
   applyZoom();
 }
-
-function updateLiveGoldDisplay() {
-  if(!currentGameData?.character)return;
-  const header=document.querySelector('.quick-vitals span:nth-child(3) b');
-  if(header)header.textContent=currentGameData.character.gold;
-  document.querySelectorAll('[data-shop-gold]').forEach(node=>node.textContent=currentGameData.character.gold);
-}
-
-async function moveToSettlementPoi(poiKey,map,currentLocation,button) {
-  if(!poiKey||button?.disabled)return;
-  const poi=(map.pois||[]).find(entry=>entry.poiKey===poiKey);
-  if(!poi)return;
-  if(button)button.disabled=true;
-  try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/move`,{
-      method:'POST',
-      body:JSON.stringify({poiKey})
-    });
-    if(currentLocalMapData?.settlementMap) {
-      currentLocalMapData.settlementMap.viewerPoiKey=result.poiKey;
-      currentLocalMapData.settlementMap.viewerPoiName=result.poiName;
-    }
-    document.querySelector('#localMapOverlay')?.remove();
-    if(result.isShop) {
-      await openSettlementShop();
-      return;
-    }
-    showNotice(`${currentGameData?.character?.characterName||'Your character'} moved to ${result.poiName}.`);
-    await continueSettlementNarrative(result.poiName,currentLocation);
-  } catch(error) {
-    showNotice(error.message,true);
-    if(button)button.disabled=false;
-  }
-}
-
-async function continueSettlementNarrative(poiName,settlementName) {
-  const gmButton=document.querySelector('.game-tab[data-tab="gm"]');
-  switchGameTab('gm',gmButton);
-  const message=`[SETTLEMENT MOVE] I travel to ${poiName} in ${settlementName||currentGameData?.campaign?.currentLocation||'the settlement'} on my own. Only my character moves there. Continue the narrative for me at this location.`;
-  gmTurnDraft=message;
-  const input=document.querySelector('#gmInput');
-  if(!input)return;
-  input.value=message;
-  input.dispatchEvent(new Event('input',{bubbles:true}));
-  try {
-    const acquired=await acquireGmTurnForDraft();
-    if(acquired) {
-      updateGmTurnUi();
-      const send=document.querySelector('#sendGm');
-      if(send&&!send.disabled)send.click();
-      else showNotice(`You arrived at ${poiName}. Your travel action is ready in the AI Game Master box.`);
-    } else {
-      showNotice(`You arrived at ${poiName}. Your travel action is ready in the AI Game Master box.`);
-    }
-  } catch(error) {
-    console.warn('Automatic settlement narrative handoff failed:',error);
-    showNotice(`You arrived at ${poiName}. Continue from the AI Game Master tab.`);
-  }
-}
-
-async function openSettlementShop() {
-  try {
-    const shop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
-    renderSettlementShop(shop);
-  } catch(error) {
-    showNotice(error.message,true);
-  }
-}
-
-function renderSettlementShop(shop) {
-  document.querySelector('#settlementShopOverlay')?.remove();
-  document.querySelector('#localMapOverlay')?.remove();
-  const overlay=document.createElement('div');
-  overlay.id='settlementShopOverlay';
-  overlay.className='modal-overlay settlement-shop-overlay';
-  const groups=new Map();
-  (shop.items||[]).forEach(item=>{
-    const category=item.category||'Goods';
-    if(!groups.has(category))groups.set(category,[]);
-    groups.get(category).push(item);
-  });
-  const catalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${Number(item.priceGp)||0} GP</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
-  overlay.innerHTML=`<div class="settlement-shop-modal">
-    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Gold: <b data-shop-gold>${shop.gold??currentGameData?.character?.gold??0}</b> GP</p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
-    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Purchases go directly into this character's authoritative inventory.</span></div>
-    <div id="shopError" class="error"></div>
-    <div class="settlement-shop-catalog">${catalog||'<div class="empty">This merchant has nothing for sale right now.</div>'}</div>
-  </div>`;
-  document.body.appendChild(overlay);
-  if(currentGameData?.character&&shop.gold!==undefined) {
-    currentGameData.character.gold=shop.gold;
-    updateLiveGoldDisplay();
-  }
-  overlay.querySelector('#closeSettlementShop').onclick=()=>overlay.remove();
-  overlay.querySelector('#shopBackToMap').onclick=async()=>{overlay.remove();await openCampaignLocalMap('settlement');};
-  overlay.querySelector('#shopOpenInventory').onclick=()=>{
-    overlay.remove();
-    const tab=document.querySelector('.game-tab[data-tab="inventory"]');
-    switchGameTab('inventory',tab);
-  };
-  overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
-  overlay.querySelectorAll('.shop-buy-button').forEach(button=>button.onclick=()=>buySettlementShopItem(button,shop));
-}
-
-async function buySettlementShopItem(button,shop) {
-  if(!button||button.disabled)return;
-  const card=button.closest('.shop-item-card');
-  const quantity=Math.max(1,Math.min(20,Number(card?.querySelector('.shop-quantity')?.value)||1));
-  const errorBox=document.querySelector('#shopError');
-  if(errorBox)errorBox.textContent='';
-  button.disabled=true;
-  try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop/buy`,{
-      method:'POST',
-      body:JSON.stringify({itemKey:button.dataset.itemKey,quantity})
-    });
-    if(currentGameData?.character&&result.remainingGold!==undefined) {
-      currentGameData.character.gold=result.remainingGold;
-      updateLiveGoldDisplay();
-    }
-    try {
-      const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
-      currentGameData.inventory=inv.inventory||[];
-      if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
-      updateLiveGoldDisplay();
-    } catch(refreshError) {
-      console.warn('Inventory refresh after shop purchase failed:',refreshError);
-    }
-    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${result.totalPriceGp} GP.`);
-  } catch(error) {
-    if(errorBox)errorBox.textContent=error.message;
-  } finally {
-    button.disabled=false;
-  }
-}
-
 async function loadCombatState() {
   currentCombatData=await api(`/game-api/campaigns/${currentCampaignId}/combat`);
   return currentCombatData;
