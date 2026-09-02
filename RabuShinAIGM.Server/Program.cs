@@ -1231,6 +1231,29 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
             return Results.NotFound(new { success = false, error = "Character could not be found." });
 
         var items = SettlementInteractionCatalog.GetShopItems(campaignId, settlement, poi);
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var sellItems = inventory.Select(i =>
+        {
+            var offer = SettlementInteractionCatalog.GetSellOffer(poi, i.ItemName);
+            var reason = offer is null
+                ? "This merchant does not buy this item or it has no defined shop value."
+                : i.Equipped
+                    ? "Unequip this item before selling it."
+                    : string.Empty;
+            return new
+            {
+                inventoryItemId = i.InventoryItemId,
+                itemName = i.ItemName,
+                quantity = i.Quantity,
+                equipped = i.Equipped,
+                attuned = i.Attuned,
+                canSell = offer is not null && !i.Equipped && i.Quantity > 0,
+                category = offer?.Category ?? string.Empty,
+                unitPriceGp = offer?.UnitPriceGp ?? 0m,
+                reason
+            };
+        }).ToList();
+
         return Results.Ok(new
         {
             success = true,
@@ -1246,7 +1269,8 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
                 category = i.Category,
                 priceGp = i.PriceGp,
                 description = i.Description
-            })
+            }),
+            sellItems
         });
     }
     catch (Exception ex)
@@ -1304,6 +1328,66 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/sell", async (
+    Guid campaignId, SettlementShopSaleRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var campaigns = await service.GetCampaignsAsync(playerId);
+        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
+        if (campaign is null)
+            return Results.NotFound(new { success = false, error = "Campaign could not be found." });
+
+        var settlement = SettlementInteractionCatalog.FindByLocation(campaign.CurrentLocation);
+        var location = await service.GetPlayerSettlementLocationAsync(playerId, campaignId);
+        if (settlement is null || location is null ||
+            !location.SettlementKey.Equals(settlement.SettlementKey, StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest(new { success = false, error = "Move to a shop on the Settlement Map first." });
+
+        var poi = settlement.Pois.FirstOrDefault(p => p.PoiKey.Equals(location.PoiKey, StringComparison.OrdinalIgnoreCase));
+        if (poi is null || !poi.IsShop)
+            return Results.BadRequest(new { success = false, error = "Your character is not currently at a shop." });
+
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var item = inventory.FirstOrDefault(i => i.InventoryItemId == body.InventoryItemId);
+        if (item is null)
+            return Results.NotFound(new { success = false, error = "Inventory item could not be found." });
+        if (item.Equipped)
+            return Results.BadRequest(new { success = false, error = "Unequip this item before selling it." });
+        var quantity = body.Quantity;
+        if (quantity < 1 || quantity > item.Quantity)
+            return Results.BadRequest(new { success = false, error = $"Sell quantity must be between 1 and {item.Quantity}." });
+
+        var offer = SettlementInteractionCatalog.GetSellOffer(poi, item.ItemName);
+        if (offer is null)
+            return Results.BadRequest(new { success = false, error = "This merchant does not buy that item or it has no defined shop value." });
+
+        var result = await service.SellSettlementShopItemAsync(
+            playerId, campaignId, settlement.SettlementKey, poi.PoiKey,
+            item.InventoryItemId, item.ItemName, quantity, offer.UnitPriceGp, poi.Name);
+
+        return Results.Ok(new
+        {
+            success = result.Success,
+            shopName = poi.Name,
+            inventoryItemId = item.InventoryItemId,
+            itemName = result.ItemName,
+            quantitySold = result.QuantitySold,
+            quantityRemaining = result.QuantityRemaining,
+            unitPriceGp = result.UnitPriceGp,
+            totalPriceGp = result.TotalPriceGp,
+            remainingGold = result.RemainingGold
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
 app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -2175,3 +2259,4 @@ public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
 public sealed record SettlementMoveRequest(string PoiKey);
 public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);
+public sealed record SettlementShopSaleRequest(Guid InventoryItemId, int Quantity);

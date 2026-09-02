@@ -25,6 +25,11 @@ public sealed record SettlementShopItemDefinition(
     int PriceGp,
     string Description);
 
+public sealed record SettlementSellOffer(
+    string ItemName,
+    string Category,
+    decimal UnitPriceGp);
+
 public static class SettlementInteractionCatalog
 {
     private static SettlementHotspot H(double x,double y,double width,double height) => new(x,y,width,height);
@@ -280,6 +285,19 @@ public static class SettlementInteractionCatalog
         .Select(g => g.First())
         .ToList();
 
+    private static readonly IReadOnlyList<SettlementShopItemDefinition> AllKnownItems =
+        SmithyItems
+        .Concat(ApothecaryItems)
+        .Concat(AlchemyItems)
+        .Concat(GeneralItems)
+        .Concat(FletcherItems)
+        .Concat(FishMarketItems)
+        .Concat(CeramicsItems)
+        .Concat(EnchanterItems)
+        .GroupBy(i => Normalize(i.ItemName),StringComparer.OrdinalIgnoreCase)
+        .Select(g => g.OrderBy(i => i.PriceGp).First())
+        .ToList();
+
     private static SettlementShopItemDefinition I(string key,string name,string category,int price,string description)
         => new(key,name,category,price,description);
 
@@ -313,6 +331,40 @@ public static class SettlementInteractionCatalog
             _ => Array.Empty<SettlementShopItemDefinition>()
         };
     }
+
+    public static SettlementSellOffer? GetSellOffer(SettlementPoiDefinition poi, string? inventoryItemName)
+    {
+        var itemName=(inventoryItemName??string.Empty).Trim();
+        if(itemName.Length==0)return null;
+
+        var known=AllKnownItems.FirstOrDefault(i => Normalize(i.ItemName)==Normalize(itemName));
+        if(known is null)return null;
+
+        var kind=(poi.ShopKind??string.Empty).Trim().ToLowerInvariant();
+        var accepted=kind switch
+        {
+            "smithy" => SmithyItems.Any(i => SameItem(i,known)),
+            "arms" => ArmsItems.Any(i => SameItem(i,known)),
+            "apothecary" => ApothecaryItems.Any(i => SameItem(i,known)),
+            "alchemy" => AlchemyItems.Any(i => SameItem(i,known)),
+            "general" => GeneralItems.Any(i => SameItem(i,known)),
+            "fletcher" => FletcherItems.Any(i => SameItem(i,known)),
+            "fishmarket" => FishMarketItems.Any(i => SameItem(i,known)),
+            "ceramics" => CeramicsItems.Any(i => SameItem(i,known)),
+            "enchanter" => EnchanterItems.Any(i => SameItem(i,known)),
+            "market" => MarketPool.Any(i => SameItem(i,known)),
+            _ => false
+        };
+        if(!accepted)return null;
+
+        // Standard merchant resale: 50% of catalog price. Decimal GP preserves 5 sp values.
+        var resale=known.PriceGp/2m;
+        if(resale<=0)return null;
+        return new SettlementSellOffer(known.ItemName,known.Category,resale);
+    }
+
+    private static bool SameItem(SettlementShopItemDefinition left, SettlementShopItemDefinition right)
+        => Normalize(left.ItemName)==Normalize(right.ItemName);
 
     private static IReadOnlyList<SettlementShopItemDefinition> DeterministicMarket(Guid campaignId,string settlementKey,string poiKey)
     {

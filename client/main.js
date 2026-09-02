@@ -1751,30 +1751,61 @@ async function openSettlementShop() {
   }
 }
 
-function renderSettlementShop(shop) {
+function formatShopGp(value) {
+  const amount=Number(value)||0;
+  return Number.isInteger(amount)?String(amount):amount.toFixed(1).replace(/\.0$/,'');
+}
+
+function renderSettlementShop(shop,initialMode='buy') {
   document.querySelector('#settlementShopOverlay')?.remove();
   document.querySelector('#localMapOverlay')?.remove();
   const overlay=document.createElement('div');
   overlay.id='settlementShopOverlay';
   overlay.className='modal-overlay settlement-shop-overlay';
+
   const groups=new Map();
   (shop.items||[]).forEach(item=>{
     const category=item.category||'Goods';
     if(!groups.has(category))groups.set(category,[]);
     groups.get(category).push(item);
   });
-  const catalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${Number(item.priceGp)||0} GP</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
+  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${formatShopGp(item.priceGp)} GP</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
+
+  const sellItems=shop.sellItems||[];
+  const sellCatalog=sellItems.length?sellItems.map(item=>{
+    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' • ');
+    const sellControls=item.canSell
+      ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} GP each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${Math.max(1,Number(item.quantity)||1)}" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)} to sell"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
+      : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item.')}</div>`;
+    return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} • Carried: ${Number(item.quantity)||0}${status?` • ${escapeHtml(status)}`:''}</p></div>${sellControls}</article>`;
+  }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
+
   overlay.innerHTML=`<div class="settlement-shop-modal">
-    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Gold: <b data-shop-gold>${shop.gold??currentGameData?.character?.gold??0}</b> GP</p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
-    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Purchases go directly into this character's authoritative inventory.</span></div>
+    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Gold: <b data-shop-gold>${formatShopGp(shop.gold??currentGameData?.character?.gold??0)}</b> GP</p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
+    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Buying and selling update this character's authoritative inventory and GP.</span></div>
+    <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy" role="tab">Buy</button><button class="button shop-mode-button" data-shop-mode="sell" role="tab">Sell</button><span class="muted shop-resale-note">Merchants pay 50% of catalog value and only buy goods appropriate to their trade.</span></div>
     <div id="shopError" class="error"></div>
-    <div class="settlement-shop-catalog">${catalog||'<div class="empty">This merchant has nothing for sale right now.</div>'}</div>
+    <div id="shopBuyPane" class="settlement-shop-catalog shop-mode-pane">${buyCatalog||'<div class="empty">This merchant has nothing for sale right now.</div>'}</div>
+    <div id="shopSellPane" class="settlement-shop-catalog shop-mode-pane" hidden>${sellCatalog}</div>
   </div>`;
   document.body.appendChild(overlay);
   if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
     updateLiveGoldDisplay();
   }
+
+  const setMode=mode=>{
+    const normalized=mode==='sell'?'sell':'buy';
+    overlay.querySelector('#shopBuyPane').hidden=normalized!=='buy';
+    overlay.querySelector('#shopSellPane').hidden=normalized!=='sell';
+    overlay.querySelectorAll('.shop-mode-button').forEach(button=>{
+      button.classList.toggle('primary',button.dataset.shopMode===normalized);
+      button.setAttribute('aria-selected',button.dataset.shopMode===normalized?'true':'false');
+    });
+  };
+  overlay.querySelectorAll('.shop-mode-button').forEach(button=>button.onclick=()=>setMode(button.dataset.shopMode));
+  setMode(initialMode);
+
   overlay.querySelector('#closeSettlementShop').onclick=()=>overlay.remove();
   overlay.querySelector('#shopBackToMap').onclick=async()=>{overlay.remove();await openCampaignLocalMap('settlement');};
   overlay.querySelector('#shopOpenInventory').onclick=()=>{
@@ -1784,6 +1815,7 @@ function renderSettlementShop(shop) {
   };
   overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
   overlay.querySelectorAll('.shop-buy-button').forEach(button=>button.onclick=()=>buySettlementShopItem(button,shop));
+  overlay.querySelectorAll('.shop-sell-button').forEach(button=>button.onclick=()=>sellSettlementShopItem(button,shop));
 }
 
 async function buySettlementShopItem(button,shop) {
@@ -1810,7 +1842,52 @@ async function buySettlementShopItem(button,shop) {
     } catch(refreshError) {
       console.warn('Inventory refresh after shop purchase failed:',refreshError);
     }
-    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${result.totalPriceGp} GP.`);
+    try {
+      const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+      renderSettlementShop(freshShop,'buy');
+    } catch(shopRefreshError) {
+      console.warn('Shop refresh after purchase failed:',shopRefreshError);
+    }
+    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)} GP.`);
+  } catch(error) {
+    if(errorBox)errorBox.textContent=error.message;
+  } finally {
+    button.disabled=false;
+  }
+}
+
+async function sellSettlementShopItem(button,shop) {
+  if(!button||button.disabled)return;
+  const card=button.closest('.shop-sell-card');
+  const maxQuantity=Math.max(1,Number(card?.querySelector('.shop-sell-quantity')?.max)||1);
+  const quantity=Math.max(1,Math.min(maxQuantity,Number(card?.querySelector('.shop-sell-quantity')?.value)||1));
+  const errorBox=document.querySelector('#shopError');
+  if(errorBox)errorBox.textContent='';
+  button.disabled=true;
+  try {
+    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop/sell`,{
+      method:'POST',
+      body:JSON.stringify({inventoryItemId:button.dataset.inventoryItemId,quantity})
+    });
+    if(currentGameData?.character&&result.remainingGold!==undefined) {
+      currentGameData.character.gold=result.remainingGold;
+      updateLiveGoldDisplay();
+    }
+    try {
+      const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
+      currentGameData.inventory=inv.inventory||[];
+      if(inv.gold!==undefined)currentGameData.character.gold=inv.gold;
+      updateLiveGoldDisplay();
+    } catch(refreshError) {
+      console.warn('Inventory refresh after shop sale failed:',refreshError);
+    }
+    try {
+      const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+      renderSettlementShop(freshShop,'sell');
+    } catch(shopRefreshError) {
+      console.warn('Shop refresh after sale failed:',shopRefreshError);
+    }
+    showNotice(`Sold ${result.quantitySold} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)} GP.`);
   } catch(error) {
     if(errorBox)errorBox.textContent=error.message;
   } finally {

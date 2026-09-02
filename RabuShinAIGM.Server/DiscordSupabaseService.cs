@@ -756,6 +756,31 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException("Supabase returned an invalid shop purchase result.");
     }
 
+    public async Task<DiscordSettlementShopSaleResult> SellSettlementShopItemAsync(
+        Guid playerId, Guid campaignId, string settlementKey, string poiKey,
+        Guid inventoryItemId, string itemName, int quantity, decimal unitPriceGp, string shopName)
+    {
+        using var response = await CallRpcAsync("discord_sell_settlement_item", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_settlement_key = settlementKey,
+            p_poi_key = poiKey,
+            p_inventory_item_id = inventoryItemId,
+            p_item_name = itemName,
+            p_quantity = quantity,
+            p_unit_price_gp = unitPriceGp,
+            p_shop_name = shopName
+        });
+
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to sell shop item: " + json);
+
+        return JsonSerializer.Deserialize<DiscordSettlementShopSaleResult>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Supabase returned an invalid shop sale result.");
+    }
+
     // VISUALS BUILD 4 - MONSTER COMBAT STATE
     public async Task<DiscordCombatStateRow?> GetCombatStateAsync(Guid playerId, Guid campaignId)
     {
@@ -1242,6 +1267,17 @@ public sealed class DiscordSettlementShopPurchaseResult
     [JsonPropertyName("quantity_carried")] public int QuantityCarried { get; set; }
     [JsonPropertyName("unit_price_gp")] public int UnitPriceGp { get; set; }
     [JsonPropertyName("total_price_gp")] public int TotalPriceGp { get; set; }
+    [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
+}
+
+public sealed class DiscordSettlementShopSaleResult
+{
+    [JsonPropertyName("success")] public bool Success { get; set; }
+    [JsonPropertyName("item_name")] public string ItemName { get; set; } = string.Empty;
+    [JsonPropertyName("quantity_sold")] public int QuantitySold { get; set; }
+    [JsonPropertyName("quantity_remaining")] public int QuantityRemaining { get; set; }
+    [JsonPropertyName("unit_price_gp")] public decimal UnitPriceGp { get; set; }
+    [JsonPropertyName("total_price_gp")] public decimal TotalPriceGp { get; set; }
     [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
 }
 
