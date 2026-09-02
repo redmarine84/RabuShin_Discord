@@ -680,7 +680,7 @@ async function enterCampaign(campaignId, initialTab='gm') {
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>GP <b>${ch.gold}</b></span></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -1081,11 +1081,11 @@ function renderDeathOverlay(death) {
   let body='';
 
   if(viewerIsDeadPlayer&&status==='awaiting_choice') {
-    const gold=Math.max(0,Number(death.deadCharacterGold)||0);
+    const gold=Math.max(0,Math.floor(Number(death.deadCharacterGold)||0));
     body=`<div class="death-card dead-player-card">
       <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
       <p>Normal D&amp;D revival magic or a valid revival item can still return this character. You may also use the campaign Respawn system.</p>
-      <div class="death-price"><span>Respawn Price</span><b>10 GP</b><small>You currently have ${currencyPurseText(gold)}.</small></div>
+      <div class="death-price"><span>Respawn Price</span><b>10 GP</b><small>You currently have ${gold} GP.</small></div>
       <p>If you choose Respawn and cannot pay 10 GP yourself, the living party will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
       <div class="death-actions"><button id="deathRespawnYes" class="button primary">Yes — Respawn</button><button id="deathRespawnNo" class="button danger">No — Create New Character</button></div>
       <div id="deathActionError" class="error"></div>
@@ -1100,17 +1100,16 @@ function renderDeathOverlay(death) {
     } else if(death.viewerIsEligibleDonor) {
       const decision=String(death.viewerDecision||'').toLowerCase();
       const donatedByViewer=Math.max(0,Number(death.viewerDonatedGp)||0);
-      const viewerGold=Math.max(0,Number(death.viewerGold)||0);
-      const viewerWholeGp=Math.floor(viewerGold);
+      const viewerGold=Math.max(0,Math.floor(Number(death.viewerGold)||0));
       const remaining=Math.max(0,Number(death.remainingGp)||0);
-      const maxDonation=Math.max(0,Math.min(viewerWholeGp,remaining));
+      const maxDonation=Math.max(0,Math.min(viewerGold,remaining));
       let controls='';
       if(decision==='decline') {
         controls='<div class="death-decision-note">You declined this donation request.</div>';
       } else if(decision==='donate'||deathDonationMode) {
-        controls=`<div class="donation-controls"><label>Donation amount (purse: ${currencyPurseText(viewerGold)}; donations use whole GP)</label><div class="row gap"><input id="deathDonationAmount" class="input" type="number" min="1" max="${Math.max(1,maxDonation)}" value="${Math.max(1,Math.min(maxDonation||1,remaining||1))}" ${maxDonation<1?'disabled':''}><button id="deathDonateGp" class="button primary" ${maxDonation<1?'disabled':''}>Donate GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div>${donatedByViewer?`<small>You have already donated ${donatedByViewer} GP.</small>`:''}</div>`;
+        controls=`<div class="donation-controls"><label>Donation amount (you have ${viewerGold} GP)</label><div class="row gap"><input id="deathDonationAmount" class="input" type="number" min="1" max="${Math.max(1,maxDonation)}" value="${Math.max(1,Math.min(maxDonation||1,remaining||1))}" ${maxDonation<1?'disabled':''}><button id="deathDonateGp" class="button primary" ${maxDonation<1?'disabled':''}>Donate GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div>${donatedByViewer?`<small>You have already donated ${donatedByViewer} GP.</small>`:''}</div>`;
       } else {
-        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerWholeGp<1?'disabled':''}>Yes — Donate GP</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerWholeGp<1?'<small class="muted">Your purse does not contain a full 1 GP worth of currency available for this whole-GP donation.</small>':''}`;
+        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerGold<1?'disabled':''}>Yes — Donate GP</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerGold<1?'<small class="muted">Your character currently has no GP available to donate.</small>':''}`;
       }
       body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Party Member Needs Revival</h2>
         <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to revive them? <b>10 GP needed for revival.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
@@ -1187,7 +1186,7 @@ function wireDeathOverlayActions(death) {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:amount})});
     deathDonationMode=false;
     if(currentGameData?.character&&data.result?.remainingGold!==undefined)currentGameData.character.gold=data.result.remainingGold;
-    updateLiveGoldDisplay();
+    const gp=document.querySelector('.quick-vitals span:nth-child(3) b'); if(gp&&currentGameData?.character)gp.textContent=currentGameData.character.gold;
     showNotice(data.result?.outcome==='rag_respawn'?'Party Respawn could not be funded.':'Donation added to the Respawn fund.');
   });
 
@@ -1684,39 +1683,11 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
   applyZoom();
 }
 
-// RULES BUILD 6.6.1 - Multi-currency PP/GP/SP/CP wallet
-function currencyParts(goldValue) {
-  const totalCp=Math.max(0,Math.round((Number(goldValue)||0)*100));
-  const pp=Math.floor(totalCp/1000);
-  let remaining=totalCp-(pp*1000);
-  const gp=Math.floor(remaining/100);
-  remaining-=gp*100;
-  const sp=Math.floor(remaining/10);
-  const cp=remaining-(sp*10);
-  return {pp,gp,sp,cp,totalCp};
-}
-
-function currencyPurseText(goldValue) {
-  const c=currencyParts(goldValue);
-  return `${c.pp} PP • ${c.gp} GP • ${c.sp} SP • ${c.cp} CP`;
-}
-
-function formatCoinPrice(goldValue) {
-  const totalCp=Math.max(0,Math.round((Number(goldValue)||0)*100));
-  const gp=Math.floor(totalCp/100);
-  const sp=Math.floor((totalCp-(gp*100))/10);
-  const cp=totalCp-(gp*100)-(sp*10);
-  const parts=[];
-  if(gp)parts.push(`${gp} GP`);
-  if(sp)parts.push(`${sp} SP`);
-  if(cp)parts.push(`${cp} CP`);
-  return parts.length?parts.join(' '):'0 CP';
-}
-
 function updateLiveGoldDisplay() {
   if(!currentGameData?.character)return;
-  const purse=currencyPurseText(currentGameData.character.gold);
-  document.querySelectorAll('[data-live-self-currency],[data-shop-gold]').forEach(node=>node.textContent=purse);
+  const header=document.querySelector('.quick-vitals span:nth-child(3) b');
+  if(header)header.textContent=currentGameData.character.gold;
+  document.querySelectorAll('[data-shop-gold]').forEach(node=>node.textContent=currentGameData.character.gold);
 }
 
 async function moveToSettlementPoi(poiKey,map,currentLocation,button) {
@@ -1781,7 +1752,8 @@ async function openSettlementShop() {
 }
 
 function formatShopGp(value) {
-  return formatCoinPrice(value);
+  const amount=Number(value)||0;
+  return Number.isInteger(amount)?String(amount):amount.toFixed(1).replace(/\.0$/,'');
 }
 
 function renderSettlementShop(shop,initialMode='buy') {
@@ -1797,19 +1769,19 @@ function renderSettlementShop(shop,initialMode='buy') {
     if(!groups.has(category))groups.set(category,[]);
     groups.get(category).push(item);
   });
-  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${formatShopGp(item.priceGp)}</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
+  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>`<article class="shop-item-card" data-shop-item="${escapeHtml(item.itemKey)}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'')}</p></div><div class="shop-item-buy"><b>${formatShopGp(item.priceGp)} GP</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="20" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)}"></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}">Buy</button></div></article>`).join('')}</div></section>`).join('');
 
   const sellItems=shop.sellItems||[];
   const sellCatalog=sellItems.length?sellItems.map(item=>{
     const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' • ');
     const sellControls=item.canSell
-      ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${Math.max(1,Number(item.quantity)||1)}" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)} to sell"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
+      ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} GP each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${Math.max(1,Number(item.quantity)||1)}" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)} to sell"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
       : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item.')}</div>`;
     return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} • Carried: ${Number(item.quantity)||0}${status?` • ${escapeHtml(status)}`:''}</p></div>${sellControls}</article>`;
   }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
 
   overlay.innerHTML=`<div class="settlement-shop-modal">
-    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
+    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Gold: <b data-shop-gold>${formatShopGp(shop.gold??currentGameData?.character?.gold??0)}</b> GP</p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
     <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Buying and selling update this character's authoritative inventory and GP.</span></div>
     <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy" role="tab">Buy</button><button class="button shop-mode-button" data-shop-mode="sell" role="tab">Sell</button><span class="muted shop-resale-note">Merchants pay 50% of catalog value and only buy goods appropriate to their trade.</span></div>
     <div id="shopError" class="error"></div>
@@ -1876,7 +1848,7 @@ async function buySettlementShopItem(button,shop) {
     } catch(shopRefreshError) {
       console.warn('Shop refresh after purchase failed:',shopRefreshError);
     }
-    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)}.`);
+    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)} GP.`);
   } catch(error) {
     if(errorBox)errorBox.textContent=error.message;
   } finally {
@@ -1915,7 +1887,7 @@ async function sellSettlementShopItem(button,shop) {
     } catch(shopRefreshError) {
       console.warn('Shop refresh after sale failed:',shopRefreshError);
     }
-    showNotice(`Sold ${result.quantitySold} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)}.`);
+    showNotice(`Sold ${result.quantitySold} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)} GP.`);
   } catch(error) {
     if(errorBox)errorBox.textContent=error.message;
   } finally {
@@ -2610,7 +2582,6 @@ function renderCharacterTab(){
             <h2>${escapeHtml(c.characterName)}</h2>
             <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b data-live-self-hp>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
-            <div class="currency-purse-card"><span>Currency Purse</span><b data-live-self-currency>${currencyPurseText(c.gold)}</b><small>10 CP = 1 SP • 10 SP = 1 GP • 10 GP = 1 PP</small></div>
             <div id="experienceProgressHost" class="experience-progress-host">${experienceProgressHtml(currentProgression)}</div>
             <div id="restResourceHost" class="rest-resource-host">${restResourceHtml(lastRestState)}</div>
             <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
@@ -2655,7 +2626,7 @@ function renderInventoryTab() {
   const selected=items.find(i=>i.inventoryItemId===selectedInventoryId)||null;
 
   view.innerHTML=`
-    <div class="view-heading"><div><h3>Inventory</h3><p class="muted">Select an item to inspect it and see the actions it supports.</p></div><span class="inventory-currency" data-live-self-currency>${currencyPurseText(currentGameData.character.gold)}</span></div>
+    <div class="view-heading"><div><h3>Inventory</h3><p class="muted">Select an item to inspect it and see the actions it supports.</p></div><span>${currentGameData.character.gold} GP</span></div>
     <div class="inventory-layout">
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
