@@ -1789,7 +1789,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
         if (campaign is null)
             return Results.NotFound(new { success = false, error = "Campaign could not be found." });
 
-        var sender = character.CharacterName;
+        var sender = user.GlobalName ?? user.Username;
         await service.AddMessageAsync(player, campaignId, "gm", "user", sender, body.Message);
         var history = await service.GetMessagesAsync(player, campaignId, "gm", 100);
         var inventory = await service.GetInventoryAsync(player, campaignId);
