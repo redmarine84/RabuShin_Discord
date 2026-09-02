@@ -1636,13 +1636,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
         var initiative = tactical?.Active == true
             ? await service.GetCombatInitiativeAsync(player, campaignId)
             : new List<CombatInitiativeRow>();
-        // RULES BUILD 6.7.1 - INTERRUPTED COMBAT SETUP RECOVERY
-        var combatSetupPending = tactical?.Active == true &&
-            string.IsNullOrWhiteSpace(tactical.CurrentTurnType) &&
-            !tactical.CurrentTurnCharacterId.HasValue &&
-            !tactical.CurrentTurnMonsterId.HasValue &&
-            initiative.Count == 0;
-        var combatCanAct = tactical?.Active != true || combatSetupPending ||
+        var combatCanAct = tactical?.Active != true ||
             (tactical.ViewerCharacterId.HasValue &&
              tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
              tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId);
@@ -1860,15 +1854,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
         if (deathState?.ViewerIsDeadPlayer == true)
             return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before taking another Game Master action.", deadCharacter = true });
         var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
-        var setupInitiative = tactical?.Active == true && string.IsNullOrWhiteSpace(tactical.CurrentTurnType)
-            ? await service.GetCombatInitiativeAsync(player, campaignId)
-            : new List<CombatInitiativeRow>();
-        var combatSetupPending = tactical?.Active == true &&
-            string.IsNullOrWhiteSpace(tactical.CurrentTurnType) &&
-            !tactical.CurrentTurnCharacterId.HasValue &&
-            !tactical.CurrentTurnMonsterId.HasValue &&
-            setupInitiative.Count == 0;
-        if (tactical?.Active == true && !combatSetupPending &&
+        if (tactical?.Active == true &&
             !(tactical.ViewerCharacterId.HasValue &&
               tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
               tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId))
@@ -2163,15 +2149,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
             return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before taking another Game Master action.", deadCharacter = true });
 
         var combatAccess = await service.GetTacticalCombatStateAsync(player, campaignId);
-        var setupInitiative = combatAccess?.Active == true && string.IsNullOrWhiteSpace(combatAccess.CurrentTurnType)
-            ? await service.GetCombatInitiativeAsync(player, campaignId)
-            : new List<CombatInitiativeRow>();
-        var combatSetupPending = combatAccess?.Active == true &&
-            string.IsNullOrWhiteSpace(combatAccess.CurrentTurnType) &&
-            !combatAccess.CurrentTurnCharacterId.HasValue &&
-            !combatAccess.CurrentTurnMonsterId.HasValue &&
-            setupInitiative.Count == 0;
-        if (combatAccess?.Active == true && !combatSetupPending &&
+        if (combatAccess?.Active == true &&
             !(combatAccess.ViewerCharacterId.HasValue &&
               combatAccess.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
               combatAccess.CurrentTurnCharacterId == combatAccess.ViewerCharacterId))

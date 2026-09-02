@@ -1307,18 +1307,10 @@ function updateGmTurnUi() {
   const state=gmTurnState;
   const combat=gmCombatTurnState;
   const combatActive=!!combat?.active;
-  // RULES BUILD 6.7.1 - INTERRUPTED COMBAT SETUP RECOVERY
-  // Active combat with no current turn and no initiative is SETUP, not another player's turn.
-  const liveInitiative=(combat?.initiative||[]).filter(i=>!i.defeated);
-  const combatSetupPending=combatActive &&
-    !String(combat?.currentTurnType||'').trim() &&
-    !combat?.currentTurnCharacterId &&
-    !combat?.currentTurnMonsterId &&
-    liveInitiative.length===0;
-  const combatCanAct=!combatActive||combatSetupPending||!!combat?.canAct;
+  const combatCanAct=!combatActive||!!combat?.canAct;
   if(endTurn) {
-    endTurn.hidden=!combatActive||combatSetupPending;
-    endTurn.disabled=!combatActive||combatSetupPending||!combatCanAct||gmTurnSubmitting||!!state?.processing;
+    endTurn.hidden=!combatActive;
+    endTurn.disabled=!combatActive||!combatCanAct||gmTurnSubmitting||!!state?.processing;
   }
   if(resumeEnemy) {
     const enemyTurn=combatActive&&String(combat?.currentTurnType||'').toLowerCase()==='monster';
@@ -1390,14 +1382,6 @@ function updateGmTurnUi() {
     status.innerHTML=`<span><b>${escapeHtml(who)}</b> is typing</span><b class="gm-turn-countdown">00:${String(seconds).padStart(2,'0')}</b>`;
     input.disabled=true;
     send.disabled=true;
-    return;
-  }
-
-  if(combatSetupPending) {
-    status.classList.add('checking');
-    status.innerHTML='<span>Combat setup is incomplete. Continue with the AI Game Master to add/stage enemies and establish initiative.</span>';
-    input.disabled=gmTurnSubmitting;
-    send.disabled=!message||gmTurnSubmitting;
     return;
   }
 
