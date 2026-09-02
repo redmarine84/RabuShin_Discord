@@ -101,8 +101,7 @@ SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
 
 COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 - When actual combat begins, call start_combat exactly once, then add_combat_monster for EVERY enemy participating in the encounter. Keep returned display names stable (for example Wolf 1, Wolf 2).
-- BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server includes only player characters who are currently online in this campaign plus active hostile enemies; absent/offline party characters do not receive initiative rolls or tactical participation.
-- Never invent a turn, action, target, or tactical position for an offline party character. If a participating player disconnects, the server can skip that character while they are offline; if they reconnect during the same fight and already had an initiative entry, they may resume on a later round.
+- BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server rolls every character and monster initiative and persists the complete order.
 - Once strict initiative exists, NEVER choose or jump to another combatant manually. The current turn is the server's source of truth.
 - If initialize_combat_initiative makes an ENEMY the current combatant, immediately resolve that enemy's complete turn and then call advance_combat_turn. Continue resolving every consecutive enemy in initiative order until a player character's turn is reached or combat ends.
 - On a PLAYER CHARACTER turn, resolve only the player's declared actions. NEVER call advance_combat_turn for that player. Their turn ends only when that player presses the End Turn button.

@@ -702,26 +702,6 @@ public sealed class DiscordSupabaseService
         return JsonSerializer.Deserialize<TacticalMoveResult>(json, JsonOptions)
             ?? throw new InvalidOperationException("Supabase returned an invalid terrain-aware movement result.");
     }
-    // RULES BUILD 6.2.2 - CAMPAIGN PRESENCE / ONLINE INITIATIVE
-    public async Task TouchCampaignPresenceAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_touch_campaign_presence", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        await EnsureSuccessAsync(response, "Unable to update campaign presence");
-    }
-
-    public async Task SkipOfflineCurrentCombatTurnAsync(Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_gm_skip_offline_current_turn", new
-        {
-            p_campaign_id = campaignId
-        });
-        await EnsureSuccessAsync(response, "Unable to skip an offline combat turn");
-    }
-
     // COMBAT BUILD 6.1 - STRICT INITIATIVE / PLAYER END TURN
     public async Task<List<CombatInitiativeRow>> GetCombatInitiativeAsync(Guid playerId, Guid campaignId)
     {

@@ -570,8 +570,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(playerId, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var campaigns = await service.GetCampaignsAsync(playerId);
         var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
         if (campaign is null) return Results.NotFound(new { success = false, error = "Campaign could not be found." });
@@ -1137,8 +1135,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/chat", async (Guid campaignId,
     try
     {
         var user=await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString()); var player=await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player,campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var messages=await service.GetMessagesAsync(player,campaignId,"chat",150);
         return Results.Ok(new { success=true, messages=messages.Select(m=>new {messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt})});
     }
@@ -1150,7 +1146,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/chat", async (Guid campaignId
     try
     {
         var user=await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString()); var player=await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player,campaignId);
         var name=user.GlobalName??user.Username; var id=await service.AddMessageAsync(player,campaignId,"chat","user",name,body.Message);
         return Results.Ok(new {success=true,messageId=id});
     }
@@ -1246,8 +1241,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var messages = await service.GetMessagesAsync(player, campaignId, "gm", 150);
         var turnState = await service.GetGmTurnStateAsync(player, campaignId);
         var tactical = await service.GetTacticalCombatStateAsync(player, campaignId);
@@ -1323,8 +1316,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/death-state", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var death = await service.GetDeathStateAsync(player, campaignId);
         return Results.Ok(new { success = true, death });
     }
@@ -1466,8 +1457,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var deathState = await service.GetDeathStateAsync(player, campaignId);
         if (deathState?.ViewerIsDeadPlayer == true)
             return Results.Conflict(new { success = false, error = "Your character is dead. Resolve the Respawn screen before taking another Game Master action.", deadCharacter = true });
@@ -1527,8 +1516,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/end-turn", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var character = await service.GetCharacterAsync(player, campaignId);
         if (character is null)
             return Results.NotFound(new { success = false, error = "Character could not be found." });
@@ -1653,8 +1640,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/resume-enemy-turns", a
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
         var character = await service.GetCharacterAsync(player, campaignId);
         if (character is null)
             return Results.NotFound(new { success = false, error = "Character could not be found." });
@@ -1759,8 +1744,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
 
         var deathState = await service.GetDeathStateAsync(player, campaignId);
         if (deathState?.ViewerIsDeadPlayer == true)
