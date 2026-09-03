@@ -1584,6 +1584,27 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/eat-ration", async (
+    Guid campaignId, Guid inventoryItemId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var character = await service.GetCharacterAsync(playerId, campaignId);
+        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
+
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
+        if (item?.RationState is null)
+            return Results.NotFound(new { success = false, error = "Ration pack could not be found in this character's inventory." });
+
+        var result = await service.EatRationPortionAsync(playerId, campaignId, inventoryItemId);
+        return Results.Ok(result);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/drop", async (
     Guid campaignId, Guid inventoryItemId, InventoryQuantityRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -1623,6 +1644,8 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
         if (item is null) return Results.NotFound(new { success = false, error = "Inventory item could not be found." });
+        if (item.RationState is not null)
+            return Results.BadRequest(new { success = false, error = "Use the Ration Eat Portion button; the whole ration pack is not consumed." });
         if (item.WaterskinState is not null)
             return Results.BadRequest(new { success = false, error = "Use the Waterskin Drink button; the container itself is not consumed." });
 

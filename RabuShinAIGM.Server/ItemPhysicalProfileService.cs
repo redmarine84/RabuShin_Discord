@@ -20,7 +20,7 @@ public sealed record InventoryEncumbrance(
 
 public static class ItemPhysicalProfileService
 {
-    public const string PhysicalProfileVersion = "6.9";
+    public const string PhysicalProfileVersion = "6.10";
 
     private static readonly Dictionary<string, decimal> KnownWeights = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -55,6 +55,10 @@ public static class ItemPhysicalProfileService
 
     public static InventoryItemPhysicalProfile Classify(DiscordInventoryInfo item)
     {
+        if (item.RationState is { } ration)
+            return Make(RationMechanicsService.WeightLb(ration), RationMechanicsService.WeightLb(ration), 0m,
+                $"Build {RationMechanicsService.MechanicsVersion} ration portions");
+
         if (item.WaterskinState is { } waterskin)
             return Make(WaterskinMechanicsService.WeightLb(waterskin), 0m, 0m,
                 $"Build {WaterskinMechanicsService.MechanicsVersion} waterskin contents");
@@ -139,7 +143,7 @@ public static class ItemPhysicalProfileService
 
         if (ContainsAny(text, "potion", "salve", "poison", "elixir", "tonic")) return 0.5m;
         if (ContainsAny(text, "pelt", "hide", "fur")) return 2m;
-        if (text.Contains("ration") && text.Contains("5 day")) return 5m;
+        if (RationMechanicsService.TryGetDayCount(name, out var rationDays)) return rationDays;
         if (ContainsAny(text, "meat", "fish", "ration", "bread", "provisions")) return 1m;
         if (ContainsAny(text, "blood", "organ", "heart", "liver", "kidney")) return 0.5m;
         if (ContainsAny(text, "bone", "fang", "tooth", "claw", "scale", "stinger")) return 0.25m;
@@ -153,7 +157,7 @@ public static class ItemPhysicalProfileService
 
     private static decimal EstimateFoodLb(string name, string text)
     {
-        if (text.Contains("ration") && text.Contains("5 day")) return 5m;
+        if (RationMechanicsService.TryGetDayCount(name, out var rationDays)) return rationDays;
         if (text.Contains("ration")) return 1m;
         if (ContainsAny(text, "fresh fish", "fish fillet", "meat", "steak", "jerky", "dried meat", "bread", "provisions", "meal")) return 1m;
         if (ContainsAny(text, "berries", "fruit", "vegetables", "vegetable")) return 0.5m;

@@ -2847,7 +2847,7 @@ function renderInventoryTab() {
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
           <button class="inventory-list-item ${i.inventoryItemId===selectedInventoryId?'selected':''}" data-id="${i.inventoryItemId}">
-            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.waterskin?` • ${Math.max(0,Number(i.waterskin.drinksRemaining)||0)}/${Math.max(1,Number(i.waterskin.maximumDrinks)||30)} Drinks • ${escapeHtml(i.waterskin.waterQuality||'empty')}`:''}${i.equipped?' • Equipped':''}</small></span>
+            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.ration?` • ${Math.max(0,Number(i.ration.portionsRemaining)||0)}/${Math.max(1,Number(i.ration.maximumPortions)||3)} Portions`:''}${i.waterskin?` • ${Math.max(0,Number(i.waterskin.drinksRemaining)||0)}/${Math.max(1,Number(i.waterskin.maximumDrinks)||30)} Drinks • ${escapeHtml(i.waterskin.waterQuality||'empty')}`:''}${i.equipped?' • Equipped':''}</small></span>
             <strong>×${i.quantity}</strong>
           </button>`).join(''):'<div class="empty small">No inventory items.</div>'}
       </section>
@@ -2863,6 +2863,7 @@ function renderInventoryTab() {
   if(!selected)return;
   const equip=document.querySelector('#inventoryEquip');if(equip)equip.onclick=()=>toggleInventoryEquip(selected);
   const use=document.querySelector('#inventoryUse');if(use)use.onclick=()=>confirmUseInventoryItem(selected);
+  const eatRation=document.querySelector('#inventoryEatRation');if(eatRation)eatRation.onclick=()=>eatRationPortion(selected,eatRation);
   const drink=document.querySelector('#inventoryDrink');if(drink)drink.onclick=()=>drinkFromWaterskin(selected,drink);
   const fill=document.querySelector('#inventoryFillWaterskin');if(fill)fill.onclick=()=>prepareFillWaterskinAction(selected);
   const boil=document.querySelector('#inventoryBoilWaterskin');if(boil)boil.onclick=()=>prepareBoilWaterskinAction(selected);
@@ -2878,6 +2879,7 @@ function inventoryDetailHtml(item) {
     <div class="inventory-value-card"><div><small>RARITY</small><b>${escapeHtml(item.rarity||'Common')}</b></div><div><small>BASE VALUE</small><b>${valueText}</b></div><div><small>TYPICAL SHOP OFFER</small><b>${resaleText}</b></div></div>
     <div class="inventory-physical-card"><span><small>WEIGHT</small><b>${Math.max(0,Number(item.weightLb)||0).toFixed(2)} lb each</b></span>${Number(item.foodLb)>0?`<span><small>FOOD</small><b>${Number(item.foodLb).toFixed(2)} lb</b></span>`:''}${Number(item.waterGallons)>0?`<span><small>WATER</small><b>${Number(item.waterGallons).toFixed(2)} gal</b></span>`:''}</div>
     ${item.priceBand?`<p class="muted inventory-price-band">${escapeHtml(item.priceBand)}</p>`:''}
+    ${rationDetailHtml(item)}
     ${waterskinDetailHtml(item)}
     <div class="inventory-description">${escapeHtml(item.description||'No description is available for this item.').replaceAll('\n','<br>')}</div>
     ${item.rulesSummary?`<div class="inventory-rules"><b>Equipment Details</b><div>${escapeHtml(item.rulesSummary).replaceAll('\n','<br>')}</div></div>`:''}
@@ -2885,12 +2887,26 @@ function inventoryDetailHtml(item) {
     <div class="inventory-actions">
       ${item.canEquip?`<button id="inventoryEquip" class="button primary">${item.equipped?'Unequip':'Equip'}</button>`:''}
       ${item.canUse?'<button id="inventoryUse" class="button primary">Use</button>':''}
+      ${item.ration?`<button id="inventoryEatRation" class="button primary" ${item.ration.canEat?'':'disabled'}>Eat Portion</button>`:''}
       ${item.waterskin?`<button id="inventoryDrink" class="button primary" ${item.waterskin.canDrink?'':'disabled'}>Drink</button>`:''}
       ${item.waterskin?.canFill?'<button id="inventoryFillWaterskin" class="button">Fill at Water Source</button>':''}
       ${item.waterskin?.canBoil?'<button id="inventoryBoilWaterskin" class="button">Boil Water</button>':''}
       <button id="inventoryDrop" class="button danger-button">Drop</button>
     </div>
-    ${!item.canEquip&&!item.canUse&&!item.waterskin?'<p class="muted inventory-action-note">This item can be carried or dropped, but it is not wearable/wieldable equipment or a consumable.</p>':''}`;
+    ${!item.canEquip&&!item.canUse&&!item.ration&&!item.waterskin?'<p class="muted inventory-action-note">This item can be carried or dropped, but it is not wearable/wieldable equipment or a consumable.</p>':''}`;
+}
+
+function rationDetailHtml(item) {
+  const ration=item.ration;if(!ration)return '';
+  const max=Math.max(1,Number(ration.maximumPortions)||Math.max(1,(Number(ration.dayCount)||1)*3));
+  const portions=Math.max(0,Math.min(max,Number(ration.portionsRemaining)||0));
+  const days=Math.max(1,Number(ration.dayCount)||Math.ceil(max/3));
+  const restore=Math.max(0,Number(ration.hungerPercentPerPortion)||33);
+  return `<div class="ration-card">
+    <div class="ration-card-heading"><span><small>RATION PORTIONS</small><b>${portions} / ${max} Remaining</b></span><span class="ration-days">${days} ${days===1?'day':'days'}</span></div>
+    <div class="ration-meter" role="progressbar" aria-label="Ration portions remaining" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${portions}"><i style="width:${Math.round(portions/max*100)}%"></i></div>
+    <div class="ration-meta"><span><small>PORTIONS PER DAY</small><b>3</b></span><span><small>HUNGER PER PORTION</small><b>+${restore}%</b></span></div>
+  </div>`;
 }
 
 function waterskinDetailHtml(item) {
@@ -2921,6 +2937,21 @@ async function toggleInventoryEquip(item) {
     showNotice(data.message||`${item.itemName} updated.`);
     await refreshInventoryData();
   } catch(error){showNotice(error.message,true);}
+}
+
+async function eatRationPortion(item,button) {
+  if(!item.ration?.canEat)return;
+  const original=button.textContent;
+  button.disabled=true;button.textContent='Eating…';
+  try {
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory/${item.inventoryItemId}/eat-ration`,{method:'POST'});
+    showNotice(data.message||`Ate one portion of ${item.itemName}.`);
+    await refreshInventoryData();
+    await refreshSurvivalState();
+  } catch(error) {
+    showNotice(error.message,true);
+    button.disabled=false;button.textContent=original;
+  }
 }
 
 async function drinkFromWaterskin(item,button) {

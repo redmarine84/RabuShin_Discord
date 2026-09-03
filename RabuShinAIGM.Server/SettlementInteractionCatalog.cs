@@ -22,7 +22,7 @@ public sealed record SettlementShopItemDefinition(
     string ItemKey,
     string ItemName,
     string Category,
-    int PriceGp,
+    decimal PriceGp,
     string Description,
     string Rarity,
     string ValueClass);
@@ -229,7 +229,10 @@ public static class SettlementInteractionCatalog
         I("lantern","Hooded Lantern","Adventuring Gear",5,"A shuttered lantern for controlled light."),
         I("oil-flask","Flask of Oil","Adventuring Gear",1,"Lamp oil in a stoppered flask."),
         I("pitons","Pitons (10)","Adventuring Gear",1,"Ten iron spikes for climbing and securing lines."),
-        I("rations","Rations (5 days)","Food",3,"Five days of preserved travel food."),
+        I("ration-1-day","Ration (1 day)","Food",0.6m,"One day of preserved travel food divided into 3 portions."),
+        I("rations-3-days","Rations (3 days)","Food",1.8m,"Three days of preserved travel food divided into 9 portions."),
+        I("rations-5-days","Rations (5 days)","Food",3m,"Five days of preserved travel food divided into 15 portions."),
+        I("rations-7-days","Rations (7 days)","Food",4.2m,"Seven days of preserved travel food divided into 21 portions."),
         I("torch-bundle","Torches (10)","Adventuring Gear",1,"Ten simple wooden torches."),
         I("waterskin","Waterskin","Adventuring Gear",1,WaterskinMechanicsService.BasicDescription + " Purchased empty."),
         I("backpack","Backpack","Adventuring Gear",2,"A durable travel pack."),
@@ -253,7 +256,10 @@ public static class SettlementInteractionCatalog
     private static readonly IReadOnlyList<SettlementShopItemDefinition> FishMarketItems = new List<SettlementShopItemDefinition>
     {
         I("fresh-fish","Fresh Fish","Food",1,"A fresh local catch suitable for a meal."),
-        I("dried-fish-rations","Dried Fish Rations (5 days)","Food",3,"Five days of salted or smoked fish rations."),
+        I("dried-fish-ration-1-day","Dried Fish Ration (1 day)","Food",0.6m,"One day of salted or smoked fish rations divided into 3 portions."),
+        I("dried-fish-rations-3-days","Dried Fish Rations (3 days)","Food",1.8m,"Three days of salted or smoked fish rations divided into 9 portions."),
+        I("dried-fish-rations-5-days","Dried Fish Rations (5 days)","Food",3m,"Five days of salted or smoked fish rations divided into 15 portions."),
+        I("dried-fish-rations-7-days","Dried Fish Rations (7 days)","Food",4.2m,"Seven days of salted or smoked fish rations divided into 21 portions."),
         I("salted-eel","Salted Eel","Food",1,"Preserved eel wrapped for travel."),
         I("fish-oil","Fish Oil Flask","Trade Good",2,"Rendered fish oil used for lamps, leatherwork, or alchemical mixtures."),
         I("fishing-tackle","Fishing Tackle","Tool",1,"Hooks, line, sinkers, and simple fishing gear."),
@@ -311,7 +317,7 @@ public static class SettlementInteractionCatalog
         .Select(g => g.OrderBy(i => i.PriceGp).First())
         .ToList();
 
-    private static SettlementShopItemDefinition I(string key,string name,string category,int price,string description)
+    private static SettlementShopItemDefinition I(string key,string name,string category,decimal price,string description)
     {
         var rarity = category switch
         {

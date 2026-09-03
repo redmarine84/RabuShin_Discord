@@ -286,6 +286,13 @@ body.death-modal-open{overflow:hidden!important}
 @media(max-width:900px){.game-header{align-items:flex-start;flex-direction:column}.game-header-vitals{width:100%;min-width:0}.game-header-vitals .quick-vitals{justify-content:flex-start}.survival-meters{grid-template-columns:1fr 1fr}.survival-exhaustion{grid-column:1/-1}.encumbrance-line{grid-template-columns:1fr auto}.encumbrance-line>small{grid-column:1/-1;text-align:left}}
 @media(max-width:560px){.survival-meters{grid-template-columns:1fr}.survival-exhaustion{grid-column:auto}.survival-meter-label{grid-template-columns:auto auto}.survival-meter-label small{grid-column:1/-1;text-align:left}.encumbrance-line{grid-template-columns:1fr}.encumbrance-line>small{text-align:left}}
 
+/* RULES BUILD 6.10 - PERSISTENT RATION PORTIONS */
+.ration-card{margin:12px 0;padding:13px;border:1px solid rgba(181,145,78,.5);border-radius:8px;background:linear-gradient(145deg,rgba(96,70,31,.24),rgba(38,27,13,.36))}
+.ration-card-heading,.ration-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ration-card-heading span:first-child,.ration-meta span{display:flex;flex-direction:column;gap:3px}
+.ration-card small{font-size:.66rem;letter-spacing:.09em;color:var(--muted)}.ration-days{padding:3px 8px;border:1px solid rgba(214,183,112,.3);border-radius:999px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#d8c18c}
+.ration-meter{height:9px;margin:10px 0;border:1px solid rgba(181,145,78,.4);border-radius:999px;background:rgba(0,0,0,.32);overflow:hidden}.ration-meter i{display:block;height:100%;background:linear-gradient(90deg,#80652c,#d0ad57);border-radius:999px}
+.ration-meta{justify-content:flex-start;gap:24px}.ration-meta b{font-size:.78rem;color:#d8c18c}
+
 /* RULES BUILD 6.9 - PERSISTENT WATERSKINS */
 .waterskin-card{margin:12px 0;padding:13px;border:1px solid rgba(84,161,211,.42);border-radius:8px;background:linear-gradient(145deg,rgba(21,73,104,.22),rgba(7,25,38,.34))}
 .waterskin-card.tainted{border-color:rgba(184,111,65,.72);background:linear-gradient(145deg,rgba(92,51,26,.32),rgba(44,25,18,.38))}

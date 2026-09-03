@@ -491,12 +491,34 @@ public sealed class DiscordSupabaseService
 
     public async Task<List<DiscordInventoryInfo>> GetInventoryAsync(Guid playerId, Guid campaignId)
     {
+        List<DiscordRationState> rationStates = new();
+        try
+        {
+            // This RPC also splits any newly stacked ration packs into individual
+            // inventory rows while preserving the remaining portions on an existing pack.
+            rationStates = await GetRationStatesAsync(playerId, campaignId);
+        }
+        catch (Exception ex)
+        {
+            // Rolling-deployment fallback: ordinary inventory remains readable until
+            // migration 31 reaches Supabase.
+            Console.WriteLine($"Ration state hydration deferred: {ex.Message}");
+        }
+
         using var response = await CallRpcAsync("discord_get_inventory", new
         {
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
         var items = await ReadListAsync<DiscordInventoryInfo>(response, "Unable to load inventory");
+
+        if (rationStates.Count > 0)
+        {
+            var rationByInventoryId = rationStates.ToDictionary(state => state.InventoryItemId);
+            foreach (var item in items)
+                if (rationByInventoryId.TryGetValue(item.InventoryItemId, out var rationState))
+                    item.RationState = rationState;
+        }
 
         try
         {
@@ -540,6 +562,32 @@ public sealed class DiscordSupabaseService
         }
 
         return items;
+    }
+
+    private async Task<List<DiscordRationState>> GetRationStatesAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_ration_states", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadListAsync<DiscordRationState>(response, "Unable to load ration state");
+    }
+
+    public async Task<DiscordRationEatResult> EatRationPortionAsync(
+        Guid playerId, Guid campaignId, Guid inventoryItemId)
+    {
+        using var response = await CallRpcAsync("discord_eat_ration_portion", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_inventory_item_id = inventoryItemId
+        });
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to eat ration portion: " + json);
+        return JsonSerializer.Deserialize<DiscordRationEatResult>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Supabase returned an invalid ration result.");
     }
 
     private async Task<List<DiscordWaterskinState>> GetWaterskinStatesAsync(Guid playerId, Guid campaignId)
@@ -1400,8 +1448,8 @@ public sealed class DiscordSettlementShopPurchaseResult
     [JsonPropertyName("item_name")] public string ItemName { get; set; } = string.Empty;
     [JsonPropertyName("quantity_purchased")] public int QuantityPurchased { get; set; }
     [JsonPropertyName("quantity_carried")] public int QuantityCarried { get; set; }
-    [JsonPropertyName("unit_price_gp")] public int UnitPriceGp { get; set; }
-    [JsonPropertyName("total_price_gp")] public int TotalPriceGp { get; set; }
+    [JsonPropertyName("unit_price_gp")] public decimal UnitPriceGp { get; set; }
+    [JsonPropertyName("total_price_gp")] public decimal TotalPriceGp { get; set; }
     [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
 }
 
@@ -1512,7 +1560,32 @@ public sealed class DiscordInventoryInfo
     [JsonPropertyName("item_data")] public JsonElement ItemData { get; set; }
     [JsonIgnore] public InventoryItemValuation? Valuation { get; set; }
     [JsonIgnore] public InventoryItemPhysicalProfile? PhysicalProfile { get; set; }
+    [JsonIgnore] public DiscordRationState? RationState { get; set; }
     [JsonIgnore] public DiscordWaterskinState? WaterskinState { get; set; }
+}
+
+public sealed class DiscordRationState
+{
+    [JsonPropertyName("inventory_item_id")] public Guid InventoryItemId { get; set; }
+    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+    [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
+    [JsonPropertyName("day_count")] public int DayCount { get; set; }
+    [JsonPropertyName("portions_remaining")] public int PortionsRemaining { get; set; }
+    [JsonPropertyName("maximum_portions")] public int MaximumPortions { get; set; }
+}
+
+public sealed class DiscordRationEatResult
+{
+    [JsonPropertyName("success")] public bool Success { get; set; }
+    [JsonPropertyName("itemName")] public string ItemName { get; set; } = string.Empty;
+    [JsonPropertyName("dayCount")] public int DayCount { get; set; }
+    [JsonPropertyName("portionsRemaining")] public int PortionsRemaining { get; set; }
+    [JsonPropertyName("maximumPortions")] public int MaximumPortions { get; set; }
+    [JsonPropertyName("hungerPercentBefore")] public decimal HungerPercentBefore { get; set; }
+    [JsonPropertyName("hungerPercentAfter")] public decimal HungerPercentAfter { get; set; }
+    [JsonPropertyName("hungerPercentRestored")] public decimal HungerPercentRestored { get; set; }
+    [JsonPropertyName("packConsumed")] public bool PackConsumed { get; set; }
+    [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
 }
 
 public sealed class DiscordWaterskinState

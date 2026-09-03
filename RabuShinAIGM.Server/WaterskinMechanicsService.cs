@@ -46,7 +46,7 @@ public static class WaterskinMechanicsService
 
     public static JsonObject ToClientItem(DiscordInventoryInfo item)
     {
-        var baseline = InventoryPresentationService.ToClientItem(item);
+        var baseline = RationMechanicsService.ToClientItem(item);
         var result = JsonSerializer.SerializeToNode(baseline, WebJson) as JsonObject ?? new JsonObject();
         var state = item.WaterskinState;
         if (state is null) return result;
@@ -78,7 +78,7 @@ public static class WaterskinMechanicsService
 
     public static string BuildGameplaySummary(DiscordInventoryInfo item)
     {
-        var baseline = InventoryPresentationService.BuildGameplaySummary(item);
+        var baseline = RationMechanicsService.BuildGameplaySummary(item);
         var state = item.WaterskinState;
         if (state is null) return baseline;
         return $"{baseline}; inventoryItemId {item.InventoryItemId}; waterskin {state.Kind}; " +
