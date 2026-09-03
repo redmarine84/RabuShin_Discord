@@ -20,7 +20,7 @@ public sealed record InventoryEncumbrance(
 
 public static class ItemPhysicalProfileService
 {
-    public const string PhysicalProfileVersion = "6.11";
+    public const string PhysicalProfileVersion = "6.8";
 
     private static readonly Dictionary<string, decimal> KnownWeights = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -42,7 +42,7 @@ public static class ItemPhysicalProfileService
         ["Lantern"] = 2m, ["Bullseye Lantern"] = 2m, ["Hooded Lantern"] = 2m,
         ["Mess Kit"] = 1m, ["Piton"] = 0.25m, ["Pole"] = 7m, ["Rope"] = 10m,
         ["Silk Rope"] = 5m, ["Shovel"] = 5m, ["Tent"] = 20m, ["Tinderbox"] = 1m,
-        ["Torch"] = 1m, ["Waterskin"] = 1m, ["Magic Waterskin"] = 1m, ["Thieves' Tools"] = 1m,
+        ["Torch"] = 1m, ["Waterskin"] = 1m, ["Thieves' Tools"] = 1m,
         ["Smith's Tools"] = 8m, ["Blacksmithing Kit"] = 8m, ["Alchemist's Supplies"] = 8m,
         ["Herbalism Kit"] = 3m, ["Healer's Kit"] = 3m, ["Fishing Tackle"] = 4m,
         ["Potion of Healing"] = 0.5m, ["Greater Potion of Healing"] = 0.5m,
@@ -50,43 +50,11 @@ public static class ItemPhysicalProfileService
         ["Antitoxin"] = 0.5m, ["Basic Poison"] = 0.5m, ["Alchemist's Fire"] = 1m, ["Acid"] = 1m,
         ["Fresh Fish"] = 1m, ["Rations"] = 2m, ["Rations (1 Day)"] = 2m,
         ["Water (1 Gallon)"] = 8.34m, ["Water (1/2 Gallon)"] = 4.17m,
-        ["Full Waterskin"] = 5m, ["Waterskin (Full)"] = 5m,
-
-        // Build 6.11 - 2014 starting-equipment weights. Pack containers are not kept as placeholder rows;
-        // their expanded contents use these individual weights for the Build 6.8 encumbrance bar.
-        ["Arrow"] = 0.05m, ["Crossbow Bolt"] = 0.075m, ["Quiver"] = 1m, ["Wooden Shield"] = 6m,
-        ["Component Pouch"] = 2m, ["Arcane Focus"] = 1m, ["Druidic Focus"] = 1m, ["Holy Symbol"] = 1m, ["Spellbook"] = 3m,
-        ["Common Clothes"] = 3m, ["Dark Common Clothes with Hood"] = 3m, ["Fine Clothes"] = 6m, ["Traveler's Clothes"] = 4m, ["Costume"] = 4m,
-        ["Pouch"] = 1m, ["Purse"] = 1m, ["Chest"] = 25m, ["Map or Scroll Case"] = 1m, ["Bottle of Ink"] = 0m, ["Bottle of Black Ink"] = 0m,
-        ["Ink Pen"] = 0m, ["Quill"] = 0m, ["Lamp"] = 1m, ["Oil Flask"] = 1m, ["Paper"] = 0m, ["Parchment"] = 0m, ["Perfume Vial"] = 0m,
-        ["Sealing Wax"] = 0m, ["Soap"] = 0m, ["Ball Bearings (bag of 1,000)"] = 2m, ["String (10 feet)"] = 0m, ["Bell"] = 0m, ["Candle"] = 0m,
-        ["Hempen Rope (50 feet)"] = 10m, ["Silk Rope (50 feet)"] = 5m, ["Disguise Kit"] = 3m, ["Incense Stick"] = 0m, ["Incense Block"] = 0m,
-        ["Vestments"] = 4m, ["Winter Blanket"] = 3m, ["Alms Box"] = 1m, ["Censer"] = 1m, ["Book of Lore"] = 5m, ["Prayer Book"] = 5m,
-        ["Prayer Wheel"] = 1m, ["Bag of Sand"] = 1m, ["Small Knife"] = 1m, ["Signet Ring"] = 0.1m, ["Scroll of Pedigree"] = 0.1m,
-        ["Iron Pot"] = 10m, ["Hunting Trap"] = 25m, ["Belaying Pin (Club)"] = 2m, ["Staff"] = 4m, ["Scroll Case with Notes and Prayers"] = 1m,
-        ["Letter of Introduction"] = 0.1m, ["Letter from a Dead Colleague"] = 0.1m, ["Love Letter"] = 0.1m, ["Lock of Hair"] = 0m, ["Admirer's Trinket"] = 0.1m,
-        ["Trophy from an Animal"] = 1m, ["Trophy from a Fallen Enemy"] = 1m, ["Insignia of Rank"] = 0.1m, ["Lucky Charm"] = 0.1m,
-        ["Map of Home City"] = 0.1m, ["Pet Mouse"] = 0.5m, ["Token from Parents"] = 0.1m, ["Weighted Dice"] = 0m, ["Marked Playing Cards"] = 0m,
-        ["Bone Dice"] = 0m, ["Playing Cards"] = 0m, ["Signet Ring of an Imaginary Duke"] = 0.1m, ["Stoppered Bottle of Colored Liquid"] = 0.5m,
-
-        ["Brewer's Supplies"] = 9m, ["Calligrapher's Supplies"] = 5m, ["Carpenter's Tools"] = 6m,
-        ["Cartographer's Tools"] = 6m, ["Cobbler's Tools"] = 5m, ["Cook's Utensils"] = 8m, ["Glassblower's Tools"] = 5m,
-        ["Jeweler's Tools"] = 2m, ["Leatherworker's Tools"] = 5m, ["Mason's Tools"] = 8m, ["Painter's Supplies"] = 5m, ["Potter's Tools"] = 3m,
-        ["Tinker's Tools"] = 10m, ["Weaver's Tools"] = 5m, ["Woodcarver's Tools"] = 5m,
-        ["Bagpipes"] = 6m, ["Drum"] = 3m, ["Dulcimer"] = 10m, ["Flute"] = 1m, ["Horn"] = 2m, ["Lute"] = 2m, ["Lyre"] = 2m,
-        ["Pan Flute"] = 2m, ["Shawm"] = 1m, ["Viol"] = 1m
+        ["Full Waterskin"] = 5m, ["Waterskin (Full)"] = 5m
     };
 
     public static InventoryItemPhysicalProfile Classify(DiscordInventoryInfo item)
     {
-        if (item.RationState is { } ration)
-            return Make(RationMechanicsService.WeightLb(ration), RationMechanicsService.WeightLb(ration), 0m,
-                $"Build {RationMechanicsService.MechanicsVersion} ration portions");
-
-        if (item.WaterskinState is { } waterskin)
-            return Make(WaterskinMechanicsService.WeightLb(waterskin), 0m, 0m,
-                $"Build {WaterskinMechanicsService.MechanicsVersion} waterskin contents");
-
         if (TryReadPersisted(item.ItemData) is { } persisted) return persisted;
 
         var name = (item.ItemName ?? string.Empty).Trim();
@@ -167,7 +135,7 @@ public static class ItemPhysicalProfileService
 
         if (ContainsAny(text, "potion", "salve", "poison", "elixir", "tonic")) return 0.5m;
         if (ContainsAny(text, "pelt", "hide", "fur")) return 2m;
-        if (RationMechanicsService.TryGetDayCount(name, out var rationDays)) return rationDays;
+        if (text.Contains("ration") && text.Contains("5 day")) return 5m;
         if (ContainsAny(text, "meat", "fish", "ration", "bread", "provisions")) return 1m;
         if (ContainsAny(text, "blood", "organ", "heart", "liver", "kidney")) return 0.5m;
         if (ContainsAny(text, "bone", "fang", "tooth", "claw", "scale", "stinger")) return 0.25m;
@@ -181,7 +149,7 @@ public static class ItemPhysicalProfileService
 
     private static decimal EstimateFoodLb(string name, string text)
     {
-        if (RationMechanicsService.TryGetDayCount(name, out var rationDays)) return rationDays;
+        if (text.Contains("ration") && text.Contains("5 day")) return 5m;
         if (text.Contains("ration")) return 1m;
         if (ContainsAny(text, "fresh fish", "fish fillet", "meat", "steak", "jerky", "dried meat", "bread", "provisions", "meal")) return 1m;
         if (ContainsAny(text, "berries", "fruit", "vegetables", "vegetable")) return 0.5m;

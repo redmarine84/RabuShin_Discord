@@ -498,34 +498,22 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/starting-equipment", async (Gu
         var playerId = await service.GetOrCreatePlayerAsync(user);
         var character = await service.GetCharacterAsync(playerId, campaignId);
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
-
-        var classPlan = StartingEquipment2014Service.GetClassPlan(character.ClassName);
-        if (classPlan is null)
-            return Results.BadRequest(new { success = false, error = $"2014 starting equipment is not configured for the {character.ClassName} class." });
-
-        var backgroundPlan = StartingEquipment2014Service.GetBackgroundPlan(character.BackgroundName);
-        if (backgroundPlan is null)
-            return Results.BadRequest(new { success = false, error = $"2014 starting equipment is not configured for the {character.BackgroundName} background." });
-
-        var mappedBackground = !string.Equals(character.BackgroundName?.Trim(), backgroundPlan.RulesName, StringComparison.OrdinalIgnoreCase);
+        var classPackages = StartingEquipmentService.GetClassPackages(character.ClassName);
+        var backgroundPackages = StartingEquipmentService.GetBackgroundPackages(character.BackgroundName);
         return Results.Ok(new
         {
             success = true,
-            ruleset = StartingEquipment2014Service.RulesetVersion,
-            build = StartingEquipment2014Service.BuildVersion,
             className = character.ClassName,
             backgroundName = character.BackgroundName,
-            backgroundRulesName = backgroundPlan.RulesName,
-            compatibilityMapped = mappedBackground,
-            classEquipment = StartingEquipment2014Service.ToClientPlan(classPlan),
-            backgroundEquipment = StartingEquipment2014Service.ToClientPlan(backgroundPlan)
+            classPackages = classPackages.Select((p, i) => ProgramHelpers.MapEquipmentPackage(p, i)),
+            backgroundPackages = backgroundPackages.Select((p, i) => ProgramHelpers.MapEquipmentPackage(p, i))
         });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
 app.MapPost("/game-api/campaigns/{campaignId:guid}/starting-equipment", async (
-    Guid campaignId, JsonElement body, HttpRequest request, DiscordSupabaseService service) =>
+    Guid campaignId, StartingEquipmentSelectionRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
     try
     {
@@ -534,53 +522,29 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/starting-equipment", async (
         var character = await service.GetCharacterAsync(playerId, campaignId);
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
-        var classPlan = StartingEquipment2014Service.GetClassPlan(character.ClassName);
-        if (classPlan is null)
-            return Results.BadRequest(new { success = false, error = $"2014 starting equipment is not configured for the {character.ClassName} class." });
-        var backgroundPlan = StartingEquipment2014Service.GetBackgroundPlan(character.BackgroundName);
-        if (backgroundPlan is null)
-            return Results.BadRequest(new { success = false, error = $"2014 starting equipment is not configured for the {character.BackgroundName} background." });
+        var classPackages = StartingEquipmentService.GetClassPackages(character.ClassName);
+        var backgroundPackages = StartingEquipmentService.GetBackgroundPackages(character.BackgroundName);
+        if (body.ClassPackageIndex < 0 || body.ClassPackageIndex >= classPackages.Count)
+            return Results.BadRequest(new { success = false, error = "Invalid class equipment package." });
+        if (body.BackgroundPackageIndex < 0 || body.BackgroundPackageIndex >= backgroundPackages.Count)
+            return Results.BadRequest(new { success = false, error = "Invalid background equipment package." });
 
-        var classItems = StartingEquipment2014Service.ResolveSelections(classPlan, body, "classChoices");
-        var backgroundItems = StartingEquipment2014Service.ResolveSelections(backgroundPlan, body, "backgroundChoices");
+        var classPackage = classPackages[body.ClassPackageIndex];
+        var backgroundPackage = backgroundPackages[body.BackgroundPackageIndex];
+        var classChoice = ProgramHelpers.ResolveEquipmentChoice(classPackage, body.ClassChoice);
+        var backgroundChoice = ProgramHelpers.ResolveEquipmentChoice(backgroundPackage, body.BackgroundChoice);
         var items = new List<DiscordStartingInventoryItem>();
 
-        foreach (var entry in classItems)
-        {
-            var origin = string.IsNullOrWhiteSpace(entry.Origin) ? string.Empty : $"; {entry.Origin}";
-            items.Add(new DiscordStartingInventoryItem
-            {
-                ItemName = entry.ItemName,
-                Quantity = entry.Quantity,
-                Equipped = StartingEquipment2014Service.ShouldStartEquipped(entry.ItemName),
-                SourceName = "Class",
-                Notes = $"2014 {classPlan.RulesName} starting equipment{origin}"
-            });
-        }
-        foreach (var entry in backgroundItems)
-        {
-            var origin = string.IsNullOrWhiteSpace(entry.Origin) ? string.Empty : $"; {entry.Origin}";
-            items.Add(new DiscordStartingInventoryItem
-            {
-                ItemName = entry.ItemName,
-                Quantity = entry.Quantity,
-                Equipped = StartingEquipment2014Service.ShouldStartEquipped(entry.ItemName),
-                SourceName = "Background",
-                Notes = $"2014 {backgroundPlan.RulesName} background equipment{origin}"
-            });
-        }
+        foreach (var entry in StartingEquipmentService.ResolveItems(classPackage, classChoice))
+            items.Add(new DiscordStartingInventoryItem { ItemName = entry.ItemName, Quantity = entry.Quantity,
+                Equipped = StartingEquipmentService.ShouldStartEquipped(entry.ItemName), SourceName = "Class", Notes = "2024 class starting equipment" });
+        foreach (var entry in StartingEquipmentService.ResolveItems(backgroundPackage, backgroundChoice))
+            items.Add(new DiscordStartingInventoryItem { ItemName = entry.ItemName, Quantity = entry.Quantity,
+                Equipped = StartingEquipmentService.ShouldStartEquipped(entry.ItemName), SourceName = "Background", Notes = "2024 background starting equipment" });
 
-        var gold = classPlan.Gold + backgroundPlan.Gold;
+        var gold = classPackage.Gold + backgroundPackage.Gold;
         await service.SaveStartingEquipmentAsync(playerId, campaignId, gold, items);
-        return Results.Ok(new
-        {
-            success = true,
-            ruleset = StartingEquipment2014Service.RulesetVersion,
-            gold,
-            itemCount = items.Sum(i => i.Quantity),
-            className = classPlan.RulesName,
-            backgroundName = backgroundPlan.RulesName
-        });
+        return Results.Ok(new { success = true, gold, itemCount = items.Sum(i => i.Quantity) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
@@ -1620,27 +1584,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/eat-ration", async (
-    Guid campaignId, Guid inventoryItemId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
-
-        var inventory = await service.GetInventoryAsync(playerId, campaignId);
-        var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
-        if (item?.RationState is null)
-            return Results.NotFound(new { success = false, error = "Ration pack could not be found in this character's inventory." });
-
-        var result = await service.EatRationPortionAsync(playerId, campaignId, inventoryItemId);
-        return Results.Ok(result);
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/drop", async (
     Guid campaignId, Guid inventoryItemId, InventoryQuantityRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -1680,8 +1623,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
         if (item is null) return Results.NotFound(new { success = false, error = "Inventory item could not be found." });
-        if (item.RationState is not null)
-            return Results.BadRequest(new { success = false, error = "Use the Ration Eat Portion button; the whole ration pack is not consumed." });
         if (item.WaterskinState is not null)
             return Results.BadRequest(new { success = false, error = "Use the Waterskin Drink button; the container itself is not consumed." });
 

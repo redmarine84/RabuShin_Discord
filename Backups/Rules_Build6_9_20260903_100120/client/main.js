@@ -584,112 +584,30 @@ async function showCharacterCreator(campaignId) {
 
 async function showStartingEquipment(campaignId, character) {
   const main=document.querySelector('#mainContent');
-  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Starting Equipment</h2><p>${escapeHtml(character.characterName)} • ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="equipLoading" class="loading">Loading 2014 starting equipment...</div><div id="equipForm" hidden>
-    <div class="selection-summary"><b>2014 Starting Equipment</b><br>Choose each class equipment group below. Background equipment is added separately, and equipment packs are expanded into the actual items placed in your inventory.</div>
-    <div id="equipCompatibility"></div>
-    <div id="classEquipmentArea"></div>
-    <div id="backgroundEquipmentArea"></div>
+  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Starting Equipment</h2><p>${escapeHtml(character.characterName)} • ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="equipLoading" class="loading">Loading equipment...</div><div id="equipForm" hidden>
+    <h3>Class Equipment</h3><select id="classPack" class="input"></select><div id="classChoiceBox" hidden><label>Choose Item</label><select id="classChoice" class="input"></select></div>
+    <h3 class="subhead">Background Equipment</h3><select id="bgPack" class="input"></select><div id="bgChoiceBox" hidden><label>Choose Item</label><select id="bgChoice" class="input"></select></div>
     <h3 class="subhead">Starting Inventory Preview</h3><div id="equipPreview" class="item-list"></div><div class="gold-line">Starting Gold: <b id="equipGold">0 GP</b></div>
     <div id="equipError" class="error"></div><button id="saveEquip" class="button primary wide">Accept Starting Equipment</button></div></section></div>`;
-
   try {
     const data=await api(`/game-api/campaigns/${campaignId}/starting-equipment`);
-    const classPlan=data.classEquipment||{},backgroundPlan=data.backgroundEquipment||{};
-    const choiceState={classChoices:{},backgroundChoices:{}};
-
-    if(data.compatibilityMapped){
-      document.querySelector('#equipCompatibility').innerHTML=`<div class="equipment-compatibility"><b>${escapeHtml(data.backgroundName)}</b> uses the 2014 <b>${escapeHtml(data.backgroundRulesName)}</b> starting-equipment package for compatibility.</div>`;
-    }
-
-    const itemText=item=>`${escapeHtml(item.itemName)}${Number(item.quantity||1)>1?` × ${Number(item.quantity)}`:''}`;
-    const fixedList=items=>items?.length
-      ? `<div class="equipment-fixed-list">${items.map(item=>`<div class="equipment-fixed-item"><b>${itemText(item)}</b>${item.origin?`<small>${escapeHtml(item.origin)}</small>`:''}</div>`).join('')}</div>`
-      : '<div class="empty small">No automatic items in this section.</div>';
-
-    const renderSlots=(plan,prefix,group,option)=>{
-      const host=document.querySelector(`#${prefix}-slots-${group.key}`);if(!host)return;
-      const slots=option?.slots||[];
-      if(!slots.length){host.innerHTML='';return;}
-      host.innerHTML=slots.map(slot=>`<label class="equipment-slot-label">${escapeHtml(slot.label)}<select class="input equipment-slot-select" data-prefix="${prefix}" data-group="${escapeHtml(group.key)}" data-slot="${escapeHtml(slot.key)}">${(slot.options||[]).map(o=>`<option value="${escapeHtml(o.key)}">${escapeHtml(o.label)}</option>`).join('')}</select></label>`).join('');
-      host.querySelectorAll('.equipment-slot-select').forEach(select=>{select.onchange=()=>{syncState(plan,prefix);renderPreview();};});
+    const cp=document.querySelector('#classPack'),bp=document.querySelector('#bgPack');
+    cp.innerHTML=data.classPackages.map(p=>`<option value="${p.index}">${escapeHtml(p.label)}</option>`).join('');
+    bp.innerHTML=data.backgroundPackages.map(p=>`<option value="${p.index}">${escapeHtml(p.label)}</option>`).join('');
+    const selected=(arr,el)=>arr.find(p=>p.index===Number(el.value))||arr[0];
+    const configure=(pkg,boxId,selectId)=>{const box=document.querySelector(boxId),sel=document.querySelector(selectId);if(pkg?.choiceOptions?.length){sel.innerHTML=pkg.choiceOptions.map(v=>`<option>${escapeHtml(v)}</option>`).join('');box.hidden=false;}else{sel.innerHTML='';box.hidden=true;}};
+    const preview=()=>{
+      const c=selected(data.classPackages,cp),b=selected(data.backgroundPackages,bp);configure(c,'#classChoiceBox','#classChoice');configure(b,'#bgChoiceBox','#bgChoice');
+      const rows=[]; const add=(pkg,choice,source)=>{for(const i of pkg?.items||[])rows.push({source,name:i.choiceKind&&choice?choice:i.itemName,qty:i.quantity});};
+      add(c,document.querySelector('#classChoice').value,'Class');add(b,document.querySelector('#bgChoice').value,'Background');
+      document.querySelector('#equipPreview').innerHTML=rows.length?rows.map(r=>`<div class="list-row"><span class="muted">${r.source}</span><b>${escapeHtml(r.name)}</b><span>× ${r.qty}</span></div>`).join(''):'<div class="empty small">This selection grants gold only.</div>';
+      document.querySelector('#equipGold').textContent=`${Number(c?.gold||0)+Number(b?.gold||0)} GP`;
     };
-
-    const selectedOption=(group,select)=>group?.options?.find(o=>o.key===select?.value)||group?.options?.[0]||null;
-
-    const syncState=(plan,prefix)=>{
-      const target=choiceState[prefix==='class'?'classChoices':'backgroundChoices'];
-      for(const group of plan.choiceGroups||[]){
-        const select=document.querySelector(`#${prefix}-choice-${group.key}`);
-        const option=selectedOption(group,select);
-        if(!option)continue;
-        const slots={};
-        for(const slot of option.slots||[]){
-          const slotSelect=document.querySelector(`.equipment-slot-select[data-prefix="${prefix}"][data-group="${group.key}"][data-slot="${slot.key}"]`);
-          slots[slot.key]=slotSelect?.value||slot.options?.[0]?.key||'';
-        }
-        target[group.key]={optionKey:option.key,slots};
-      }
-    };
-
-    const renderPlan=(plan,prefix,title)=>{
-      const host=document.querySelector(`#${prefix}EquipmentArea`);
-      host.innerHTML=`<div class="equipment-plan"><div class="equipment-plan-heading"><div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(plan.rulesName||'')}</p></div>${Number(plan.gold||0)>0?`<span class="equipment-gold-badge">+${Number(plan.gold)} GP</span>`:''}</div>
-        <h4>Automatically Received</h4>${fixedList(plan.fixedItems||[])}
-        ${(plan.choiceGroups||[]).length?`<h4 class="equipment-choice-heading">Choose Equipment</h4><div class="equipment-choice-list">${(plan.choiceGroups||[]).map(group=>`<div class="equipment-choice-group"><label>${escapeHtml(group.label)}<select id="${prefix}-choice-${escapeHtml(group.key)}" class="input equipment-choice-select">${(group.options||[]).map(option=>`<option value="${escapeHtml(option.key)}">${escapeHtml(option.label)}</option>`).join('')}</select></label><div id="${prefix}-slots-${escapeHtml(group.key)}" class="equipment-slot-area"></div></div>`).join('')}</div>`:''}</div>`;
-
-      for(const group of plan.choiceGroups||[]){
-        const select=document.querySelector(`#${prefix}-choice-${group.key}`);
-        const update=()=>{const option=selectedOption(group,select);renderSlots(plan,prefix,group,option);syncState(plan,prefix);renderPreview();};
-        select.onchange=update;update();
-      }
-      syncState(plan,prefix);
-    };
-
-    const itemsForPlan=(plan,prefix)=>{
-      const result=[...(plan.fixedItems||[])];
-      const state=choiceState[prefix==='class'?'classChoices':'backgroundChoices'];
-      for(const group of plan.choiceGroups||[]){
-        const chosen=state[group.key];if(!chosen)continue;
-        const option=(group.options||[]).find(o=>o.key===chosen.optionKey);if(!option)continue;
-        result.push(...(option.items||[]));
-        for(const slot of option.slots||[]){
-          const key=chosen.slots?.[slot.key];
-          const selected=(slot.options||[]).find(o=>o.key===key);
-          if(selected)result.push(...(selected.items||[]));
-        }
-      }
-      return result;
-    };
-
-    const renderPreview=()=>{
-      syncState(classPlan,'class');syncState(backgroundPlan,'background');
-      const rows=[];
-      for(const item of itemsForPlan(classPlan,'class'))rows.push({source:'Class',...item});
-      for(const item of itemsForPlan(backgroundPlan,'background'))rows.push({source:'Background',...item});
-      const merged=new Map();
-      for(const row of rows){
-        const key=`${row.source}\u001f${String(row.origin||'')}\u001f${String(row.itemName||'')}`.toLowerCase();
-        const current=merged.get(key);if(current)current.quantity+=Number(row.quantity||1);else merged.set(key,{...row,quantity:Number(row.quantity||1)});
-      }
-      const display=[...merged.values()];
-      document.querySelector('#equipPreview').innerHTML=display.length?display.map(r=>`<div class="list-row equipment-preview-row"><span class="muted">${escapeHtml(r.source)}${r.origin?`<small>${escapeHtml(r.origin)}</small>`:''}</span><b>${escapeHtml(r.itemName)}</b><span>× ${Number(r.quantity||1)}</span></div>`).join(''):'<div class="empty small">This selection grants gold only.</div>';
-      document.querySelector('#equipGold').textContent=`${Number(classPlan.gold||0)+Number(backgroundPlan.gold||0)} GP`;
-    };
-
-    renderPlan(classPlan,'class','Class Equipment');
-    renderPlan(backgroundPlan,'background','Background Equipment');
-    renderPreview();
-    document.querySelector('#equipLoading').hidden=true;document.querySelector('#equipForm').hidden=false;
-
+    cp.onchange=preview;bp.onchange=preview;document.querySelector('#classChoice').onchange=preview;document.querySelector('#bgChoice').onchange=preview;
+    document.querySelector('#equipLoading').hidden=true;document.querySelector('#equipForm').hidden=false;preview();
     document.querySelector('#saveEquip').onclick=async()=>{
-      const btn=document.querySelector('#saveEquip');btn.disabled=true;btn.textContent='Saving...';document.querySelector('#equipError').textContent='';
-      try{
-        syncState(classPlan,'class');syncState(backgroundPlan,'background');
-        await api(`/game-api/campaigns/${campaignId}/starting-equipment`,{method:'POST',body:JSON.stringify(choiceState)});
-        showNotice('2014 starting equipment saved.');
-        const ch=(await api(`/game-api/campaigns/${campaignId}/character`)).character;
-        await continueCharacterSetup(campaignId,ch);
-      }catch(error){document.querySelector('#equipError').textContent=error.message;btn.disabled=false;btn.textContent='Accept Starting Equipment';}
+      const c=selected(data.classPackages,cp),b=selected(data.backgroundPackages,bp),btn=document.querySelector('#saveEquip');btn.disabled=true;btn.textContent='Saving...';
+      try{await api(`/game-api/campaigns/${campaignId}/starting-equipment`,{method:'POST',body:JSON.stringify({classPackageIndex:c.index,classChoice:document.querySelector('#classChoice').value||'',backgroundPackageIndex:b.index,backgroundChoice:document.querySelector('#bgChoice').value||''})});showNotice('Starting equipment saved.');const ch=(await api(`/game-api/campaigns/${campaignId}/character`)).character;await continueCharacterSetup(campaignId,ch);}catch(error){document.querySelector('#equipError').textContent=error.message;btn.disabled=false;btn.textContent='Accept Starting Equipment';}
     };
   }catch(error){document.querySelector('#equipLoading').textContent='Unable to load starting equipment.';showNotice(error.message,true);}
 }
@@ -2929,7 +2847,7 @@ function renderInventoryTab() {
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
           <button class="inventory-list-item ${i.inventoryItemId===selectedInventoryId?'selected':''}" data-id="${i.inventoryItemId}">
-            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.ration?` • ${Math.max(0,Number(i.ration.portionsRemaining)||0)}/${Math.max(1,Number(i.ration.maximumPortions)||3)} Portions`:''}${i.waterskin?` • ${Math.max(0,Number(i.waterskin.drinksRemaining)||0)}/${Math.max(1,Number(i.waterskin.maximumDrinks)||30)} Drinks • ${escapeHtml(i.waterskin.waterQuality||'empty')}`:''}${i.equipped?' • Equipped':''}</small></span>
+            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.equipped?' • Equipped':''}</small></span>
             <strong>×${i.quantity}</strong>
           </button>`).join(''):'<div class="empty small">No inventory items.</div>'}
       </section>
@@ -2945,10 +2863,6 @@ function renderInventoryTab() {
   if(!selected)return;
   const equip=document.querySelector('#inventoryEquip');if(equip)equip.onclick=()=>toggleInventoryEquip(selected);
   const use=document.querySelector('#inventoryUse');if(use)use.onclick=()=>confirmUseInventoryItem(selected);
-  const eatRation=document.querySelector('#inventoryEatRation');if(eatRation)eatRation.onclick=()=>eatRationPortion(selected,eatRation);
-  const drink=document.querySelector('#inventoryDrink');if(drink)drink.onclick=()=>drinkFromWaterskin(selected,drink);
-  const fill=document.querySelector('#inventoryFillWaterskin');if(fill)fill.onclick=()=>prepareFillWaterskinAction(selected);
-  const boil=document.querySelector('#inventoryBoilWaterskin');if(boil)boil.onclick=()=>prepareBoilWaterskinAction(selected);
   const drop=document.querySelector('#inventoryDrop');if(drop)drop.onclick=()=>showDropInventoryDialog(selected);
 }
 
@@ -2961,50 +2875,15 @@ function inventoryDetailHtml(item) {
     <div class="inventory-value-card"><div><small>RARITY</small><b>${escapeHtml(item.rarity||'Common')}</b></div><div><small>BASE VALUE</small><b>${valueText}</b></div><div><small>TYPICAL SHOP OFFER</small><b>${resaleText}</b></div></div>
     <div class="inventory-physical-card"><span><small>WEIGHT</small><b>${Math.max(0,Number(item.weightLb)||0).toFixed(2)} lb each</b></span>${Number(item.foodLb)>0?`<span><small>FOOD</small><b>${Number(item.foodLb).toFixed(2)} lb</b></span>`:''}${Number(item.waterGallons)>0?`<span><small>WATER</small><b>${Number(item.waterGallons).toFixed(2)} gal</b></span>`:''}</div>
     ${item.priceBand?`<p class="muted inventory-price-band">${escapeHtml(item.priceBand)}</p>`:''}
-    ${rationDetailHtml(item)}
-    ${waterskinDetailHtml(item)}
     <div class="inventory-description">${escapeHtml(item.description||'No description is available for this item.').replaceAll('\n','<br>')}</div>
     ${item.rulesSummary?`<div class="inventory-rules"><b>Equipment Details</b><div>${escapeHtml(item.rulesSummary).replaceAll('\n','<br>')}</div></div>`:''}
     ${item.notes?`<div class="inventory-notes"><b>Notes:</b> ${escapeHtml(item.notes)}</div>`:''}
     <div class="inventory-actions">
       ${item.canEquip?`<button id="inventoryEquip" class="button primary">${item.equipped?'Unequip':'Equip'}</button>`:''}
       ${item.canUse?'<button id="inventoryUse" class="button primary">Use</button>':''}
-      ${item.ration?`<button id="inventoryEatRation" class="button primary" ${item.ration.canEat?'':'disabled'}>Eat Portion</button>`:''}
-      ${item.waterskin?`<button id="inventoryDrink" class="button primary" ${item.waterskin.canDrink?'':'disabled'}>Drink</button>`:''}
-      ${item.waterskin?.canFill?'<button id="inventoryFillWaterskin" class="button">Fill at Water Source</button>':''}
-      ${item.waterskin?.canBoil?'<button id="inventoryBoilWaterskin" class="button">Boil Water</button>':''}
       <button id="inventoryDrop" class="button danger-button">Drop</button>
     </div>
-    ${!item.canEquip&&!item.canUse&&!item.ration&&!item.waterskin?'<p class="muted inventory-action-note">This item can be carried or dropped, but it is not wearable/wieldable equipment or a consumable.</p>':''}`;
-}
-
-function rationDetailHtml(item) {
-  const ration=item.ration;if(!ration)return '';
-  const max=Math.max(1,Number(ration.maximumPortions)||Math.max(1,(Number(ration.dayCount)||1)*3));
-  const portions=Math.max(0,Math.min(max,Number(ration.portionsRemaining)||0));
-  const days=Math.max(1,Number(ration.dayCount)||Math.ceil(max/3));
-  const restore=Math.max(0,Number(ration.hungerPercentPerPortion)||33);
-  return `<div class="ration-card">
-    <div class="ration-card-heading"><span><small>RATION PORTIONS</small><b>${portions} / ${max} Remaining</b></span><span class="ration-days">${days} ${days===1?'day':'days'}</span></div>
-    <div class="ration-meter" role="progressbar" aria-label="Ration portions remaining" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${portions}"><i style="width:${Math.round(portions/max*100)}%"></i></div>
-    <div class="ration-meta"><span><small>PORTIONS PER DAY</small><b>3</b></span><span><small>HUNGER PER PORTION</small><b>+${restore}%</b></span></div>
-  </div>`;
-}
-
-function waterskinDetailHtml(item) {
-  const skin=item.waterskin;if(!skin)return '';
-  const drinks=Math.max(0,Math.min(Number(skin.maximumDrinks)||30,Number(skin.drinksRemaining)||0));
-  const max=Math.max(1,Number(skin.maximumDrinks)||30);
-  const quality=String(skin.waterQuality||'empty').toLowerCase();
-  const label=quality==='tainted'?'Tainted':quality==='clean'?'Clean':'Empty';
-  const source=skin.sourceName?`<span><small>SOURCE</small><b>${escapeHtml(skin.sourceName)}</b></span>`:'';
-  return `<div class="waterskin-card ${quality==='tainted'?'tainted':''}">
-    <div class="waterskin-card-heading"><span><small>WATERSKIN CONTENTS</small><b>${drinks} / ${max} Drinks</b></span><span class="waterskin-quality ${quality}">${label}</span></div>
-    <div class="waterskin-meter" role="progressbar" aria-label="Waterskin drinks remaining" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${drinks}"><i style="width:${Math.round(drinks/max*100)}%"></i></div>
-    <div class="waterskin-meta"><span><small>CAPACITY</small><b>3 days</b></span>${source}</div>
-    ${skin.taintedWarning?`<p class="waterskin-warning">${escapeHtml(skin.taintedWarning)}</p>`:''}
-    ${skin.magicNote?`<p class="waterskin-magic-note">${escapeHtml(skin.magicNote)}</p>`:''}
-  </div>`;
+    ${!item.canEquip&&!item.canUse?'<p class="muted inventory-action-note">This item can be carried or dropped, but it is not wearable/wieldable equipment or a consumable.</p>':''}`;
 }
 
 async function refreshInventoryData() {
@@ -3019,44 +2898,6 @@ async function toggleInventoryEquip(item) {
     showNotice(data.message||`${item.itemName} updated.`);
     await refreshInventoryData();
   } catch(error){showNotice(error.message,true);}
-}
-
-async function eatRationPortion(item,button) {
-  if(!item.ration?.canEat)return;
-  const original=button.textContent;
-  button.disabled=true;button.textContent='Eating…';
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory/${item.inventoryItemId}/eat-ration`,{method:'POST'});
-    showNotice(data.message||`Ate one portion of ${item.itemName}.`);
-    await refreshInventoryData();
-    await refreshSurvivalState();
-  } catch(error) {
-    showNotice(error.message,true);
-    button.disabled=false;button.textContent=original;
-  }
-}
-
-async function drinkFromWaterskin(item,button) {
-  if(!item.waterskin?.canDrink)return;
-  const original=button.textContent;
-  button.disabled=true;button.textContent='Drinking…';
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory/${item.inventoryItemId}/drink`,{method:'POST'});
-    showNotice(data.message||`Drank from ${item.itemName}.`);
-    await refreshInventoryData();
-    await refreshSurvivalState();
-  } catch(error) {
-    showNotice(error.message,true);
-    button.disabled=false;button.textContent=original;
-  }
-}
-
-function prepareFillWaterskinAction(item) {
-  prefillGameMasterMessage(`I fill my selected ${item.itemName} (inventory item ${item.inventoryItemId}) from this water source.`);
-}
-
-function prepareBoilWaterskinAction(item) {
-  prefillGameMasterMessage(`I boil the tainted water in my selected waterskin (inventory item ${item.inventoryItemId}) and pour it back into the waterskin.`);
 }
 
 function showDropInventoryDialog(item) {
