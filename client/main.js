@@ -63,6 +63,17 @@ let restOverlaySignature = '';
 let survivalPollTimer = null;
 let survivalPollBusy = false;
 
+// RULES BUILD 6.12 - AI GAME MASTER VOICE
+// Voice preferences are intentionally local to each Discord player/device.
+// No speech audio is generated or stored by the RabuShin server.
+let gmVoicePreferences = null;
+let gmVoicePreferencesOwnerId = '';
+let gmVoiceAvailableVoices = [];
+let gmVoiceBaselineInitialized = false;
+let gmVoiceLastSeenMessageKey = '';
+let gmVoiceCurrentMessageKey = '';
+let gmVoiceVoicesChangedBound = false;
+
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -215,6 +226,9 @@ async function setupDiscord() {
 }
 
 async function showCampaignLauncher() {
+  stopGmVoicePlayback();
+  gmVoiceBaselineInitialized=false;
+  gmVoiceLastSeenMessageKey='';
   clearPortraitCache();
   currentCampaignId = null;
   currentGameData = null;
@@ -753,6 +767,9 @@ async function enterCampaign(campaignId, initialTab='gm') {
     gmTurnToken=null;
     gmTurnDraft='';
     campaignChatDraft='';
+    stopGmVoicePlayback();
+    gmVoiceBaselineInitialized=false;
+    gmVoiceLastSeenMessageKey='';
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
     currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
     renderGameShell();
@@ -1385,11 +1402,261 @@ function timelineDisplayText(value) {
     .replace(/^\[WORLD MAP TRAVEL REQUEST\]\s*/i, '')
     .replace(/^\[SETTLEMENT MOVE\]\s*/i, '');
 }
-function timelineHtml(messages, emptyText='No messages yet.') {
-  if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
-  return messages.map(m=>`<div class="message ${m.roleName==='assistant'?'assistant':'user'}"><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(timelineDisplayText(m.messageText)).replaceAll('\n','<br>')}</div></div>`).join('');
+
+const GM_VOICE_DEFAULTS=Object.freeze({enabled:false,voiceURI:'',rate:1,pitch:1,volume:1});
+
+function gmVoiceSupported() {
+  return typeof window!=='undefined' &&
+    'speechSynthesis' in window &&
+    typeof window.SpeechSynthesisUtterance==='function';
 }
 
+function gmVoiceStorageKey() {
+  const owner=String(currentDiscordUser?.id||'local');
+  return `rabushin.gmVoice.${owner}.v1`;
+}
+
+function normalizeGmVoicePreferences(value={}) {
+  const number=(input,fallback,min,max)=>{
+    const n=Number(input);
+    return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback;
+  };
+  return {
+    enabled:Boolean(value.enabled),
+    voiceURI:String(value.voiceURI||''),
+    rate:number(value.rate,GM_VOICE_DEFAULTS.rate,.5,2),
+    pitch:number(value.pitch,GM_VOICE_DEFAULTS.pitch,0,2),
+    volume:number(value.volume,GM_VOICE_DEFAULTS.volume,0,1)
+  };
+}
+
+function getGmVoicePreferences() {
+  const owner=String(currentDiscordUser?.id||'local');
+  if(gmVoicePreferences&&gmVoicePreferencesOwnerId===owner)return gmVoicePreferences;
+  gmVoicePreferencesOwnerId=owner;
+  let stored=null;
+  try { stored=JSON.parse(localStorage.getItem(gmVoiceStorageKey())||'null'); }
+  catch(error) { console.warn('Unable to read GM voice preferences:',error); }
+  gmVoicePreferences=normalizeGmVoicePreferences(stored||GM_VOICE_DEFAULTS);
+  return gmVoicePreferences;
+}
+
+function saveGmVoicePreferences(patch={}) {
+  gmVoicePreferences=normalizeGmVoicePreferences({...getGmVoicePreferences(),...patch});
+  try { localStorage.setItem(gmVoiceStorageKey(),JSON.stringify(gmVoicePreferences)); }
+  catch(error) { console.warn('Unable to save GM voice preferences:',error); }
+  return gmVoicePreferences;
+}
+
+function refreshGmVoiceList() {
+  if(!gmVoiceSupported()) {
+    gmVoiceAvailableVoices=[];
+    return gmVoiceAvailableVoices;
+  }
+  try {
+    gmVoiceAvailableVoices=[...(window.speechSynthesis.getVoices?.()||[])];
+  } catch(error) {
+    console.warn('Unable to load speech synthesis voices:',error);
+    gmVoiceAvailableVoices=[];
+  }
+  return gmVoiceAvailableVoices;
+}
+
+function bindGmVoiceEventsOnce() {
+  if(!gmVoiceSupported()||gmVoiceVoicesChangedBound)return;
+  gmVoiceVoicesChangedBound=true;
+  refreshGmVoiceList();
+  const refresh=()=>{
+    refreshGmVoiceList();
+    if(activeGameTab==='settings'&&document.querySelector('#gmVoiceSelect'))populateGmVoiceSelect();
+  };
+  if(typeof window.speechSynthesis.addEventListener==='function')window.speechSynthesis.addEventListener('voiceschanged',refresh);
+  else window.speechSynthesis.onvoiceschanged=refresh;
+}
+
+function selectedGmVoice() {
+  if(!gmVoiceSupported())return null;
+  if(!gmVoiceAvailableVoices.length)refreshGmVoiceList();
+  const prefs=getGmVoicePreferences();
+  if(prefs.voiceURI) {
+    const exact=gmVoiceAvailableVoices.find(v=>String(v.voiceURI||v.name)===prefs.voiceURI);
+    if(exact)return exact;
+  }
+  return gmVoiceAvailableVoices.find(v=>String(v.lang||'').toLowerCase()==='en-us')||
+    gmVoiceAvailableVoices.find(v=>String(v.lang||'').toLowerCase().startsWith('en'))||
+    gmVoiceAvailableVoices.find(v=>v.default)||null;
+}
+
+function gmVoiceMessageKey(message,index=0) {
+  return String(message?.messageId||message?.id||message?.createdAt||`index:${index}`);
+}
+
+function newestAssistantMessage(messages) {
+  const list=messages||[];
+  for(let i=list.length-1;i>=0;i--) {
+    if(String(list[i]?.roleName||'').toLowerCase()==='assistant')return {message:list[i],index:i,key:gmVoiceMessageKey(list[i],i)};
+  }
+  return null;
+}
+
+function initializeGmVoiceBaseline(messages) {
+  const latest=newestAssistantMessage(messages);
+  gmVoiceBaselineInitialized=true;
+  gmVoiceLastSeenMessageKey=latest?.key||'';
+}
+
+function gmVoiceSpeakableText(value) {
+  let text=timelineDisplayText(value).replace(/\r/g,'');
+  // Skip fenced code/stat blocks and standalone mechanical roll lines. Narration
+  // and dialogue remain visible in the chat and are what the narrator speaks.
+  text=text.replace(/```[\s\S]*?```/g,' ');
+  const spokenLines=text.split('\n').filter(line=>{
+    const trimmed=line.trim();
+    if(!trimmed)return true;
+    if(/^\|.*\|$/.test(trimmed))return false;
+    if(/^[-:|\s]{3,}$/.test(trimmed))return false;
+    if(/^(attack roll|damage|initiative|armor class|hit points|hp|ac|dc|saving throw|dice roll|roll result)\s*:/i.test(trimmed))return false;
+    if(/^\[(system|tool|debug|combat state|inventory state)\]/i.test(trimmed))return false;
+    return true;
+  });
+  text=spokenLines.join('\n')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1')
+    .replace(/https?:\/\/\S+/gi,' ')
+    .replace(/^\s{0,3}#{1,6}\s*/gm,'')
+    .replace(/^\s*>\s?/gm,'')
+    .replace(/^\s*[-+]\s+/gm,'')
+    .replace(/^\s*\d+\.\s+/gm,'')
+    .replace(/[*_~`]/g,'')
+    .replace(/\b(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?\b/gi,(_,count,sides,sign,bonus)=>`${count} d ${sides}${sign&&bonus?` ${sign==='+'?'plus':'minus'} ${bonus}`:''}`)
+    .replace(/\s+/g,' ')
+    .trim();
+  return text;
+}
+
+function splitGmVoiceText(text,maxLength=520) {
+  const clean=String(text||'').trim();
+  if(!clean)return [];
+  const sentences=clean.match(/[^.!?]+[.!?]+(?:[\"'’”]+)?|[^.!?]+$/g)||[clean];
+  const chunks=[];
+  let current='';
+  const pushWords=(sentence)=>{
+    const words=sentence.trim().split(/\s+/);
+    let part='';
+    for(const word of words) {
+      if(part&&`${part} ${word}`.length>maxLength) { chunks.push(part); part=word; }
+      else part=part?`${part} ${word}`:word;
+    }
+    if(part)chunks.push(part);
+  };
+  for(const raw of sentences) {
+    const sentence=raw.trim();
+    if(!sentence)continue;
+    if(sentence.length>maxLength) {
+      if(current){chunks.push(current);current='';}
+      pushWords(sentence);
+      continue;
+    }
+    const next=current?`${current} ${sentence}`:sentence;
+    if(next.length>maxLength){if(current)chunks.push(current);current=sentence;}
+    else current=next;
+  }
+  if(current)chunks.push(current);
+  return chunks;
+}
+
+function stopGmVoicePlayback() {
+  if(gmVoiceSupported()) {
+    try { window.speechSynthesis.cancel(); }
+    catch(error) { console.warn('Unable to stop GM voice playback:',error); }
+  }
+  gmVoiceCurrentMessageKey='';
+  document.querySelectorAll('.gm-voice-speaking').forEach(el=>el.classList.remove('gm-voice-speaking'));
+}
+
+function speakGmVoiceText(rawText,{messageKey='',manual=false}={}) {
+  if(!gmVoiceSupported()) {
+    if(manual)showNotice('This browser does not provide a speech-synthesis voice.',true);
+    return false;
+  }
+  bindGmVoiceEventsOnce();
+  const text=gmVoiceSpeakableText(rawText);
+  if(!text) {
+    if(manual)showNotice('This GM response contains no narration or dialogue to speak.',true);
+    return false;
+  }
+  const chunks=splitGmVoiceText(text);
+  if(!chunks.length)return false;
+  const prefs=getGmVoicePreferences();
+  const voice=selectedGmVoice();
+  stopGmVoicePlayback();
+  gmVoiceCurrentMessageKey=messageKey;
+  const messageElement=messageKey?document.querySelector(`[data-gm-message-key="${CSS.escape(messageKey)}"]`):null;
+  messageElement?.classList.add('gm-voice-speaking');
+  chunks.forEach((chunk,index)=>{
+    const utterance=new window.SpeechSynthesisUtterance(chunk);
+    if(voice)utterance.voice=voice;
+    utterance.rate=prefs.rate;
+    utterance.pitch=prefs.pitch;
+    utterance.volume=prefs.volume;
+    if(index===chunks.length-1)utterance.onend=()=>{
+      if(gmVoiceCurrentMessageKey===messageKey)gmVoiceCurrentMessageKey='';
+      messageElement?.classList.remove('gm-voice-speaking');
+    };
+    utterance.onerror=(event)=>{
+      if(event?.error==='interrupted'||event?.error==='canceled')return;
+      console.warn('GM voice playback error:',event?.error||event);
+      if(manual)showNotice(`GM voice could not play${event?.error?`: ${event.error}`:'.'}`,true);
+    };
+    window.speechSynthesis.speak(utterance);
+  });
+  return true;
+}
+
+function considerAutomaticGmVoice(messages) {
+  const latest=newestAssistantMessage(messages);
+  if(!gmVoiceBaselineInitialized) {
+    initializeGmVoiceBaseline(messages);
+    return;
+  }
+  if(!latest)return;
+  if(latest.key===gmVoiceLastSeenMessageKey)return;
+  gmVoiceLastSeenMessageKey=latest.key;
+  if(!getGmVoicePreferences().enabled)return;
+  speakGmVoiceText(latest.message.messageText,{messageKey:latest.key,manual:false});
+}
+
+function gmVoiceControlsHtml(message,index) {
+  if(!gmVoiceSupported()||String(message?.roleName||'').toLowerCase()!=='assistant')return '';
+  const key=escapeHtml(gmVoiceMessageKey(message,index));
+  return `<div class="gm-voice-message-actions"><button class="gm-voice-mini-button" type="button" data-gm-voice-speak="${key}" title="Speak this Game Master response again">🔊 Speak Again</button><button class="gm-voice-mini-button" type="button" data-gm-voice-stop title="Stop Game Master voice">⏹ Stop</button></div>`;
+}
+
+function timelineHtml(messages, emptyText='No messages yet.', includeGmVoiceControls=false) {
+  if(!messages?.length)return `<div class="empty small">${escapeHtml(emptyText)}</div>`;
+  return messages.map((m,index)=>{
+    const assistant=String(m.roleName||'').toLowerCase()==='assistant';
+    const key=assistant?escapeHtml(gmVoiceMessageKey(m,index)):'';
+    return `<div class="message ${assistant?'assistant':'user'}${assistant&&gmVoiceCurrentMessageKey===gmVoiceMessageKey(m,index)?' gm-voice-speaking':''}"${assistant&&includeGmVoiceControls?` data-gm-message-key="${key}"`:''}><div class="message-name">${escapeHtml(m.senderName||m.roleName)}</div><div>${escapeHtml(timelineDisplayText(m.messageText)).replaceAll('\n','<br>')}</div>${includeGmVoiceControls?gmVoiceControlsHtml(m,index):''}</div>`;
+  }).join('');
+}
+
+function bindGmVoiceTimelineControls() {
+  const timeline=document.querySelector('#gmTimeline');
+  if(!timeline||timeline.dataset.gmVoiceBound==='true')return;
+  timeline.dataset.gmVoiceBound='true';
+  timeline.addEventListener('click',event=>{
+    const speakButton=event.target.closest('[data-gm-voice-speak]');
+    if(speakButton) {
+      const key=String(speakButton.dataset.gmVoiceSpeak||'');
+      const list=currentGameData?.gmMessages||[];
+      const match=list.find((m,index)=>gmVoiceMessageKey(m,index)===key);
+      if(match)speakGmVoiceText(match.messageText,{messageKey:key,manual:true});
+      return;
+    }
+    if(event.target.closest('[data-gm-voice-stop]'))stopGmVoicePlayback();
+  });
+}
 
 function messageListSignature(messages) {
   const list=messages||[];
@@ -1404,9 +1671,13 @@ function updateLiveTimeline(elementId,messages,emptyText,signatureName,force=fal
   const signature=messageListSignature(messages);
   const previous=signatureName==='gm'?gmMessageSignature:chatMessageSignature;
   if(!force&&signature===previous)return;
-  timeline.innerHTML=timelineHtml(messages,emptyText);
+  timeline.innerHTML=timelineHtml(messages,emptyText,signatureName==='gm');
   timeline.scrollTop=timeline.scrollHeight;
-  if(signatureName==='gm')gmMessageSignature=signature;
+  if(signatureName==='gm'){
+    gmMessageSignature=signature;
+    bindGmVoiceTimelineControls();
+    considerAutomaticGmVoice(messages);
+  }
   else chatMessageSignature=signature;
 }
 
@@ -1687,6 +1958,8 @@ function scheduleGmLiveSync() {
 
 function startGmLiveSync() {
   stopConversationLiveSync();
+  bindGmVoiceEventsOnce();
+  initializeGmVoiceBaseline(currentGameData?.gmMessages||[]);
   gmMessageSignature=messageListSignature(currentGameData?.gmMessages||[]);
   gmTurnCountdownTimer=setInterval(updateGmTurnUi,250);
   void refreshGmLive(true);
@@ -2507,7 +2780,7 @@ function renderGameMasterTab() {
   if(existingInput)gmTurnDraft=existingInput.value;
 
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.')}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
 
   const input=document.querySelector('#gmInput');
   input.value=gmTurnDraft;
@@ -2664,6 +2937,7 @@ function renderGameMasterTab() {
     }
   };
 
+  bindGmVoiceTimelineControls();
   scrollGmToBottom();
   startGmLiveSync();
 }
@@ -3152,6 +3426,68 @@ function renderChatTab(){
 }
 async function refreshChat(){await refreshChatLive(true);}
 
+function populateGmVoiceSelect() {
+  const select=document.querySelector('#gmVoiceSelect');
+  if(!select)return;
+  refreshGmVoiceList();
+  const prefs=getGmVoicePreferences();
+  const options=['<option value="">System / Browser Default</option>'];
+  for(const voice of gmVoiceAvailableVoices) {
+    const value=escapeHtml(String(voice.voiceURI||voice.name||''));
+    const label=`${voice.name||'Unnamed Voice'}${voice.lang?` (${voice.lang})`:''}${voice.default?' — Default':''}`;
+    options.push(`<option value="${value}">${escapeHtml(label)}</option>`);
+  }
+  select.innerHTML=options.join('');
+  select.value=[...select.options].some(o=>o.value===prefs.voiceURI)?prefs.voiceURI:'';
+}
+
+function syncGmVoiceSettingLabels() {
+  const prefs=getGmVoicePreferences();
+  const rate=document.querySelector('#gmVoiceRateValue');
+  const pitch=document.querySelector('#gmVoicePitchValue');
+  const volume=document.querySelector('#gmVoiceVolumeValue');
+  if(rate)rate.textContent=`${prefs.rate.toFixed(2)}×`;
+  if(pitch)pitch.textContent=prefs.pitch.toFixed(2);
+  if(volume)volume.textContent=`${Math.round(prefs.volume*100)}%`;
+}
+
+function bindGmVoiceSettings() {
+  const supported=gmVoiceSupported();
+  const prefs=getGmVoicePreferences();
+  const enabled=document.querySelector('#gmVoiceEnabled');
+  if(!enabled)return;
+  bindGmVoiceEventsOnce();
+  populateGmVoiceSelect();
+  enabled.checked=supported&&prefs.enabled;
+  enabled.disabled=!supported;
+  const voice=document.querySelector('#gmVoiceSelect');
+  const rate=document.querySelector('#gmVoiceRate');
+  const pitch=document.querySelector('#gmVoicePitch');
+  const volume=document.querySelector('#gmVoiceVolume');
+  const test=document.querySelector('#testGmVoice');
+  const stop=document.querySelector('#stopGmVoice');
+  if(voice)voice.disabled=!supported;
+  if(rate){rate.value=String(prefs.rate);rate.disabled=!supported;}
+  if(pitch){pitch.value=String(prefs.pitch);pitch.disabled=!supported;}
+  if(volume){volume.value=String(prefs.volume);volume.disabled=!supported;}
+  if(test)test.disabled=!supported;
+  if(stop)stop.disabled=!supported;
+  syncGmVoiceSettingLabels();
+
+  enabled.onchange=()=>{
+    const next=saveGmVoicePreferences({enabled:enabled.checked});
+    if(!next.enabled)stopGmVoicePlayback();
+    showNotice(`AI Game Master Voice ${next.enabled?'enabled':'disabled'} on this device.`);
+  };
+  if(voice)voice.onchange=()=>saveGmVoicePreferences({voiceURI:voice.value});
+  const bindRange=(input,key)=>{if(!input)return;input.oninput=()=>{saveGmVoicePreferences({[key]:Number(input.value)});syncGmVoiceSettingLabels();};};
+  bindRange(rate,'rate');
+  bindRange(pitch,'pitch');
+  bindRange(volume,'volume');
+  if(test)test.onclick=()=>speakGmVoiceText('RabuShin AI Game Master voice is ready.',{messageKey:'gm-voice-test',manual:true});
+  if(stop)stop.onclick=stopGmVoicePlayback;
+}
+
 function renderSettingsTab(){
   document.querySelector('#gameView').innerHTML=`
     <div class="view-heading"><h3>Settings</h3></div>
@@ -3170,6 +3506,20 @@ function renderSettingsTab(){
       <button id="toggleSurvivalRules" class="button ${currentGameData?.survival?.enabled?'danger-button':'primary'}" ${currentGameData?.campaign?.isOwner?'':'disabled'}>${currentGameData?.survival?.enabled?'Turn Hunger & Thirst OFF':'Turn Hunger & Thirst ON'}</button>
       ${currentGameData?.campaign?.isOwner?'':'<small class="muted settings-owner-note">Only the campaign owner can change this setting.</small>'}
       <div id="survivalSettingsError" class="error"></div>
+    </section>
+    <section class="panel settings gm-voice-settings">
+      <h4>AI Game Master Voice</h4>
+      ${gmVoiceSupported()?'':'<p class="warn">This browser does not expose a speech-synthesis voice. Text responses will continue to work normally.</p>'}
+      <label class="gm-voice-toggle"><input id="gmVoiceEnabled" type="checkbox"> <span>Speak new AI Game Master responses automatically</span></label>
+      <p class="muted">Free, device-local narration using your browser or operating system voices. This preference belongs only to your Discord account on this device and does not add OpenAI/TTS API charges. Markdown, URLs, code blocks, tables, and standalone dice-result lines are cleaned from speech while narration and dialogue remain.</p>
+      <div class="gm-voice-grid">
+        <label>Voice<select id="gmVoiceSelect" class="input"><option value="">System / Browser Default</option></select></label>
+        <label>Speed <b id="gmVoiceRateValue">1.00×</b><input id="gmVoiceRate" type="range" min="0.5" max="2" step="0.05" value="1"></label>
+        <label>Pitch <b id="gmVoicePitchValue">1.00</b><input id="gmVoicePitch" type="range" min="0" max="2" step="0.05" value="1"></label>
+        <label>Volume <b id="gmVoiceVolumeValue">100%</b><input id="gmVoiceVolume" type="range" min="0" max="1" step="0.05" value="1"></label>
+      </div>
+      <div class="row gap settings-actions"><button id="testGmVoice" class="button primary">🔊 Test Voice</button><button id="stopGmVoice" class="button">⏹ Stop Voice</button></div>
+      <small class="muted">Automatic narration starts only for responses that arrive after the campaign view is opened; existing chat history is never read aloud automatically. Use Speak Again beneath any GM response for manual replay.</small>
     </section>
     <section class="panel settings legal-settings">
       <h4>Legal & Support</h4>
@@ -3213,6 +3563,7 @@ function renderSettingsTab(){
       survivalToggle.disabled=false;
     }
   };
+  bindGmVoiceSettings();
   document.querySelector('#openOpenAiKeys').onclick=()=>openExternal('https://platform.openai.com/api-keys');
   document.querySelectorAll('[data-settings-link]').forEach(button=>button.onclick=()=>openExternal(legalUrls[button.dataset.settingsLink]));
 }
