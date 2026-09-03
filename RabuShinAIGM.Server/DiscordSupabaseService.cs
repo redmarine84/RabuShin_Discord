@@ -498,6 +498,21 @@ public sealed class DiscordSupabaseService
         });
         var items = await ReadListAsync<DiscordInventoryInfo>(response, "Unable to load inventory");
 
+        try
+        {
+            var waterskins = await GetWaterskinStatesAsync(playerId, campaignId);
+            var byInventoryId = waterskins.ToDictionary(state => state.InventoryItemId);
+            foreach (var item in items)
+                if (byInventoryId.TryGetValue(item.InventoryItemId, out var state))
+                    item.WaterskinState = state;
+        }
+        catch (Exception ex)
+        {
+            // Keep inventory usable while migration 30 is being deployed. The
+            // waterskin actions remain unavailable until the database is ready.
+            Console.WriteLine($"Waterskin state hydration deferred: {ex.Message}");
+        }
+
         foreach (var item in items)
         {
             item.Valuation = ItemValuationService.Classify(item);
@@ -525,6 +540,32 @@ public sealed class DiscordSupabaseService
         }
 
         return items;
+    }
+
+    private async Task<List<DiscordWaterskinState>> GetWaterskinStatesAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_waterskin_states", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadListAsync<DiscordWaterskinState>(response, "Unable to load waterskin state");
+    }
+
+    public async Task<DiscordWaterskinDrinkResult> DrinkWaterskinAsync(
+        Guid playerId, Guid campaignId, Guid inventoryItemId)
+    {
+        using var response = await CallRpcAsync("discord_drink_waterskin", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_inventory_item_id = inventoryItemId
+        });
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to drink from waterskin: " + json);
+        return JsonSerializer.Deserialize<DiscordWaterskinDrinkResult>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Supabase returned an invalid waterskin result.");
     }
 
     private async Task ApplyInventoryValuationsAsync(
@@ -1471,6 +1512,34 @@ public sealed class DiscordInventoryInfo
     [JsonPropertyName("item_data")] public JsonElement ItemData { get; set; }
     [JsonIgnore] public InventoryItemValuation? Valuation { get; set; }
     [JsonIgnore] public InventoryItemPhysicalProfile? PhysicalProfile { get; set; }
+    [JsonIgnore] public DiscordWaterskinState? WaterskinState { get; set; }
+}
+
+public sealed class DiscordWaterskinState
+{
+    [JsonPropertyName("inventory_item_id")] public Guid InventoryItemId { get; set; }
+    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+    [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
+    [JsonPropertyName("waterskin_kind")] public string Kind { get; set; } = "basic";
+    [JsonPropertyName("drinks_remaining")] public int DrinksRemaining { get; set; }
+    [JsonPropertyName("water_quality")] public string WaterQuality { get; set; } = "empty";
+    [JsonPropertyName("source_name")] public string SourceName { get; set; } = string.Empty;
+}
+
+public sealed class DiscordWaterskinDrinkResult
+{
+    [JsonPropertyName("success")] public bool Success { get; set; }
+    [JsonPropertyName("inventoryItemId")] public Guid InventoryItemId { get; set; }
+    [JsonPropertyName("itemName")] public string ItemName { get; set; } = string.Empty;
+    [JsonPropertyName("waterskinKind")] public string WaterskinKind { get; set; } = "basic";
+    [JsonPropertyName("waterQuality")] public string WaterQuality { get; set; } = "empty";
+    [JsonPropertyName("drinksRemaining")] public int DrinksRemaining { get; set; }
+    [JsonPropertyName("thirstPercentBefore")] public decimal ThirstPercentBefore { get; set; }
+    [JsonPropertyName("thirstPercentAfter")] public decimal ThirstPercentAfter { get; set; }
+    [JsonPropertyName("hungerPercentBefore")] public decimal HungerPercentBefore { get; set; }
+    [JsonPropertyName("hungerPercentAfter")] public decimal HungerPercentAfter { get; set; }
+    [JsonPropertyName("nauseated")] public bool Nauseated { get; set; }
+    [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
 }
 
 public sealed class DiscordSpellSaveItem

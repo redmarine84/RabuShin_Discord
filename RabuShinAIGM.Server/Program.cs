@@ -708,7 +708,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
                 currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount },
             character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
             party = party.Select(ProgramHelpers.ToClientPartyMember),
-            inventory = inventory.Select(InventoryPresentationService.ToClientItem),
+            inventory = inventory.Select(WaterskinMechanicsService.ToClientItem),
             inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
             spells = spells.Select(s => new { characterSpellId=s.CharacterSpellId,spellName=s.SpellName,spellLevel=s.SpellLevel,prepared=s.Prepared,sourceTag=s.SourceTag,spellData=s.SpellData }),
             spellSlots = slots.Select(s => new { spellLevel=s.SpellLevel,maxSlots=s.MaxSlots,usedSlots=s.UsedSlots }),
@@ -1325,7 +1325,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/shop", async (
             return new
             {
                 inventoryItemId = i.InventoryItemId,
-                itemName = i.ItemName,
+                itemName = WaterskinMechanicsService.DisplayName(i),
                 quantity = i.Quantity,
                 equipped = i.Equipped,
                 attuned = i.Attuned,
@@ -1497,7 +1497,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
         {
             success = true,
             gold = character.Gold,
-            inventory = inventory.Select(InventoryPresentationService.ToClientItem),
+            inventory = inventory.Select(WaterskinMechanicsService.ToClientItem),
             inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
             encumbrance = new
             {
@@ -1541,6 +1541,49 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/drink", async (
+    Guid campaignId, Guid inventoryItemId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var character = await service.GetCharacterAsync(playerId, campaignId);
+        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
+
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
+        if (item?.WaterskinState is null)
+            return Results.NotFound(new { success = false, error = "Waterskin could not be found in this character's inventory." });
+
+        var result = await service.DrinkWaterskinAsync(playerId, campaignId, inventoryItemId);
+        if (result.Nauseated)
+        {
+            try
+            {
+                await service.AddMessageAsync(
+                    playerId,
+                    campaignId,
+                    "gm",
+                    "assistant",
+                    "RabuShin AI GM",
+                    $"SERVER-AUTHORITATIVE STATE UPDATE\n• {character.CharacterName} drank tainted water and is nauseated.\n" +
+                    $"• Hunger: {result.HungerPercentAfter:0.#}%\n• Thirst: {result.ThirstPercentAfter:0.#}%\n" +
+                    $"• {result.DrinksRemaining} drink(s) remain in the waterskin.");
+            }
+            catch (Exception messageError)
+            {
+                // The drink is already committed atomically. A timeline write
+                // failure must not report the action as failed or invite a retry.
+                Console.WriteLine($"Unable to record tainted-water GM message: {messageError.Message}");
+            }
+        }
+
+        return Results.Ok(result);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:guid}/drop", async (
     Guid campaignId, Guid inventoryItemId, InventoryQuantityRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -1580,6 +1623,8 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/inventory/{inventoryItemId:gu
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var item = inventory.FirstOrDefault(i => i.InventoryItemId == inventoryItemId);
         if (item is null) return Results.NotFound(new { success = false, error = "Inventory item could not be found." });
+        if (item.WaterskinState is not null)
+            return Results.BadRequest(new { success = false, error = "Use the Waterskin Drink button; the container itself is not consumed." });
 
         var presentation = InventoryPresentationService.ToClientItem(item);
         if (!presentation.CanUse)

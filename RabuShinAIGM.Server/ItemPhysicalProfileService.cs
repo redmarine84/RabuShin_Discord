@@ -20,7 +20,7 @@ public sealed record InventoryEncumbrance(
 
 public static class ItemPhysicalProfileService
 {
-    public const string PhysicalProfileVersion = "6.8";
+    public const string PhysicalProfileVersion = "6.9";
 
     private static readonly Dictionary<string, decimal> KnownWeights = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -42,7 +42,7 @@ public static class ItemPhysicalProfileService
         ["Lantern"] = 2m, ["Bullseye Lantern"] = 2m, ["Hooded Lantern"] = 2m,
         ["Mess Kit"] = 1m, ["Piton"] = 0.25m, ["Pole"] = 7m, ["Rope"] = 10m,
         ["Silk Rope"] = 5m, ["Shovel"] = 5m, ["Tent"] = 20m, ["Tinderbox"] = 1m,
-        ["Torch"] = 1m, ["Waterskin"] = 1m, ["Thieves' Tools"] = 1m,
+        ["Torch"] = 1m, ["Waterskin"] = 1m, ["Magic Waterskin"] = 1m, ["Thieves' Tools"] = 1m,
         ["Smith's Tools"] = 8m, ["Blacksmithing Kit"] = 8m, ["Alchemist's Supplies"] = 8m,
         ["Herbalism Kit"] = 3m, ["Healer's Kit"] = 3m, ["Fishing Tackle"] = 4m,
         ["Potion of Healing"] = 0.5m, ["Greater Potion of Healing"] = 0.5m,
@@ -55,6 +55,10 @@ public static class ItemPhysicalProfileService
 
     public static InventoryItemPhysicalProfile Classify(DiscordInventoryInfo item)
     {
+        if (item.WaterskinState is { } waterskin)
+            return Make(WaterskinMechanicsService.WeightLb(waterskin), 0m, 0m,
+                $"Build {WaterskinMechanicsService.MechanicsVersion} waterskin contents");
+
         if (TryReadPersisted(item.ItemData) is { } persisted) return persisted;
 
         var name = (item.ItemName ?? string.Empty).Trim();

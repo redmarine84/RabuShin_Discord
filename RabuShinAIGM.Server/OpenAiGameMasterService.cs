@@ -87,6 +87,12 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - If Hunger and Thirst are OFF, do not reduce food/water state, do not require food/water mechanically, and do not apply survival Exhaustion. Ordinary narrative eating/drinking may still consume an item with remove_inventory_item if appropriate.
 - If Hunger and Thirst are ON, a character needs 1 lb of food per in-game day and 1 gallon of water per in-game day. In hot weather the water requirement is 2 gallons per day.
 - When a character actually eats or drinks a carried item that has server-recognized food/water value, call consume_survival_item. Do NOT separately call remove_inventory_item for that same serving; consume_survival_item atomically consumes it and updates Hunger/Thirst.
+- Waterskins have their own authoritative contents and are NOT ordinary consumable items. Never use consume_survival_item or remove_inventory_item for a drink from a waterskin. The player's Inventory Drink button handles an individual drink directly.
+- A newly acquired item named Waterskin or Magic Waterskin is empty. Only an explicitly acquired Waterskin (Full), Full Waterskin, Magic Waterskin (Full), or Full Magic Waterskin starts with 30 drinks.
+- An empty waterskin can be filled only after the character actually reaches and uses a well, stream, lake, or other water source. Call fill_waterskin after the fill action succeeds. Mark the source clean only when it is clearly safe; puddles, stagnant water, visibly polluted water, and other doubtful sources are questionable.
+- A basic Waterskin filled from questionable water becomes Waterskin(Tainted). Its water causes nausea, removes 30 percentage points of Hunger, and restores only 1 percentage point of Thirst per drink.
+- A Magic Waterskin automatically purifies every source, including questionable water. Never mark its final contents tainted.
+- When a character with suitable heat and a container actually boils the tainted contents and pours the water back, call boil_waterskin. This keeps the remaining drink count and restores the basic item to Waterskin with clean water.
 - Short Rest and Long Rest tools automatically advance survival time by 1 hour and 8 hours respectively. NEVER call advance_survival_time again for those same rest hours.
 - For travel, waiting, downtime, watches, imprisonment, or other fiction that definitively advances meaningful in-game time, call advance_survival_time with the characters affected and the actual hours elapsed.
 - When the environment becomes hot enough to require double water, call set_survival_hot_weather with hotWeather=true. Set it false when the party leaves the hot environment. Do not toggle it merely for ordinary warm weather.
@@ -222,7 +228,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 var survivalUse = physical.FoodLb > 0m || physical.WaterGallons > 0m
                     ? $"; food {physical.FoodLb:0.##} lb; water {physical.WaterGallons:0.###} gal"
                     : string.Empty;
-                inputBuilder.AppendLine("- " + InventoryPresentationService.BuildGameplaySummary(item) +
+                inputBuilder.AppendLine("- " + WaterskinMechanicsService.BuildGameplaySummary(item) +
                     $"; weight {physical.WeightLb:0.##} lb each{survivalUse}");
             }
         }
@@ -378,6 +384,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
             BuildConsumeSurvivalItemTool(),
+            BuildFillWaterskinTool(),
+            BuildBoilWaterskinTool(),
             BuildAdvanceSurvivalTimeTool(),
             BuildSetSurvivalHotWeatherTool(),
             BuildDiscoverWorldLocationTool(),
@@ -535,6 +543,22 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<ConsumeSurvivalItemToolArguments>(call.ArgumentsJson, "survival consumption");
                         var result = await ConsumeSurvivalItemAsync(campaign.CampaignId, character, inventory, args);
                         stateAudits.Add(new GameMasterStateAudit("Survival", $"Consumed {Math.Max(1, args.Quantity)} x {args.ItemName} for food/water."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "fill_waterskin":
+                    {
+                        var args = DeserializeArguments<FillWaterskinToolArguments>(call.ArgumentsJson, "waterskin fill");
+                        var result = await FillWaterskinAsync(campaign.CampaignId, character.CharacterId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Waterskin", $"Filled the selected waterskin from {args.SourceName}."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "boil_waterskin":
+                    {
+                        var args = DeserializeArguments<BoilWaterskinToolArguments>(call.ArgumentsJson, "waterskin boiling");
+                        var result = await BoilWaterskinAsync(campaign.CampaignId, character.CharacterId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Waterskin", "Purified the selected tainted waterskin by boiling."));
                         toolResult = result;
                         break;
                     }
@@ -1069,6 +1093,52 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short narrative reason, e.g. Eats a ration during camp." }
                 },
                 required = new[] { "itemName", "quantity", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildFillWaterskinTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "fill_waterskin",
+            description = "Fill one empty authoritative waterskin after the character actually uses a well, stream, lake, or other water source. A Magic Waterskin purifies any source automatically. Basic waterskins filled from questionable or tainted sources become tainted.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    inventoryItemId = new { type = "string", description = "Exact inventoryItemId shown for the empty waterskin in CURRENT INVENTORY." },
+                    sourceName = new { type = "string", description = "Short name of the water source, e.g. Kazud's Well, forest stream, stagnant puddle." },
+                    sourceQuality = new { type = "string", @enum = new[] { "clean", "questionable" }, description = "clean only when the source is clearly safe; questionable for stagnant, polluted, visibly foul, tainted, or uncertain water." },
+                    reason = new { type = "string", description = "Short narrative reason confirming the fill action occurred." }
+                },
+                required = new[] { "inventoryItemId", "sourceName", "sourceQuality", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildBoilWaterskinTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "boil_waterskin",
+            description = "Purify the remaining tainted contents of one basic Waterskin after the character actually boils the water and pours it back. Retains the remaining drink count and restores the item to Waterskin with clean water.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    inventoryItemId = new { type = "string", description = "Exact inventoryItemId shown for Waterskin(Tainted) in CURRENT INVENTORY." },
+                    reason = new { type = "string", description = "Short narrative reason confirming how the water was boiled." }
+                },
+                required = new[] { "inventoryItemId", "reason" },
                 additionalProperties = false
             }
         };
@@ -1636,6 +1706,57 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 p_reason = CleanReason(args.Reason, $"Consumed {item.ItemName}")
             },
             $"Unable to consume {item.ItemName}");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> FillWaterskinAsync(
+        Guid campaignId,
+        Guid characterId,
+        FillWaterskinToolArguments args)
+    {
+        if (args.InventoryItemId == Guid.Empty)
+            throw new InvalidOperationException("A waterskin inventoryItemId is required.");
+        var quality = (args.SourceQuality ?? string.Empty).Trim().ToLowerInvariant();
+        if (quality is not ("clean" or "questionable"))
+            throw new InvalidOperationException("Water source quality must be clean or questionable.");
+        var source = (args.SourceName ?? string.Empty).Trim();
+        if (source.Length == 0) throw new InvalidOperationException("A water source name is required.");
+        if (source.Length > 120) source = source[..120];
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_fill_waterskin",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_id = characterId,
+                p_inventory_item_id = args.InventoryItemId,
+                p_source_name = source,
+                p_source_quality = quality,
+                p_reason = CleanReason(args.Reason, $"Filled from {source}")
+            },
+            "Unable to fill waterskin");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> BoilWaterskinAsync(
+        Guid campaignId,
+        Guid characterId,
+        BoilWaterskinToolArguments args)
+    {
+        if (args.InventoryItemId == Guid.Empty)
+            throw new InvalidOperationException("A waterskin inventoryItemId is required.");
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_boil_waterskin",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_id = characterId,
+                p_inventory_item_id = args.InventoryItemId,
+                p_reason = CleanReason(args.Reason, "Boiled tainted waterskin water")
+            },
+            "Unable to boil waterskin water");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
     }
@@ -2614,6 +2735,20 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         public string ItemName { get; set; } = string.Empty;
         public int Quantity { get; set; } = 1;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class FillWaterskinToolArguments
+    {
+        public Guid InventoryItemId { get; set; }
+        public string SourceName { get; set; } = string.Empty;
+        public string SourceQuality { get; set; } = "questionable";
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class BoilWaterskinToolArguments
+    {
+        public Guid InventoryItemId { get; set; }
         public string Reason { get; set; } = string.Empty;
     }
 

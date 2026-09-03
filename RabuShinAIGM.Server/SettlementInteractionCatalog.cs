@@ -189,6 +189,15 @@ public static class SettlementInteractionCatalog
 
     private static readonly IReadOnlyList<SettlementShopItemDefinition> ApothecaryItems = new List<SettlementShopItemDefinition>
     {
+        I("waterskin","Waterskin","Adventuring Gear",1,WaterskinMechanicsService.BasicDescription + " Purchased empty."),
+        new SettlementShopItemDefinition(
+            "magic-waterskin",
+            "Magic Waterskin",
+            "Magic Item",
+            300,
+            WaterskinMechanicsService.BasicDescription + " " + WaterskinMechanicsService.MagicNote + " Purchased empty.",
+            "Uncommon",
+            "Magic Item"),
         I("potion-healing","Potion of Healing","Potion",50,"A red healing draught that restores hit points when consumed."),
         I("antitoxin","Antitoxin","Remedy",50,"A medicinal dose used to resist or counter common poisons."),
         I("healers-kit","Healer's Kit","Tool",5,"Bandages, salves, and splints for emergency treatment."),
@@ -222,7 +231,7 @@ public static class SettlementInteractionCatalog
         I("pitons","Pitons (10)","Adventuring Gear",1,"Ten iron spikes for climbing and securing lines."),
         I("rations","Rations (5 days)","Food",3,"Five days of preserved travel food."),
         I("torch-bundle","Torches (10)","Adventuring Gear",1,"Ten simple wooden torches."),
-        I("waterskin","Waterskin","Adventuring Gear",1,"A leather water container."),
+        I("waterskin","Waterskin","Adventuring Gear",1,WaterskinMechanicsService.BasicDescription + " Purchased empty."),
         I("backpack","Backpack","Adventuring Gear",2,"A durable travel pack."),
         I("blanket","Blanket","Adventuring Gear",1,"A warm wool blanket."),
         I("grappling-hook","Grappling Hook","Adventuring Gear",2,"A metal climbing hook for use with rope."),

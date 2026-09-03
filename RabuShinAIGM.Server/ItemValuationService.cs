@@ -33,7 +33,7 @@ public sealed record InventoryItemValuationPatch(
 
 public static class ItemValuationService
 {
-    public const string ValuationVersion = "6.8";
+    public const string ValuationVersion = "6.9";
 
     private static readonly string[] Rarities = new[]
     {
