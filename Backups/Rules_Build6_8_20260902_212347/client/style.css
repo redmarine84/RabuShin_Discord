@@ -266,22 +266,3 @@ body.death-modal-open{overflow:hidden!important}
 .inventory-value-card>div{display:flex;flex-direction:column;gap:3px;min-width:0}.inventory-value-card small{font-size:.68rem;letter-spacing:.06em;color:var(--muted,#9ba7b4)}.inventory-value-card b{font-size:.92rem;overflow-wrap:anywhere}
 .inventory-price-band{margin-top:-4px;margin-bottom:12px}
 @media(max-width:700px){.inventory-value-card{grid-template-columns:1fr}.item-value-line{font-size:.72rem}}
-
-/* RULES BUILD 6.8 - SURVIVAL / ENCUMBRANCE */
-.game-header-vitals{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:min(720px,64%)}
-.game-header-vitals .quick-vitals{justify-content:flex-end}
-.survival-meters{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) auto;gap:8px;align-items:center}
-.survival-meter{border:1px solid #57492f;border-radius:7px;background:#0e0c08;padding:7px 9px;min-width:0}
-.survival-meter-label{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:baseline;font-size:11px;color:#9d8f73}
-.survival-meter-label b{color:#e2c987}.survival-meter-label small{text-align:right;color:#7f745f;white-space:nowrap}
-.survival-track,.encumbrance-track{height:8px;margin-top:5px;border:1px solid #403725;border-radius:999px;background:#050403;overflow:hidden}
-.survival-track i,.encumbrance-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#735a2b,#d6ad53)}
-.thirst-meter .survival-track i{background:linear-gradient(90deg,#335568,#65a4c5)}
-.survival-exhaustion{border:1px solid #7c493f;border-radius:7px;padding:9px 10px;color:#e1a095;background:#1a0d0b;font-size:11px;white-space:nowrap}
-.encumbrance-card{margin:0 0 14px;border:1px solid #57492f;border-radius:8px;background:#0d0b08;padding:10px 12px}
-.encumbrance-line{display:grid;grid-template-columns:auto auto 1fr;gap:12px;align-items:baseline;color:#9e9075}.encumbrance-line>span{color:#d8bf82;font-weight:700}.encumbrance-line>b{color:#e5cf99}.encumbrance-line>small{text-align:right;color:#80745f}
-.encumbrance-card.over{border-color:#914b42}.encumbrance-card.over .encumbrance-line>b,.encumbrance-card.over .encumbrance-line>small{color:#e89a91}.encumbrance-card.over .encumbrance-track i{background:linear-gradient(90deg,#7c342f,#c76258)}
-.inventory-physical-card{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.inventory-physical-card span{display:flex;flex-direction:column;gap:2px;min-width:120px;border:1px solid #463b29;border-radius:6px;background:#0a0806;padding:8px 10px}.inventory-physical-card small{color:#7f735f;font-size:9px}.inventory-physical-card b{color:#d8c18c;font-size:12px}
-.survival-settings{margin-top:14px}.settings-owner-note{display:block;margin-top:8px}
-@media(max-width:900px){.game-header{align-items:flex-start;flex-direction:column}.game-header-vitals{width:100%;min-width:0}.game-header-vitals .quick-vitals{justify-content:flex-start}.survival-meters{grid-template-columns:1fr 1fr}.survival-exhaustion{grid-column:1/-1}.encumbrance-line{grid-template-columns:1fr auto}.encumbrance-line>small{grid-column:1/-1;text-align:left}}
-@media(max-width:560px){.survival-meters{grid-template-columns:1fr}.survival-exhaustion{grid-column:auto}.survival-meter-label{grid-template-columns:auto auto}.survival-meter-label small{grid-column:1/-1;text-align:left}.encumbrance-line{grid-template-columns:1fr}.encumbrance-line>small{text-align:left}}

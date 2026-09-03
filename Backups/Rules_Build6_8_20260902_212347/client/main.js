@@ -57,10 +57,6 @@ let restActionBusy = false;
 let lastRestState = null;
 let restOverlaySignature = '';
 
-// RULES BUILD 6.8 - SURVIVAL / ENCUMBRANCE
-let survivalPollTimer = null;
-let survivalPollBusy = false;
-
 const app = document.querySelector('#app');
 const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
@@ -225,7 +221,6 @@ async function showCampaignLauncher() {
   stopDeathStatePolling();
   stopProgressionPolling();
   stopRestStatePolling();
-  stopSurvivalPolling();
   document.querySelector('#deathOverlay')?.remove();
   document.body.classList.remove('death-modal-open');
   document.querySelector('#levelUpOverlay')?.remove();
@@ -676,7 +671,6 @@ async function enterCampaign(campaignId, initialTab='gm') {
     startDeathStatePolling();
     startProgressionPolling();
     startRestStatePolling();
-    startSurvivalPolling();
     if(initialTab&&initialTab!=='gm'){
       const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
       if(target)switchGameTab(initialTab,target);
@@ -687,7 +681,7 @@ async function enterCampaign(campaignId, initialTab='gm') {
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -709,81 +703,6 @@ function switchGameTab(tab,button) {
   if(tab!=='combat')stopTacticalCombatPolling();
   if(tab==='combat'){renderCombatTab();return;}
   ({gm:renderGameMasterTab,character:renderCharacterTab,inventory:renderInventoryTab,spells:renderSpellbookTab,journal:renderJournalTab,chat:renderChatTab,settings:renderSettingsTab}[tab]||renderGameMasterTab)();
-}
-
-function survivalMetersHtml(state) {
-  if(!state?.enabled)return '';
-  const hunger=Math.max(0,Math.min(100,Number(state.hungerPercent)||0));
-  const thirst=Math.max(0,Math.min(100,Number(state.thirstPercent)||0));
-  const food=Math.max(0,Number(state.foodCreditLb)||0);
-  const foodReq=Math.max(0.01,Number(state.foodRequirementLb)||1);
-  const water=Math.max(0,Number(state.waterCreditGal)||0);
-  const waterReq=Math.max(0.01,Number(state.waterRequirementGal)||1);
-  const exhaustion=Math.max(0,Number(state.exhaustionLevel)||0);
-  return `<div class="survival-meters">
-    <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
-    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${state.hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
-    ${exhaustion>0?`<div class="survival-exhaustion">Exhaustion ${exhaustion}</div>`:''}
-  </div>`;
-}
-
-function updateSurvivalHeader() {
-  const host=document.querySelector('#survivalMetersHost');
-  if(host)host.innerHTML=survivalMetersHtml(currentGameData?.survival);
-}
-
-function stopSurvivalPolling() {
-  if(survivalPollTimer)clearInterval(survivalPollTimer);
-  survivalPollTimer=null;
-  survivalPollBusy=false;
-}
-
-function startSurvivalPolling() {
-  stopSurvivalPolling();
-  if(!currentCampaignId)return;
-  void refreshSurvivalState();
-  survivalPollTimer=setInterval(()=>void refreshSurvivalState(),3000);
-}
-
-async function refreshSurvivalState() {
-  if(!currentCampaignId||!currentGameData||survivalPollBusy)return;
-  survivalPollBusy=true;
-  try {
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/survival`);
-    if(data.survival)currentGameData.survival=data.survival;
-    if(data.encumbrance)currentGameData.encumbrance=data.encumbrance;
-    updateSurvivalHeader();
-    updateEncumbranceUi();
-  } catch(error) {
-    console.warn('Survival state refresh failed:',error);
-  } finally {
-    survivalPollBusy=false;
-  }
-}
-
-function resolvedEncumbrance() {
-  if(currentGameData?.encumbrance)return currentGameData.encumbrance;
-  const strength=Math.max(0,Number(currentGameData?.character?.strength)||0);
-  const capacity=strength*15;
-  const carried=(currentGameData?.inventory||[]).reduce((sum,item)=>sum+(Math.max(0,Number(item.quantity)||0)*Math.max(0,Number(item.weightLb)||0)),0);
-  return {carriedWeightLb:carried,capacityLb:capacity,remainingCapacityLb:Math.max(0,capacity-carried),percent:capacity>0?Math.min(100,(carried/capacity)*100):0,overCapacity:carried>capacity};
-}
-
-function encumbranceHtml() {
-  const e=resolvedEncumbrance();
-  const carried=Math.max(0,Number(e.carriedWeightLb)||0);
-  const capacity=Math.max(0,Number(e.capacityLb)||0);
-  const percent=capacity>0?Math.min(100,(carried/capacity)*100):0;
-  const remaining=Math.max(0,capacity-carried);
-  return `<div class="encumbrance-card ${e.overCapacity?'over':''}">
-    <div class="encumbrance-line"><span>Weight Capacity</span><b>${carried.toFixed(1)} / ${capacity.toFixed(0)} lb</b><small>${e.overCapacity?`${(carried-capacity).toFixed(1)} lb over capacity`:`${remaining.toFixed(1)} lb remaining`}</small></div>
-    <div class="encumbrance-track"><i style="width:${percent}%"></i></div>
-  </div>`;
-}
-
-function updateEncumbranceUi() {
-  const host=document.querySelector('#encumbranceHost');
-  if(host)host.innerHTML=encumbranceHtml();
 }
 
 function stopProgressionPolling() {
@@ -1796,8 +1715,6 @@ function applyInventoryPayload(payload) {
   if(!currentGameData)return;
   currentGameData.inventory=mergeInventoryValuations(payload?.inventory||[],payload?.inventoryValuations||[]);
   if(payload?.gold!==undefined&&currentGameData.character)currentGameData.character.gold=payload.gold;
-  if(payload?.encumbrance)currentGameData.encumbrance=payload.encumbrance;
-  updateEncumbranceUi();
 }
 
 function currencyParts(goldValue) {
@@ -2766,7 +2683,6 @@ function renderInventoryTab() {
 
   view.innerHTML=`
     <div class="view-heading"><div><h3>Inventory</h3><p class="muted">Select an item to inspect it and see the actions it supports.</p></div><span class="inventory-currency" data-live-self-currency>${currencyPurseText(currentGameData.character.gold)}</span></div>
-    <div id="encumbranceHost">${encumbranceHtml()}</div>
     <div class="inventory-layout">
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
@@ -2797,7 +2713,6 @@ function inventoryDetailHtml(item) {
   return `
     <div class="inventory-detail-heading"><div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(meta)}</p></div>${item.equipped?'<span class="badge">EQUIPPED</span>':''}</div>
     <div class="inventory-value-card"><div><small>RARITY</small><b>${escapeHtml(item.rarity||'Common')}</b></div><div><small>BASE VALUE</small><b>${valueText}</b></div><div><small>TYPICAL SHOP OFFER</small><b>${resaleText}</b></div></div>
-    <div class="inventory-physical-card"><span><small>WEIGHT</small><b>${Math.max(0,Number(item.weightLb)||0).toFixed(2)} lb each</b></span>${Number(item.foodLb)>0?`<span><small>FOOD</small><b>${Number(item.foodLb).toFixed(2)} lb</b></span>`:''}${Number(item.waterGallons)>0?`<span><small>WATER</small><b>${Number(item.waterGallons).toFixed(2)} gal</b></span>`:''}</div>
     ${item.priceBand?`<p class="muted inventory-price-band">${escapeHtml(item.priceBand)}</p>`:''}
     <div class="inventory-description">${escapeHtml(item.description||'No description is available for this item.').replaceAll('\n','<br>')}</div>
     ${item.rulesSummary?`<div class="inventory-rules"><b>Equipment Details</b><div>${escapeHtml(item.rulesSummary).replaceAll('\n','<br>')}</div></div>`:''}
@@ -2927,14 +2842,6 @@ function renderSettingsTab(){
       <div class="row gap settings-actions"><button id="saveApiKey" class="button primary">Test & Save API Key</button><button id="clearApiKey" class="button danger-button">Remove Saved Key</button><button id="openOpenAiKeys" class="button">Open OpenAI API Keys</button></div>
       <div id="settingsError" class="error"></div>
     </section>
-    <section class="panel settings survival-settings">
-      <h4>Hunger & Thirst Survival Rules</h4>
-      <p>${currentGameData?.survival?.enabled?'<span class="good">Hunger and Thirst are ON for this campaign.</span>':'<span class="muted">Hunger and Thirst are OFF for this campaign.</span>'}</p>
-      <p class="muted">When enabled, characters need 1 lb of food and 1 gallon of water per in-game day. Hot weather raises water to 2 gallons. Missing requirements can add Exhaustion. Weight Capacity remains active even when Hunger and Thirst are off.</p>
-      <button id="toggleSurvivalRules" class="button ${currentGameData?.survival?.enabled?'danger-button':'primary'}" ${currentGameData?.campaign?.isOwner?'':'disabled'}>${currentGameData?.survival?.enabled?'Turn Hunger & Thirst OFF':'Turn Hunger & Thirst ON'}</button>
-      ${currentGameData?.campaign?.isOwner?'':'<small class="muted settings-owner-note">Only the campaign owner can change this setting.</small>'}
-      <div id="survivalSettingsError" class="error"></div>
-    </section>
     <section class="panel settings legal-settings">
       <h4>Legal & Support</h4>
       <p class="muted">These links open outside the Discord Activity using Discord's approved external-link flow.</p>
@@ -2961,21 +2868,6 @@ function renderSettingsTab(){
   document.querySelector('#clearApiKey').onclick=async()=>{
     if(!confirm('Remove the OpenAI API key saved for your Discord account?'))return;
     try{await api('/game-api/settings/openai',{method:'DELETE'});currentGameData.openAiConfigured=false;showNotice('Saved OpenAI API key removed.');renderSettingsTab();}catch(e){document.querySelector('#settingsError').textContent=e.message;}
-  };
-  const survivalToggle=document.querySelector('#toggleSurvivalRules');
-  if(survivalToggle&&currentGameData?.campaign?.isOwner)survivalToggle.onclick=async()=>{
-    survivalToggle.disabled=true;
-    const enabled=!Boolean(currentGameData?.survival?.enabled);
-    try{
-      const result=await api(`/game-api/campaigns/${currentCampaignId}/settings/survival`,{method:'POST',body:JSON.stringify({enabled})});
-      if(result.survival)currentGameData.survival=result.survival;
-      updateSurvivalHeader();
-      showNotice(result.message||`Hunger and Thirst ${enabled?'enabled':'disabled'}.`);
-      renderSettingsTab();
-    }catch(e){
-      const error=document.querySelector('#survivalSettingsError');if(error)error.textContent=e.message;
-      survivalToggle.disabled=false;
-    }
   };
   document.querySelector('#openOpenAiKeys').onclick=()=>openExternal('https://platform.openai.com/api-keys');
   document.querySelectorAll('[data-settings-link]').forEach(button=>button.onclick=()=>openExternal(legalUrls[button.dataset.settingsLink]));

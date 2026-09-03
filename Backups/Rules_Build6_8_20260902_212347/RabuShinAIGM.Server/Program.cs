@@ -690,8 +690,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         var gm = await service.GetMessagesAsync(playerId, campaignId, "gm", 100);
         var chat = await service.GetMessagesAsync(playerId, campaignId, "chat", 100);
         var journal = await service.GetJournalAsync(playerId, campaignId);
-        var survival = await service.GetSurvivalStateAsync(playerId, campaignId);
-        var encumbrance = ItemPhysicalProfileService.CalculateEncumbrance(character.Strength, inventory);
 
         return Results.Ok(new
         {
@@ -707,74 +705,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             gmMessages = gm.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             chatMessages = chat.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             journal = journal.Select(j => new { journalId=j.JournalId,category=j.Category,title=j.Title,entryText=j.EntryText,createdAt=j.CreatedAt }),
-            survival,
-            encumbrance = new
-            {
-                carriedWeightLb = encumbrance.CarriedWeightLb,
-                capacityLb = encumbrance.CapacityLb,
-                remainingCapacityLb = encumbrance.RemainingCapacityLb,
-                percent = encumbrance.Percent,
-                overCapacity = encumbrance.OverCapacity
-            },
             openAiConfigured = await service.HasStoredOpenAiKeyAsync(playerId)
-        });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-// RULES BUILD 6.8 - SURVIVAL SETTINGS / STATE
-app.MapGet("/game-api/campaigns/{campaignId:guid}/survival", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var state = await service.GetSurvivalStateAsync(playerId, campaignId);
-        if (state is null) return Results.NotFound(new { success = false, error = "Survival state could not be found." });
-
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
-        var inventory = await service.GetInventoryAsync(playerId, campaignId);
-        var encumbrance = ItemPhysicalProfileService.CalculateEncumbrance(character.Strength, inventory);
-
-        return Results.Ok(new
-        {
-            success = true,
-            survival = state,
-            encumbrance = new
-            {
-                carriedWeightLb = encumbrance.CarriedWeightLb,
-                capacityLb = encumbrance.CapacityLb,
-                remainingCapacityLb = encumbrance.RemainingCapacityLb,
-                percent = encumbrance.Percent,
-                overCapacity = encumbrance.OverCapacity
-            }
-        });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/settings/survival", async (
-    Guid campaignId, SurvivalSettingsRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var campaigns = await service.GetCampaignsAsync(playerId);
-        var campaign = campaigns.FirstOrDefault(c => c.CampaignId == campaignId);
-        if (campaign is null) return Results.NotFound(new { success = false, error = "Campaign could not be found." });
-        if (!campaign.IsOwner) return Results.Json(new { success = false, error = "Only the campaign owner can change Hunger and Thirst rules." }, statusCode: 403);
-
-        var state = await service.SetSurvivalEnabledAsync(playerId, campaignId, body.Enabled);
-        return Results.Ok(new
-        {
-            success = true,
-            survival = state,
-            message = body.Enabled
-                ? "Hunger and Thirst survival rules are ON."
-                : "Hunger and Thirst survival rules are OFF. Survival time is paused."
         });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
@@ -1484,21 +1415,12 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
-        var encumbrance = ItemPhysicalProfileService.CalculateEncumbrance(character.Strength, inventory);
         return Results.Ok(new
         {
             success = true,
             gold = character.Gold,
             inventory = inventory.Select(InventoryPresentationService.ToClientItem),
-            inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
-            encumbrance = new
-            {
-                carriedWeightLb = encumbrance.CarriedWeightLb,
-                capacityLb = encumbrance.CapacityLb,
-                remainingCapacityLb = encumbrance.RemainingCapacityLb,
-                percent = encumbrance.Percent,
-                overCapacity = encumbrance.OverCapacity
-            }
+            inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation)
         });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
@@ -2374,7 +2296,6 @@ public sealed record RespawnChoiceRequest(bool Respawn);
 public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
-public sealed record SurvivalSettingsRequest(bool Enabled);
 public sealed record SettlementMoveRequest(string PoiKey);
 public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);
 public sealed record SettlementShopSaleRequest(Guid InventoryItemId, int Quantity);

@@ -82,17 +82,6 @@ AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The inventory Use button prepares an action but does not pre-consume the item; if the use is successfully resolved and should consume the item, call remove_inventory_item exactly once.
 - Never invent successful state changes. Use the tool result as the source of truth and narrate only after a successful tool response.
 
-SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
-- Hunger and Thirst are campaign rules that the campaign owner can turn ON or OFF. The CURRENT SURVIVAL STATE below is authoritative.
-- If Hunger and Thirst are OFF, do not reduce food/water state, do not require food/water mechanically, and do not apply survival Exhaustion. Ordinary narrative eating/drinking may still consume an item with remove_inventory_item if appropriate.
-- If Hunger and Thirst are ON, a character needs 1 lb of food per in-game day and 1 gallon of water per in-game day. In hot weather the water requirement is 2 gallons per day.
-- When a character actually eats or drinks a carried item that has server-recognized food/water value, call consume_survival_item. Do NOT separately call remove_inventory_item for that same serving; consume_survival_item atomically consumes it and updates Hunger/Thirst.
-- Short Rest and Long Rest tools automatically advance survival time by 1 hour and 8 hours respectively. NEVER call advance_survival_time again for those same rest hours.
-- For travel, waiting, downtime, watches, imprisonment, or other fiction that definitively advances meaningful in-game time, call advance_survival_time with the characters affected and the actual hours elapsed.
-- When the environment becomes hot enough to require double water, call set_survival_hot_weather with hotWeather=true. Set it false when the party leaves the hot environment. Do not toggle it merely for ordinary warm weather.
-- Survival Exhaustion returned by the server is authoritative. Apply it in adjudication and narration; never invent or erase survival Exhaustion by narration alone.
-- Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
-
 WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
 - The server-supplied WORLD MAP STATE below is authoritative and shared by the entire campaign.
 - Locations marked HIDDEN are not known well enough for fast travel. Do not reveal their names, positions, routes, or existence merely because they appear in campaign canon or in your private world knowledge.
@@ -217,32 +206,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         else
         {
             foreach (var item in inventory)
-            {
-                var physical = item.PhysicalProfile ?? ItemPhysicalProfileService.Classify(item);
-                var survivalUse = physical.FoodLb > 0m || physical.WaterGallons > 0m
-                    ? $"; food {physical.FoodLb:0.##} lb; water {physical.WaterGallons:0.###} gal"
-                    : string.Empty;
-                inputBuilder.AppendLine("- " + InventoryPresentationService.BuildGameplaySummary(item) +
-                    $"; weight {physical.WeightLb:0.##} lb each{survivalUse}");
-            }
-        }
-
-        var survivalState = await GetCharacterSurvivalForGmAsync(campaign.CampaignId, character.CharacterId);
-        inputBuilder.AppendLine();
-        inputBuilder.AppendLine("CURRENT SURVIVAL STATE (SERVER-AUTHORITATIVE):");
-        if (survivalState is null)
-        {
-            inputBuilder.AppendLine("(Survival state unavailable.)");
-        }
-        else if (!survivalState.Enabled)
-        {
-            inputBuilder.AppendLine("Hunger/Thirst: OFF. Survival time is paused. Carrying Capacity remains active.");
-        }
-        else
-        {
-            inputBuilder.AppendLine($"Hunger {survivalState.HungerPercent:0}% ({survivalState.FoodCreditLb:0.##}/{survivalState.FoodRequirementLb:0.##} lb daily food); " +
-                $"Thirst {survivalState.ThirstPercent:0}% ({survivalState.WaterCreditGal:0.##}/{survivalState.WaterRequirementGal:0.##} gal daily water); " +
-                $"Hot Weather {(survivalState.HotWeather ? "YES" : "NO")}; Survival Exhaustion {survivalState.ExhaustionLevel}.");
+                inputBuilder.AppendLine("- " + InventoryPresentationService.BuildGameplaySummary(item));
         }
 
         inputBuilder.AppendLine();
@@ -377,9 +341,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
-            BuildConsumeSurvivalItemTool(),
-            BuildAdvanceSurvivalTimeTool(),
-            BuildSetSurvivalHotWeatherTool(),
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
             BuildCompleteQuestTool(),
@@ -530,30 +491,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative = true, action = "remove_inventory_item", itemName, quantityRemoved = quantity, quantityRemaining = remaining, reason };
                         break;
                     }
-                    case "consume_survival_item":
-                    {
-                        var args = DeserializeArguments<ConsumeSurvivalItemToolArguments>(call.ArgumentsJson, "survival consumption");
-                        var result = await ConsumeSurvivalItemAsync(campaign.CampaignId, character, inventory, args);
-                        stateAudits.Add(new GameMasterStateAudit("Survival", $"Consumed {Math.Max(1, args.Quantity)} x {args.ItemName} for food/water."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "advance_survival_time":
-                    {
-                        var args = DeserializeArguments<AdvanceSurvivalTimeToolArguments>(call.ArgumentsJson, "survival time");
-                        var result = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, args.Hours, args.Reason);
-                        stateAudits.Add(new GameMasterStateAudit("Survival", $"Advanced survival time {args.Hours:0.##} hour(s)."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "set_survival_hot_weather":
-                    {
-                        var args = DeserializeArguments<SetSurvivalHotWeatherToolArguments>(call.ArgumentsJson, "survival weather");
-                        var result = await SetSurvivalHotWeatherAsync(campaign.CampaignId, args.HotWeather, args.Reason);
-                        stateAudits.Add(new GameMasterStateAudit("Survival", args.HotWeather ? "Hot-weather water requirement enabled." : "Normal water requirement restored."));
-                        toolResult = result;
-                        break;
-                    }
                     case "discover_world_location":
                     {
                         var args = DeserializeArguments<DiscoverWorldLocationToolArguments>(call.ArgumentsJson, "world map discovery");
@@ -587,25 +524,23 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<CompleteShortRestToolArguments>(call.ArgumentsJson, "short rest completion");
                         var result = await CompleteShortRestAsync(campaign.CampaignId, args);
-                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 1m, $"Short Rest: {args.Reason}");
                         var waiting = result.Where(r => r.Status.Equals("awaiting_hit_dice", StringComparison.OrdinalIgnoreCase))
                             .Select(r => r.CharacterName).ToArray();
                         stateAudits.Add(new GameMasterStateAudit("Rest", waiting.Length > 0
                             ? $"Short Rest completed; Hit Dice choices waiting for: {string.Join(", ", waiting)}"
                             : "Short Rest completed."));
-                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result, survival };
+                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result };
                         break;
                     }
                     case "complete_long_rest":
                     {
                         var args = DeserializeArguments<CompleteLongRestToolArguments>(call.ArgumentsJson, "long rest completion");
                         var result = await CompleteLongRestAsync(campaign.CampaignId, args);
-                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 8m, $"Long Rest: {args.Reason}");
                         var leveled = result.Where(r => r.LeveledUp).Select(r => $"{r.CharacterName} {r.FromLevel}→{r.ToLevel}").ToArray();
                         stateAudits.Add(new GameMasterStateAudit("Rest", leveled.Length > 0
                             ? $"Long Rest completed; level up: {string.Join(", ", leveled)}"
                             : "Long Rest completed; no XP level increase."));
-                        toolResult = new { authoritative = true, action = "complete_long_rest", characters = result, survival };
+                        toolResult = new { authoritative = true, action = "complete_long_rest", characters = result };
                         break;
                     }
                     case "set_encounter_map":
@@ -1046,79 +981,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     difficulty = new { type = "string", @enum = new[] { "minor", "side", "main" }, description = "minor for a small optional objective, side for a substantial side quest, main for a main-story quest." }
                 },
                 required = new[] { "questName", "difficulty" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildConsumeSurvivalItemTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "consume_survival_item",
-            description = "When Hunger/Thirst rules are ON, atomically consume a carried food/water inventory item and apply its server-recognized food/water value. Do not also remove the same serving with remove_inventory_item.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    itemName = new { type = "string", description = "Exact carried item name from CURRENT INVENTORY." },
-                    quantity = new { type = "integer", minimum = 1, maximum = 100, description = "Number of inventory units actually eaten/drunk." },
-                    reason = new { type = "string", description = "Short narrative reason, e.g. Eats a ration during camp." }
-                },
-                required = new[] { "itemName", "quantity", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildAdvanceSurvivalTimeTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "advance_survival_time",
-            description = "Advance Hunger/Thirst for meaningful in-game time such as travel, waiting, watches, downtime, captivity, or extended exploration. Do not use for Short/Long Rest hours because the rest tools advance those automatically.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterNames = new
-                    {
-                        type = "array", minItems = 1, maxItems = 20,
-                        items = new { type = "string" },
-                        description = "Exact character names affected by the elapsed time."
-                    },
-                    hours = new { type = "number", minimum = 0.25, maximum = 168, description = "In-game hours that actually elapsed." },
-                    reason = new { type = "string", description = "Why time advanced." }
-                },
-                required = new[] { "characterNames", "hours", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildSetSurvivalHotWeatherTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "set_survival_hot_weather",
-            description = "Set whether the campaign is currently in hot-weather survival conditions. Hot weather doubles water requirement from 1 to 2 gallons per in-game day.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    hotWeather = new { type = "boolean", description = "true for hot-weather water rules, false for normal water rules." },
-                    reason = new { type = "string", description = "Short environmental reason for the change." }
-                },
-                required = new[] { "hotWeather", "reason" },
                 additionalProperties = false
             }
         };
@@ -1592,91 +1454,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 p_difficulty = difficulty
             },
             "Unable to award quest experience");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<SurvivalStateForGm?> GetCharacterSurvivalForGmAsync(Guid campaignId, Guid characterId)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_get_survival_state",
-            new { p_campaign_id = campaignId, p_character_id = characterId },
-            "Unable to load survival state");
-        var rows = JsonSerializer.Deserialize<List<SurvivalStateForGm>>(raw, JsonOptions) ?? new List<SurvivalStateForGm>();
-        return rows.FirstOrDefault();
-    }
-
-    private async Task<JsonElement> ConsumeSurvivalItemAsync(
-        Guid campaignId,
-        DiscordCharacterInfo character,
-        IReadOnlyList<DiscordInventoryInfo> inventory,
-        ConsumeSurvivalItemToolArguments args)
-    {
-        var itemName = CleanItemName(args.ItemName);
-        var quantity = Math.Clamp(args.Quantity, 1, 100);
-        var item = inventory.FirstOrDefault(i => i.ItemName.Equals(itemName, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException($"{character.CharacterName} does not carry {itemName}.");
-        if (item.Quantity < quantity)
-            throw new InvalidOperationException($"{character.CharacterName} carries only {item.Quantity} x {item.ItemName}.");
-
-        var physical = item.PhysicalProfile ?? ItemPhysicalProfileService.Classify(item);
-        if (physical.FoodLb <= 0m && physical.WaterGallons <= 0m)
-            throw new InvalidOperationException($"{item.ItemName} is not recognized as food or drinking water.");
-
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_consume_survival_item",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_character_id = character.CharacterId,
-                p_inventory_item_id = item.InventoryItemId,
-                p_quantity = quantity,
-                p_food_lb_per_item = physical.FoodLb,
-                p_water_gallons_per_item = physical.WaterGallons,
-                p_reason = CleanReason(args.Reason, $"Consumed {item.ItemName}")
-            },
-            $"Unable to consume {item.ItemName}");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> AdvanceSurvivalTimeAsync(
-        Guid campaignId, IEnumerable<string>? characterNames, decimal hours, string? reason)
-    {
-        var names = (characterNames ?? Array.Empty<string>())
-            .Select(name => (name ?? string.Empty).Trim())
-            .Where(name => name.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToArray();
-        if (names.Length == 0) throw new InvalidOperationException("Survival time requires at least one character name.");
-        if (hours <= 0m || hours > 168m) throw new InvalidOperationException("Survival time must be between 0 and 168 hours.");
-
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_advance_survival_time",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_character_names = names,
-                p_hours = Math.Round(hours, 2),
-                p_reason = CleanReason(reason, "In-game time passed")
-            },
-            "Unable to advance survival time");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> SetSurvivalHotWeatherAsync(Guid campaignId, bool hotWeather, string? reason)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_set_survival_hot_weather",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_hot_weather = hotWeather,
-                p_reason = CleanReason(reason, hotWeather ? "Hot weather" : "Normal weather")
-            },
-            "Unable to update survival weather");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
     }
@@ -2608,39 +2385,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         public string QuestName { get; set; } = string.Empty;
         public string Difficulty { get; set; } = "side";
-    }
-
-    private sealed class ConsumeSurvivalItemToolArguments
-    {
-        public string ItemName { get; set; } = string.Empty;
-        public int Quantity { get; set; } = 1;
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class AdvanceSurvivalTimeToolArguments
-    {
-        public string[] CharacterNames { get; set; } = Array.Empty<string>();
-        public decimal Hours { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class SetSurvivalHotWeatherToolArguments
-    {
-        public bool HotWeather { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class SurvivalStateForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("enabled")] public bool Enabled { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hot_weather")] public bool HotWeather { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("food_credit_lb")] public decimal FoodCreditLb { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("water_credit_gal")] public decimal WaterCreditGal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("food_requirement_lb")] public decimal FoodRequirementLb { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("water_requirement_gal")] public decimal WaterRequirementGal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hunger_percent")] public decimal HungerPercent { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("thirst_percent")] public decimal ThirstPercent { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
     }
 
     private sealed class CompleteShortRestToolArguments

@@ -305,29 +305,6 @@ public sealed class DiscordSupabaseService
         return rows.FirstOrDefault();
     }
 
-    public async Task<DiscordSurvivalState?> GetSurvivalStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_survival_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var rows = await ReadListAsync<DiscordSurvivalState>(response, "Unable to load survival state");
-        return rows.FirstOrDefault();
-    }
-
-    public async Task<DiscordSurvivalState?> SetSurvivalEnabledAsync(Guid playerId, Guid campaignId, bool enabled)
-    {
-        using var response = await CallRpcAsync("discord_set_survival_enabled", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_enabled = enabled
-        });
-        var rows = await ReadListAsync<DiscordSurvivalState>(response, "Unable to update survival rules");
-        return rows.FirstOrDefault();
-    }
-
     public async Task<JsonElement> SpendShortRestHitDieAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_spend_short_rest_hit_die", new
@@ -499,14 +476,10 @@ public sealed class DiscordSupabaseService
         var items = await ReadListAsync<DiscordInventoryInfo>(response, "Unable to load inventory");
 
         foreach (var item in items)
-        {
             item.Valuation = ItemValuationService.Classify(item);
-            item.PhysicalProfile = ItemPhysicalProfileService.Classify(item);
-        }
 
         var patches = items
-            .Where(item => !ItemValuationService.HasCurrentPersistedValuation(item.ItemData)
-                || !ItemPhysicalProfileService.HasCurrentPersistedProfile(item.ItemData))
+            .Where(item => !ItemValuationService.HasCurrentPersistedValuation(item.ItemData))
             .Select(ItemValuationService.ToPatch)
             .ToList();
 
@@ -546,11 +519,7 @@ public sealed class DiscordSupabaseService
                 priceless = p.Priceless,
                 valuation_source = p.ValuationSource,
                 price_band = p.PriceBand,
-                valuation_version = ItemValuationService.ValuationVersion,
-                weight_lb = p.WeightLb,
-                food_lb = p.FoodLb,
-                water_gallons = p.WaterGallons,
-                physical_profile_version = p.PhysicalProfileVersion
+                valuation_version = ItemValuationService.ValuationVersion
             }).ToList()
         });
         await EnsureSuccessAsync(response, "Unable to persist inventory valuations");
@@ -1361,24 +1330,6 @@ public sealed class DiscordSettlementShopSaleResult
     [JsonPropertyName("remaining_gold")] public decimal RemainingGold { get; set; }
 }
 
-public sealed class DiscordSurvivalState
-{
-    [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
-    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
-    [JsonPropertyName("is_owner")] public bool IsOwner { get; set; }
-    [JsonPropertyName("hot_weather")] public bool HotWeather { get; set; }
-    [JsonPropertyName("food_credit_lb")] public decimal FoodCreditLb { get; set; }
-    [JsonPropertyName("water_credit_gal")] public decimal WaterCreditGal { get; set; }
-    [JsonPropertyName("food_requirement_lb")] public decimal FoodRequirementLb { get; set; }
-    [JsonPropertyName("water_requirement_gal")] public decimal WaterRequirementGal { get; set; }
-    [JsonPropertyName("hunger_percent")] public decimal HungerPercent { get; set; }
-    [JsonPropertyName("thirst_percent")] public decimal ThirstPercent { get; set; }
-    [JsonPropertyName("food_deficit_hours")] public decimal FoodDeficitHours { get; set; }
-    [JsonPropertyName("water_deficit_hours")] public decimal WaterDeficitHours { get; set; }
-    [JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-}
-
 public sealed class DiscordRestState
 {
     [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
@@ -1435,7 +1386,6 @@ public sealed class DiscordInventoryInfo
     [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
     [JsonPropertyName("item_data")] public JsonElement ItemData { get; set; }
     [JsonIgnore] public InventoryItemValuation? Valuation { get; set; }
-    [JsonIgnore] public InventoryItemPhysicalProfile? PhysicalProfile { get; set; }
 }
 
 public sealed class DiscordSpellSaveItem

@@ -25,15 +25,11 @@ public sealed record InventoryItemValuationPatch(
     bool Sellable,
     bool Priceless,
     string ValuationSource,
-    string PriceBand,
-    decimal WeightLb,
-    decimal FoodLb,
-    decimal WaterGallons,
-    string PhysicalProfileVersion);
+    string PriceBand);
 
 public static class ItemValuationService
 {
-    public const string ValuationVersion = "6.8";
+    public const string ValuationVersion = "6.7";
 
     private static readonly string[] Rarities = new[]
     {
@@ -161,7 +157,6 @@ public static class ItemValuationService
     public static InventoryItemValuationPatch ToPatch(DiscordInventoryInfo item)
     {
         var value = item.Valuation ?? Classify(item);
-        var physical = item.PhysicalProfile ?? ItemPhysicalProfileService.Classify(item);
         return new InventoryItemValuationPatch(
             item.InventoryItemId,
             value.Rarity,
@@ -171,17 +166,12 @@ public static class ItemValuationService
             value.Sellable,
             value.Priceless,
             value.ValuationSource,
-            value.PriceBand,
-            physical.WeightLb,
-            physical.FoodLb,
-            physical.WaterGallons,
-            ItemPhysicalProfileService.PhysicalProfileVersion);
+            value.PriceBand);
     }
 
     public static object ToClientValuation(DiscordInventoryInfo item)
     {
         var value = item.Valuation ?? Classify(item);
-        var physical = item.PhysicalProfile ?? ItemPhysicalProfileService.Classify(item);
         return new
         {
             inventoryItemId = item.InventoryItemId,
@@ -193,11 +183,7 @@ public static class ItemValuationService
             sellable = value.Sellable,
             priceless = value.Priceless,
             valuationSource = value.ValuationSource,
-            priceBand = value.PriceBand,
-            weightLb = physical.WeightLb,
-            foodLb = physical.FoodLb,
-            waterGallons = physical.WaterGallons,
-            physicalProfileSource = physical.Source
+            priceBand = value.PriceBand
         };
     }
 
