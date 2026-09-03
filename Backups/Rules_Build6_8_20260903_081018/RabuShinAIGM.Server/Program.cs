@@ -715,7 +715,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             gmMessages = gm.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             chatMessages = chat.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             journal = journal.Select(j => new { journalId=j.JournalId,category=j.Category,title=j.Title,entryText=j.EntryText,createdAt=j.CreatedAt }),
-            survival = survival?.ToClientState(),
+            survival,
             encumbrance = new
             {
                 carriedWeightLb = encumbrance.CarriedWeightLb,
@@ -749,7 +749,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/survival", async (
         return Results.Ok(new
         {
             success = true,
-            survival = state.ToClientState(),
+            survival = state,
             encumbrance = new
             {
                 carriedWeightLb = encumbrance.CarriedWeightLb,
@@ -779,7 +779,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settings/survival", async (
         return Results.Ok(new
         {
             success = true,
-            survival = state?.ToClientState(),
+            survival = state,
             message = body.Enabled
                 ? "Hunger and Thirst survival rules are ON."
                 : "Hunger and Thirst survival rules are OFF. Survival time is paused."

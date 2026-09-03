@@ -1391,27 +1391,6 @@ public sealed class DiscordSurvivalState
     [JsonPropertyName("food_deficit_hours")] public decimal FoodDeficitHours { get; set; }
     [JsonPropertyName("water_deficit_hours")] public decimal WaterDeficitHours { get; set; }
     [JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-
-    // JsonPropertyName attributes above match the snake_case Supabase RPC
-    // response. Never return this database DTO directly to the browser because
-    // those attributes also control ASP.NET output serialization.
-    public object ToClientState() => new
-    {
-        campaignId = CampaignId,
-        characterId = CharacterId,
-        enabled = Enabled,
-        isOwner = IsOwner,
-        hotWeather = HotWeather,
-        foodCreditLb = FoodCreditLb,
-        waterCreditGal = WaterCreditGal,
-        foodRequirementLb = FoodRequirementLb,
-        waterRequirementGal = WaterRequirementGal,
-        hungerPercent = HungerPercent,
-        thirstPercent = ThirstPercent,
-        foodDeficitHours = FoodDeficitHours,
-        waterDeficitHours = WaterDeficitHours,
-        exhaustionLevel = ExhaustionLevel
-    };
 }
 
 public sealed class DiscordRestState

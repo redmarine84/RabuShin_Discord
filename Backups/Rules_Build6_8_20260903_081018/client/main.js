@@ -715,22 +715,16 @@ function switchGameTab(tab,button) {
 
 function survivalMetersHtml(state) {
   if(!state?.enabled)return '';
-  // Build 6.8 originally returned the Supabase DTO directly, so its
-  // JsonPropertyName attributes emitted snake_case even though the UI expected
-  // camelCase. Accept both shapes during rolling deployments while the server
-  // now returns the canonical camelCase contract.
-  const value=(camel,snake)=>state[camel]??state[snake];
-  const hunger=Math.max(0,Math.min(100,Number(value('hungerPercent','hunger_percent'))||0));
-  const thirst=Math.max(0,Math.min(100,Number(value('thirstPercent','thirst_percent'))||0));
-  const food=Math.max(0,Number(value('foodCreditLb','food_credit_lb'))||0);
-  const foodReq=Math.max(0.01,Number(value('foodRequirementLb','food_requirement_lb'))||1);
-  const water=Math.max(0,Number(value('waterCreditGal','water_credit_gal'))||0);
-  const waterReq=Math.max(0.01,Number(value('waterRequirementGal','water_requirement_gal'))||1);
-  const exhaustion=Math.max(0,Number(value('exhaustionLevel','exhaustion_level'))||0);
-  const hotWeather=Boolean(value('hotWeather','hot_weather'));
+  const hunger=Math.max(0,Math.min(100,Number(state.hungerPercent)||0));
+  const thirst=Math.max(0,Math.min(100,Number(state.thirstPercent)||0));
+  const food=Math.max(0,Number(state.foodCreditLb)||0);
+  const foodReq=Math.max(0.01,Number(state.foodRequirementLb)||1);
+  const water=Math.max(0,Number(state.waterCreditGal)||0);
+  const waterReq=Math.max(0.01,Number(state.waterRequirementGal)||1);
+  const exhaustion=Math.max(0,Number(state.exhaustionLevel)||0);
   return `<div class="survival-meters">
     <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
-    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
+    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${state.hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
     ${exhaustion>0?`<div class="survival-exhaustion">Exhaustion ${exhaustion}</div>`:''}
   </div>`;
 }
