@@ -1,14 +1,6 @@
 using System.Text.Json;
 using QuestsOfRabuShinAIGM;
 
-// Render containers can share a low Linux inotify-instance allowance. The
-// default ASP.NET configuration builder otherwise creates file-system watchers
-// before the application reaches builder.Build(), which can terminate startup
-// with IOException/status 139. RabuShin reads production configuration from
-// environment variables, so live appsettings reload is unnecessary here.
-Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
-Environment.SetEnvironmentVariable("DOTNET_USE_POLLING_FILE_WATCHER", "1");
-
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient<DiscordSupabaseService>();
 builder.Services.AddHttpClient<DiscordOAuthService>();
