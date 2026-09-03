@@ -423,6 +423,7 @@ function populateSelect(selector, values) {
   select.innerHTML = (values || []).map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
 }
 
+// RULES BUILD 6.13 - SUBRACES + DRACONIC ANCESTRY
 function primaryRaceName(species) {
   const value=String(species||'').trim();
   return value.startsWith('Half ')?value.substring(5).trim():value;
@@ -430,11 +431,53 @@ function primaryRaceName(species) {
 
 function isTortleRace(species){return primaryRaceName(species).toLowerCase()==='tortle';}
 
+function subraceRulesFor(species,data){
+  const heritage=primaryRaceName(species);
+  const rules=data?.racialRules?.subraces?.[heritage];
+  return Array.isArray(rules)?rules:[];
+}
+
+function selectedSubraceRule(species,name,data){
+  return subraceRulesFor(species,data).find(r=>String(r?.name||'').toLowerCase()===String(name||'').toLowerCase())||null;
+}
+
+function subraceDetailHtml(prefix,species,name,data){
+  const heritage=primaryRaceName(species);
+  const rule=selectedSubraceRule(species,name,data);
+  if(!rule)return '';
+  const bonuses=rule.abilityBonuses&&typeof rule.abilityBonuses==='object'
+    ?Object.entries(rule.abilityBonuses).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • '):'';
+  const traits=Array.isArray(rule.traits)?rule.traits:[];
+  const highElf=String(rule.name||'').toLowerCase()==='high elf';
+  const cantrips=(data?.racialRules?.highElfWizardCantrips||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  return `<div class="subrace-summary">
+    <b>${escapeHtml(rule.name)}</b>
+    ${bonuses?`<small>Additional Ability Increase: ${escapeHtml(bonuses)}</small>`:''}
+    ${Number(rule.speedOverride)>0?`<small>Walking Speed: ${Number(rule.speedOverride)} ft.</small>`:''}
+    ${Number(rule.hitPointBonusPerLevel)>0?`<small>Maximum HP: +${Number(rule.hitPointBonusPerLevel)} per character level</small>`:''}
+    ${traits.length?`<div class="subrace-traits">${traits.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div>`:''}
+    ${highElf?`<div class="form-grid racial-choice-grid subrace-extra-choices">
+      <div><label>High Elf Wizard Cantrip</label><select id="${prefix}HighElfCantrip" class="input">${cantrips}</select></div>
+      <div><label>High Elf Extra Language</label><input id="${prefix}HighElfLanguage" class="input" placeholder="Example: Draconic"></div>
+    </div>`:''}
+  </div>`;
+}
+
+function dragonbornAncestryDetailHtml(ancestry){
+  if(!ancestry)return '';
+  return `<div class="subrace-summary ancestry-summary">
+    <b>${escapeHtml(ancestry.name)} Dragon Ancestry</b>
+    <small>Breath Weapon: ${escapeHtml(ancestry.damageType)} • ${escapeHtml(ancestry.area)} • ${escapeHtml(ancestry.savingThrow)} save</small>
+    <small>Damage Resistance: ${escapeHtml(ancestry.resistance)}</small>
+    <small>Breath damage: 2d6 at level 1, 3d6 at 6th, 4d6 at 11th, 5d6 at 16th. Save DC = 8 + CON modifier + proficiency bonus. One use per short or long rest.</small>
+  </div>`;
+}
+
 function racialOptionsHtml(prefix,species,data){
   const heritage=primaryRaceName(species);
   const fixed=data?.racialRules?.fixedBonuses?.[heritage]||null;
   const half=String(species||'').startsWith('Half ');
-  const halfNote=half?`<p class="racial-note">Ability increases come from your ${escapeHtml(heritage)} half. Your selected second heritage is stored separately for merged racial traits.</p>`:'';
+  const halfNote=half?`<p class="racial-note">Your ${escapeHtml(heritage)} subrace/ancestry applies to the ${escapeHtml(heritage)} half and compounds with that half's base racial traits. Your selected second heritage remains a separate merged heritage.</p>`:'';
   if(isTortleRace(species)){
     const t=data?.racialRules?.tortle||{};
     const abilityOptions=(data?.racialRules?.abilityNames||['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
@@ -450,30 +493,90 @@ function racialOptionsHtml(prefix,species,data){
         <div><label>Additional Language</label><input id="${prefix}TortleLanguage" class="input" value="${escapeHtml(t.defaultLanguage||'Aquan')}"></div>
       </div></div>`;
   }
+
+  const parts=[halfNote,'<div class="racial-rule-card"><b>Racial Heritage</b>'];
   if(fixed){
     const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
-    return `${halfNote}<div class="racial-rule-card"><b>Automatic Racial Ability Increase</b><small>${escapeHtml(text)}</small></div>`;
+    parts.push(`<small>Base ${escapeHtml(heritage)} Ability Increase: ${escapeHtml(text)}</small>`);
+  } else {
+    parts.push(`<small>Base ${escapeHtml(heritage)} racial traits remain in effect.</small>`);
   }
-  return `${halfNote}<div class="racial-rule-card"><b>Racial Traits</b><small>No additional ability-score adjustment is defined by this compatibility ruleset for ${escapeHtml(heritage)}. Existing race mechanics remain in effect.</small></div>`;
+
+  const subraces=subraceRulesFor(species,data);
+  if(subraces.length){
+    parts.push(`<div class="racial-choice-section"><label>Subrace</label><select id="${prefix}Subrace" class="input">${subraces.map(r=>`<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('')}</select><div id="${prefix}SubraceDetails"></div></div>`);
+  }
+
+  if(heritage.toLowerCase()==='dragonborn'){
+    const ancestries=data?.racialRules?.dragonbornAncestries||[];
+    parts.push(`<div class="racial-choice-section"><label>Draconic Ancestry</label><select id="${prefix}DragonbornAncestry" class="input">${ancestries.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)} — ${escapeHtml(a.damageType)}</option>`).join('')}</select><div id="${prefix}DragonbornAncestryDetails"></div></div>`);
+  }
+
+  if(heritage.toLowerCase()==='dwarf'){
+    const tools=data?.racialRules?.dwarfTools||["Smith's Tools","Brewer's Supplies","Mason's Tools"];
+    parts.push(`<div class="racial-choice-section"><label>Dwarven Tool Proficiency</label><select id="${prefix}DwarfTool" class="input">${tools.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}</select></div>`);
+  }
+
+  parts.push('</div>');
+  return parts.join('');
 }
 
 function wireRacialOptions(prefix,species,data){
   const host=document.querySelector(`#${prefix}RacialOptions`); if(!host)return;
   host.innerHTML=racialOptionsHtml(prefix,species,data);
-  if(!isTortleRace(species))return;
-  const pattern=document.querySelector(`#${prefix}TortlePattern`);
-  const updatePattern=()=>{
-    const three=pattern.value==='111';
-    document.querySelector(`#${prefix}AbilityCBox`).hidden=!three;
-    document.querySelector(`#${prefix}AbilityALabel`).textContent=three?'+1 Ability':'+2 Ability';
-  };
-  pattern.onchange=updatePattern; updatePattern();
-  const a=document.querySelector(`#${prefix}AbilityA`),b=document.querySelector(`#${prefix}AbilityB`),c=document.querySelector(`#${prefix}AbilityC`);
-  a.value='Strength'; b.value='Wisdom'; c.value='Constitution';
+  if(isTortleRace(species)){
+    const pattern=document.querySelector(`#${prefix}TortlePattern`);
+    const updatePattern=()=>{
+      const three=pattern.value==='111';
+      document.querySelector(`#${prefix}AbilityCBox`).hidden=!three;
+      document.querySelector(`#${prefix}AbilityALabel`).textContent=three?'+1 Ability':'+2 Ability';
+    };
+    pattern.onchange=updatePattern; updatePattern();
+    const a=document.querySelector(`#${prefix}AbilityA`),b=document.querySelector(`#${prefix}AbilityB`),c=document.querySelector(`#${prefix}AbilityC`);
+    a.value='Strength'; b.value='Wisdom'; c.value='Constitution';
+    return;
+  }
+
+  const subrace=document.querySelector(`#${prefix}Subrace`);
+  if(subrace){
+    const updateSubrace=()=>{
+      const detail=document.querySelector(`#${prefix}SubraceDetails`);
+      if(detail)detail.innerHTML=subraceDetailHtml(prefix,species,subrace.value,data);
+    };
+    subrace.onchange=updateSubrace;
+    updateSubrace();
+  }
+
+  const ancestry=document.querySelector(`#${prefix}DragonbornAncestry`);
+  if(ancestry){
+    const updateAncestry=()=>{
+      const details=document.querySelector(`#${prefix}DragonbornAncestryDetails`);
+      const rule=(data?.racialRules?.dragonbornAncestries||[]).find(a=>String(a?.name||'').toLowerCase()===String(ancestry.value||'').toLowerCase());
+      if(details)details.innerHTML=dragonbornAncestryDetailHtml(rule);
+    };
+    ancestry.onchange=updateAncestry;
+    updateAncestry();
+  }
 }
 
 function collectRacialOptions(prefix,species){
-  if(!isTortleRace(species))return {racialAbilityChoices:null,tortleSize:null,tortleNatureSkill:null,tortleLanguage:null};
+  const heritage=primaryRaceName(species);
+  const result={
+    racialAbilityChoices:null,
+    subrace:document.querySelector(`#${prefix}Subrace`)?.value||null,
+    dragonbornAncestry:document.querySelector(`#${prefix}DragonbornAncestry`)?.value||null,
+    highElfCantrip:document.querySelector(`#${prefix}HighElfCantrip`)?.value||null,
+    highElfLanguage:document.querySelector(`#${prefix}HighElfLanguage`)?.value?.trim()||null,
+    dwarfTool:document.querySelector(`#${prefix}DwarfTool`)?.value||null,
+    tortleSize:null,tortleNatureSkill:null,tortleLanguage:null
+  };
+
+  if(!isTortleRace(species)){
+    if(heritage.toLowerCase()==='elf'&&String(result.subrace||'').toLowerCase()==='high elf'&&!result.highElfLanguage)
+      throw new Error('Choose the High Elf extra language.');
+    return result;
+  }
+
   const pattern=document.querySelector(`#${prefix}TortlePattern`).value;
   const a=document.querySelector(`#${prefix}AbilityA`).value,b=document.querySelector(`#${prefix}AbilityB`).value,c=document.querySelector(`#${prefix}AbilityC`).value;
   const selected=pattern==='111'?[a,b,c]:[a,b];
@@ -481,7 +584,11 @@ function collectRacialOptions(prefix,species){
   const racialAbilityChoices={};
   if(pattern==='111'){racialAbilityChoices[a]=1;racialAbilityChoices[b]=1;racialAbilityChoices[c]=1;}
   else {racialAbilityChoices[a]=2;racialAbilityChoices[b]=1;}
-  return {racialAbilityChoices,tortleSize:document.querySelector(`#${prefix}TortleSize`).value,tortleNatureSkill:document.querySelector(`#${prefix}TortleSkill`).value,tortleLanguage:document.querySelector(`#${prefix}TortleLanguage`).value.trim()};
+  result.racialAbilityChoices=racialAbilityChoices;
+  result.tortleSize=document.querySelector(`#${prefix}TortleSize`).value;
+  result.tortleNatureSkill=document.querySelector(`#${prefix}TortleSkill`).value;
+  result.tortleLanguage=document.querySelector(`#${prefix}TortleLanguage`).value.trim();
+  return result;
 }
 
 function configureHalfRace(prefix,species,data){
@@ -3075,6 +3182,13 @@ function racialTraitsMarkup(featureState){
     ?Object.entries(data.racialAbilityBonuses).map(([k,v])=>`${k} +${v}`):[];
   const extras=[];
   if(featureState?.secondaryHeritage)extras.push(`Other half: ${featureState.secondaryHeritage}`);
+  if(data.subrace)extras.push(`Subrace: ${data.subrace}`);
+  if(data.dragonbornAncestry)extras.push(`Draconic Ancestry: ${data.dragonbornAncestry}`);
+  if(data.highElfCantrip)extras.push(`High Elf Cantrip: ${data.highElfCantrip}`);
+  if(data.dwarfToolProficiency)extras.push(`Dwarven Tool: ${data.dwarfToolProficiency}`);
+  if(data.damageResistance)extras.push(`Damage Resistance: ${data.damageResistance}`);
+  if(data.speedOverride)extras.push(`Racial Speed: ${data.speedOverride} ft.`);
+  if(data.hitPointBonusPerLevel)extras.push(`Racial HP: +${data.hitPointBonusPerLevel} per level`);
   if(data.size)extras.push(`Size: ${data.size}`);
   if(data.natureIntuitionSkill)extras.push(`Nature's Intuition: ${data.natureIntuitionSkill}`);
   if(data.extraLanguage)extras.push(`Language: ${data.extraLanguage}`);

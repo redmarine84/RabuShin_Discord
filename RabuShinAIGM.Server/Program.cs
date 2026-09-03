@@ -158,6 +158,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/leave", async (Guid campaignI
     }
 });
 
+// RULES BUILD 6.13 - SUBRACES + DRACONIC ANCESTRY
 app.MapGet("/game-api/character-options", () => Results.Ok(new
 {
     success = true,
@@ -353,16 +354,21 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
                 species,
                 Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
                 Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices);
+                body.RacialAbilityChoices,
+                body.Subrace);
         }
         else
         {
-            scores = new AppliedRacialScores(generated.Strength, generated.Dexterity, generated.Constitution,
+            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
+                species,
+                generated.Strength, generated.Dexterity, generated.Constitution,
                 generated.Intelligence, generated.Wisdom, generated.Charisma,
-                new Dictionary<string, int>());
+                body.Subrace);
         }
 
-        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+        var profile = CharacterFeatureRules.BuildProfile(
+            species, body.SecondaryHeritage, scores,
+            body.Subrace, body.DragonbornAncestry, body.HighElfCantrip, body.HighElfLanguage, body.DwarfTool,
             body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
             string.Empty, string.Empty, string.Empty, string.Empty);
@@ -388,8 +394,10 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
 
         var scores = CharacterFeatureRules.ApplyAbilityScores(
             species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
-            body.RacialAbilityChoices);
-        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+            body.RacialAbilityChoices, body.Subrace);
+        var profile = CharacterFeatureRules.BuildProfile(
+            species, body.SecondaryHeritage, scores,
+            body.Subrace, body.DragonbornAncestry, body.HighElfCantrip, body.HighElfLanguage, body.DwarfTool,
             body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
 
         var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);

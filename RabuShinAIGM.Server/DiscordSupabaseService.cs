@@ -193,6 +193,7 @@ public sealed class DiscordSupabaseService
         return await ReadGuidResultAsync(response, "Unable to create character");
     }
 
+    // RULES BUILD 6.13 - SUBRACE HP/SPEED MODIFIERS
     public async Task<Guid> CreateCharacterWithFeaturesAsync(
         Guid playerId,
         Guid campaignId,
@@ -210,8 +211,9 @@ public sealed class DiscordSupabaseService
         var constitutionDelta = Mod(scores.Constitution) - Mod(character.Constitution);
         var dexterityDelta = Mod(scores.Dexterity) - Mod(character.Dexterity);
         var wisdomDelta = Mod(scores.Wisdom) - Mod(character.Wisdom);
-        var maxHp = Math.Max(1, character.MaxHitPoints + constitutionDelta * Math.Max(1, character.Level));
-        var currentHp = Math.Max(1, character.CurrentHitPoints + constitutionDelta * Math.Max(1, character.Level));
+        var subraceHpBonus = Math.Max(0, features.HitPointBonusPerLevel) * Math.Max(1, character.Level);
+        var maxHp = Math.Max(1, character.MaxHitPoints + constitutionDelta * Math.Max(1, character.Level) + subraceHpBonus);
+        var currentHp = Math.Max(1, character.CurrentHitPoints + constitutionDelta * Math.Max(1, character.Level) + subraceHpBonus);
         var armorClass = features.NaturalArmorBase.HasValue
             ? Math.Max(features.NaturalArmorBase.Value, character.ArmorClass + dexterityDelta)
             : character.ArmorClass + dexterityDelta;
@@ -237,7 +239,7 @@ public sealed class DiscordSupabaseService
             initiative = character.Initiative + dexterityDelta,
             passive_perception = character.PassivePerception + wisdomDelta,
             proficiency_bonus = character.ProficiencyBonus,
-            speed = character.Speed,
+            speed = features.SpeedOverride.HasValue ? features.SpeedOverride.Value : character.Speed,
             size_name = string.IsNullOrWhiteSpace(features.Size) ? character.SizeName : features.Size,
             gold = character.Gold,
             appearance = appearance ?? string.Empty,
