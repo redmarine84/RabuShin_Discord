@@ -2406,6 +2406,20 @@ function scrollGmToBottom() {
     });
 }
 
+// RULES BUILD 6.8.1 - ENTER TO SEND
+// Enter submits chat text. Shift+Enter retains the textarea's normal newline
+// behavior. Composition and held-key repeats are ignored to avoid accidental
+// submissions for IME users or a key held down too long.
+function bindChatEnterToSend(input,sendButton) {
+  if(!input||!sendButton)return;
+  input.addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||event.shiftKey||event.isComposing||event.repeat)return;
+    event.preventDefault();
+    if(!input.value.trim()||sendButton.disabled)return;
+    sendButton.click();
+  });
+}
+
 function renderGameMasterTab() {
   const existingInput=document.querySelector('#gmInput');
   if(existingInput)gmTurnDraft=existingInput.value;
@@ -2507,6 +2521,7 @@ function renderGameMasterTab() {
       updateGmTurnUi();
     }
   };
+  bindChatEnterToSend(input,document.querySelector('#sendGm'));
 
   const endTurnButton=document.querySelector('#endCombatTurn');
   if(endTurnButton)endTurnButton.onclick=async()=>{
@@ -2952,7 +2967,7 @@ async function refreshJournal(){const d=await api(`/game-api/campaigns/${current
 function renderChatTab(){
   const existingInput=document.querySelector('#chatInput');
   if(existingInput)campaignChatDraft=existingInput.value;
-  document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><input id="chatInput" class="input" placeholder="Message the party"><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
+  document.querySelector('#gameView').innerHTML=`<div class="view-heading"><h3>Campaign Chat</h3><button id="refreshChat" class="button small">Refresh</button></div><div id="chatTimeline" class="timeline chat">${timelineHtml(currentGameData.chatMessages,'No campaign chat messages yet.')}</div><div class="composer"><textarea id="chatInput" class="input" placeholder="Message the party"></textarea><button id="sendChat" class="button primary">Send</button></div><div id="chatError" class="error"></div>`;
   const input=document.querySelector('#chatInput');
   input.value=campaignChatDraft;
   input.addEventListener('input',()=>campaignChatDraft=input.value);
@@ -2973,6 +2988,7 @@ function renderChatTab(){
       send.disabled=false;
     }
   };
+  bindChatEnterToSend(input,document.querySelector('#sendChat'));
   startChatLiveSync();
 }
 async function refreshChat(){await refreshChatLive(true);}
