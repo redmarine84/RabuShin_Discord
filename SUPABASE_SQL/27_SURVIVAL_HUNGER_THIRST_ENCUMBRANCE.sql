@@ -3,6 +3,8 @@
 -- Hunger / Thirst toggle + survival time + item physical data
 -- + Strength x 15 carrying-capacity support.
 -- Safe to run more than once.
+-- Revised: fixes PostgreSQL 42702 by using named constraints anywhere a
+-- RETURNS TABLE output variable could collide with an ON CONFLICT column.
 -- ============================================================
 
 BEGIN;
@@ -43,12 +45,12 @@ GRANT ALL ON public.discord_character_survival TO service_role;
 INSERT INTO public.discord_campaign_survival_settings(campaign_id, enabled, hot_weather)
 SELECT c.campaign_id, FALSE, FALSE
 FROM public.discord_campaigns c
-ON CONFLICT (campaign_id) DO NOTHING;
+ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO NOTHING;
 
 INSERT INTO public.discord_character_survival(character_id, campaign_id, food_credit_lb, water_credit_gal)
 SELECT c.character_id, c.campaign_id, 1.0, 1.0
 FROM public.discord_characters c
-ON CONFLICT (character_id) DO NOTHING;
+ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
 
 -- Build 6.8 extends the existing Build 6.7 valuation persistence RPC with
 -- physical weight and food/water metadata. Existing value metadata is preserved.
@@ -203,10 +205,10 @@ BEGIN
     IF v_character_id IS NULL THEN RAISE EXCEPTION 'Character could not be found.'; END IF;
 
     INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id)
-    ON CONFLICT (campaign_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO NOTHING;
     INSERT INTO public.discord_character_survival(character_id, campaign_id)
     VALUES(v_character_id, p_campaign_id)
-    ON CONFLICT (character_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
 
     RETURN QUERY
     SELECT
@@ -265,7 +267,7 @@ BEGIN
 
     INSERT INTO public.discord_campaign_survival_settings(campaign_id, enabled, updated_by_player_id, updated_at)
     VALUES(p_campaign_id, COALESCE(p_enabled,FALSE), p_player_id, NOW())
-    ON CONFLICT (campaign_id) DO UPDATE
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO UPDATE
     SET enabled = EXCLUDED.enabled, updated_by_player_id = EXCLUDED.updated_by_player_id, updated_at = NOW();
 
     INSERT INTO public.discord_character_survival(character_id, campaign_id, food_credit_lb, water_credit_gal)
@@ -274,7 +276,7 @@ BEGIN
     FROM public.discord_characters c
     JOIN public.discord_campaign_survival_settings s ON s.campaign_id = c.campaign_id
     WHERE c.campaign_id = p_campaign_id
-    ON CONFLICT (character_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
 
     RETURN QUERY SELECT * FROM public.discord_get_survival_state(p_player_id, p_campaign_id);
 END;
@@ -305,8 +307,10 @@ AS $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM public.discord_characters c WHERE c.character_id=p_character_id AND c.campaign_id=p_campaign_id)
     THEN RAISE EXCEPTION 'Character could not be found.'; END IF;
-    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id) ON CONFLICT DO NOTHING;
-    INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(p_character_id,p_campaign_id) ON CONFLICT DO NOTHING;
+    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id)
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO NOTHING;
+    INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(p_character_id,p_campaign_id)
+    ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
 
     RETURN QUERY
     SELECT s.enabled, s.hot_weather, cs.food_credit_lb, cs.water_credit_gal,
@@ -337,7 +341,7 @@ BEGIN
 
     INSERT INTO public.discord_campaign_survival_settings(campaign_id,hot_weather,weather_reason,updated_at)
     VALUES(p_campaign_id,COALESCE(p_hot_weather,FALSE),LEFT(TRIM(COALESCE(p_reason,'')),200),NOW())
-    ON CONFLICT (campaign_id) DO UPDATE
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO UPDATE
     SET hot_weather=EXCLUDED.hot_weather, weather_reason=EXCLUDED.weather_reason, updated_at=NOW();
 
     IF COALESCE(p_hot_weather,FALSE)=FALSE THEN
@@ -346,7 +350,7 @@ BEGIN
         WHERE cs.campaign_id=p_campaign_id;
     END IF;
 
-    RETURN jsonb_build_object('enabled',(SELECT enabled FROM public.discord_campaign_survival_settings WHERE campaign_id=p_campaign_id),
+    RETURN jsonb_build_object('enabled',(SELECT dcss.enabled FROM public.discord_campaign_survival_settings AS dcss WHERE dcss.campaign_id=p_campaign_id),
                               'hotWeather',COALESCE(p_hot_weather,FALSE),
                               'waterRequirementGallons',CASE WHEN COALESCE(p_hot_weather,FALSE) THEN 2 ELSE 1 END,
                               'reason',LEFT(TRIM(COALESCE(p_reason,'')),200));
@@ -387,7 +391,8 @@ BEGIN
     IF v_hours <= 0 OR v_hours > 168 THEN RAISE EXCEPTION 'Survival time must be between 0 and 168 hours.'; END IF;
     IF COALESCE(array_length(p_character_names,1),0)=0 THEN RAISE EXCEPTION 'At least one character name is required.'; END IF;
 
-    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id) ON CONFLICT DO NOTHING;
+    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id)
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO NOTHING;
     SELECT s.enabled,s.hot_weather INTO v_enabled,v_hot FROM public.discord_campaign_survival_settings s WHERE s.campaign_id=p_campaign_id;
     IF NOT COALESCE(v_enabled,FALSE) THEN
         RETURN jsonb_build_object('enabled',FALSE,'changed',FALSE,'hours',v_hours,'characters','[]'::jsonb);
@@ -404,7 +409,8 @@ BEGIN
         ORDER BY c.character_name
     LOOP
         v_count := v_count + 1;
-        INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(v_char.character_id,p_campaign_id) ON CONFLICT DO NOTHING;
+        INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(v_char.character_id,p_campaign_id)
+        ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
         SELECT * INTO v_state FROM public.discord_character_survival cs WHERE cs.character_id=v_char.character_id FOR UPDATE;
 
         v_food_deficit_add := GREATEST(0, v_hours - (v_state.food_credit_lb / v_food_rate));
@@ -466,7 +472,8 @@ DECLARE
     v_water NUMERIC := GREATEST(0,COALESCE(p_water_gallons_per_item,0))*v_qty;
     v_remaining INTEGER;
 BEGIN
-    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id) ON CONFLICT DO NOTHING;
+    INSERT INTO public.discord_campaign_survival_settings(campaign_id) VALUES(p_campaign_id)
+    ON CONFLICT ON CONSTRAINT discord_campaign_survival_settings_pkey DO NOTHING;
     SELECT s.enabled,s.hot_weather INTO v_enabled,v_hot FROM public.discord_campaign_survival_settings s WHERE s.campaign_id=p_campaign_id;
     IF NOT COALESCE(v_enabled,FALSE) THEN RAISE EXCEPTION 'Hunger and Thirst rules are disabled for this campaign.'; END IF;
     IF v_food<=0 AND v_water<=0 THEN RAISE EXCEPTION 'This item has no recognized food or drinking-water value.'; END IF;
@@ -479,10 +486,17 @@ BEGIN
     IF v_item.quantity<v_qty THEN RAISE EXCEPTION 'Not enough of this inventory item is carried.'; END IF;
 
     v_remaining := v_item.quantity-v_qty;
-    IF v_remaining<=0 THEN DELETE FROM public.discord_inventory_items WHERE inventory_item_id=p_inventory_item_id;
-    ELSE UPDATE public.discord_inventory_items SET quantity=v_remaining,updated_at=NOW() WHERE inventory_item_id=p_inventory_item_id; END IF;
+    IF v_remaining<=0 THEN
+        DELETE FROM public.discord_inventory_items AS dii
+        WHERE dii.inventory_item_id=p_inventory_item_id;
+    ELSE
+        UPDATE public.discord_inventory_items AS dii
+        SET quantity=v_remaining,updated_at=NOW()
+        WHERE dii.inventory_item_id=p_inventory_item_id;
+    END IF;
 
-    INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(p_character_id,p_campaign_id) ON CONFLICT DO NOTHING;
+    INSERT INTO public.discord_character_survival(character_id,campaign_id) VALUES(p_character_id,p_campaign_id)
+    ON CONFLICT ON CONSTRAINT discord_character_survival_pkey DO NOTHING;
     UPDATE public.discord_character_survival cs
     SET food_credit_lb=LEAST(1.0,cs.food_credit_lb+v_food),
         water_credit_gal=LEAST(v_req,cs.water_credit_gal+v_water),
