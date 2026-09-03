@@ -2,10 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using QuestsOfRabuShinAIGM;
 
-// RULES BUILD 6.13 - 2014 SUBRACES + DRACONIC ANCESTRY
+// RULES BUILD 6.13.1 - FULL HYBRID HERITAGE INHERITANCE
 public static class CharacterFeatureRules
 {
-    public const string RulesVersion = "6.13";
+    public const string RulesVersion = "6.13.1";
 
     public static readonly string[] AlignmentLadder =
     {
@@ -22,10 +22,12 @@ public static class CharacterFeatureRules
 
     private static readonly Dictionary<string, Dictionary<string, int>> FixedAbilityBonuses = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["Aasimar"] = Bonus(("Charisma", 2)),
         ["Dragonborn"] = Bonus(("Strength", 2), ("Charisma", 1)),
         ["Dwarf"] = Bonus(("Constitution", 2)),
         ["Elf"] = Bonus(("Dexterity", 2)),
         ["Gnome"] = Bonus(("Intelligence", 2)),
+        ["Goliath"] = Bonus(("Strength", 2), ("Constitution", 1)),
         ["Halfling"] = Bonus(("Dexterity", 2)),
         ["Half-Orc"] = Bonus(("Strength", 2), ("Constitution", 1)),
         ["Half Orc"] = Bonus(("Strength", 2), ("Constitution", 1)),
@@ -36,7 +38,8 @@ public static class CharacterFeatureRules
 
     private static readonly Dictionary<string, string[]> TraitSummaries = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Dragonborn"] = new[] { "Draconic Ancestry", "Breath Weapon", "Damage Resistance" },
+        ["Aasimar"] = new[] { "Darkvision", "Celestial Resistance (necrotic and radiant)", "Healing Hands", "Light Bearer", "Celestial Revelation" },
+        ["Dragonborn"] = new[] { "Draconic Ancestry", "Breath Weapon", "Damage Resistance", "Darkvision" },
         ["Dwarf"] = new[]
         {
             "Darkvision (60 ft.)",
@@ -46,13 +49,20 @@ public static class CharacterFeatureRules
         },
         ["Elf"] = new[] { "Darkvision (60 ft.)", "Keen Senses (Perception proficiency)", "Fey Ancestry", "Trance" },
         ["Gnome"] = new[] { "Darkvision (60 ft.)", "Gnome Cunning" },
+        ["Goliath"] = new[] { "Little Giant / Powerful Build", "Stone's Endurance", "Mountain Born", "Cold Resistance", "35-foot walking speed" },
         ["Halfling"] = new[] { "Lucky", "Brave", "Halfling Nimbleness" },
         ["Half-Orc"] = new[] { "Darkvision (60 ft.)", "Menacing", "Relentless Endurance", "Savage Attacks" },
         ["Half Orc"] = new[] { "Darkvision (60 ft.)", "Menacing", "Relentless Endurance", "Savage Attacks" },
         ["Human"] = new[] { "Human versatility" },
-        ["Orc"] = new[] { "Darkvision", "Adrenaline Rush", "Powerful Build" },
+        ["Orc"] = new[] { "Darkvision", "Adrenaline Rush", "Relentless Endurance", "Powerful Build" },
         ["Tiefling"] = new[] { "Darkvision (60 ft.)", "Hellish Resistance", "Infernal Legacy" },
         ["Tortle"] = new[] { "Claws (1d6 + Strength slashing)", "Hold Breath (1 hour)", "Natural Armor (base AC 17)", "Nature's Intuition", "Shell Defense (+4 AC while withdrawn)" }
+    };
+
+    private static readonly Dictionary<string, int> BaseWalkingSpeeds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Aasimar"] = 30, ["Dragonborn"] = 30, ["Dwarf"] = 30, ["Elf"] = 30, ["Gnome"] = 30,
+        ["Goliath"] = 35, ["Halfling"] = 30, ["Human"] = 30, ["Orc"] = 30, ["Tiefling"] = 30, ["Tortle"] = 30
     };
 
     private static readonly Dictionary<string, SubraceRule[]> SubraceRules = new(StringComparer.OrdinalIgnoreCase)
@@ -207,11 +217,25 @@ public static class CharacterFeatureRules
     public static bool RequiresSubrace(string species) => SubraceRules.ContainsKey(PrimaryHeritage(species));
     public static bool RequiresDragonbornAncestry(string species) => PrimaryHeritage(species).Equals("Dragonborn", StringComparison.OrdinalIgnoreCase);
 
+    private static string NormalizeSecondaryHeritage(string species, string primary, string? secondaryHeritage)
+    {
+        if (!IsHalfRace(species)) return string.Empty;
+        var secondary = (secondaryHeritage ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(secondary))
+            throw new InvalidOperationException("Choose the other half of your character's race.");
+        if (secondary.Equals(primary, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The other half must be a different race.");
+        return secondary;
+    }
+
     public static AppliedRacialScores ApplyAbilityScores(
         string species,
         int strength, int dexterity, int constitution, int intelligence, int wisdom, int charisma,
         Dictionary<string, int>? choices,
-        string? subrace)
+        string? subrace,
+        string? secondaryHeritage = null,
+        string? secondarySubrace = null,
+        Dictionary<string, int>? secondaryChoices = null)
     {
         var values = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -220,16 +244,9 @@ public static class CharacterFeatureRules
         };
         var applied = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var heritage = PrimaryHeritage(species);
+        var secondary = NormalizeSecondaryHeritage(species, heritage, secondaryHeritage);
 
-        if (heritage.Equals("Tortle", StringComparison.OrdinalIgnoreCase))
-        {
-            var normalized = NormalizeFlexibleChoices(choices);
-            foreach (var pair in normalized) AddBonus(values, applied, pair.Key, pair.Value);
-        }
-        else if (FixedAbilityBonuses.TryGetValue(heritage, out var fixedBonuses))
-        {
-            foreach (var pair in fixedBonuses) AddBonus(values, applied, pair.Key, pair.Value);
-        }
+        ApplyHeritageAbilityBonuses(values, applied, heritage, choices);
 
         var selectedSubrace = GetSubraceRule(heritage, subrace, requireWhenSupported: true);
         if (selectedSubrace is not null)
@@ -238,18 +255,33 @@ public static class CharacterFeatureRules
                 AddBonus(values, applied, pair.Key, pair.Value);
         }
 
+        // Build 6.13.1: the second half is a full inherited heritage, not trait text only.
+        // Its fixed ability increases and any selected subrace increase compound with the primary half.
+        if (!string.IsNullOrWhiteSpace(secondary))
+        {
+            ApplyHeritageAbilityBonuses(values, applied, secondary, secondaryChoices);
+
+            var selectedSecondarySubrace = GetSubraceRule(secondary, secondarySubrace, requireWhenSupported: true);
+            if (selectedSecondarySubrace is not null)
+                foreach (var pair in selectedSecondarySubrace.AbilityBonuses)
+                    AddBonus(values, applied, pair.Key, pair.Value);
+        }
+
         return new AppliedRacialScores(
             values["Strength"], values["Dexterity"], values["Constitution"],
             values["Intelligence"], values["Wisdom"], values["Charisma"], applied);
     }
 
-    // The legacy random generator already applied the base race's fixed ability increases.
-    // Build 6.13 applies only the selected subrace increase to the generated numeric scores,
-    // while returning the complete expected racial bonus map for the character sheet.
+    // The random generator is now invoked with the primary heritage only for Half Race characters.
+    // It has already applied the primary base ability increase; this method adds the primary subrace,
+    // then the selected secondary heritage's base and subrace increases.
     public static AppliedRacialScores ApplyGeneratedSubraceScores(
         string species,
         int strength, int dexterity, int constitution, int intelligence, int wisdom, int charisma,
-        string? subrace)
+        string? subrace,
+        string? secondaryHeritage = null,
+        string? secondarySubrace = null,
+        Dictionary<string, int>? secondaryChoices = null)
     {
         var values = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -258,26 +290,46 @@ public static class CharacterFeatureRules
         };
         var applied = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var heritage = PrimaryHeritage(species);
+        var secondary = NormalizeSecondaryHeritage(species, heritage, secondaryHeritage);
 
         if (FixedAbilityBonuses.TryGetValue(heritage, out var baseBonuses))
             foreach (var pair in baseBonuses) applied[pair.Key] = pair.Value;
 
         var selectedSubrace = GetSubraceRule(heritage, subrace, requireWhenSupported: true);
         if (selectedSubrace is not null)
-        {
             foreach (var pair in selectedSubrace.AbilityBonuses)
-            {
-                var next = values[pair.Key] + pair.Value;
-                if (next > 20)
-                    throw new InvalidOperationException($"{pair.Key} would exceed 20 after the {selectedSubrace.Name} ability increase.");
-                values[pair.Key] = next;
-                applied[pair.Key] = applied.TryGetValue(pair.Key, out var prior) ? prior + pair.Value : pair.Value;
-            }
+                AddBonus(values, applied, pair.Key, pair.Value);
+
+        if (!string.IsNullOrWhiteSpace(secondary))
+        {
+            ApplyHeritageAbilityBonuses(values, applied, secondary, secondaryChoices);
+
+            var selectedSecondarySubrace = GetSubraceRule(secondary, secondarySubrace, requireWhenSupported: true);
+            if (selectedSecondarySubrace is not null)
+                foreach (var pair in selectedSecondarySubrace.AbilityBonuses)
+                    AddBonus(values, applied, pair.Key, pair.Value);
         }
 
         return new AppliedRacialScores(
             values["Strength"], values["Dexterity"], values["Constitution"],
             values["Intelligence"], values["Wisdom"], values["Charisma"], applied);
+    }
+
+    private static void ApplyHeritageAbilityBonuses(
+        Dictionary<string, int> values,
+        Dictionary<string, int> applied,
+        string heritage,
+        Dictionary<string, int>? flexibleChoices)
+    {
+        if (heritage.Equals("Tortle", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = NormalizeFlexibleChoices(flexibleChoices);
+            foreach (var pair in normalized) AddBonus(values, applied, pair.Key, pair.Value);
+            return;
+        }
+
+        if (FixedAbilityBonuses.TryGetValue(heritage, out var fixedBonuses))
+            foreach (var pair in fixedBonuses) AddBonus(values, applied, pair.Key, pair.Value);
     }
 
     private static Dictionary<string, int> NormalizeFlexibleChoices(Dictionary<string, int>? choices)
@@ -343,47 +395,83 @@ public static class CharacterFeatureRules
                ?? throw new InvalidOperationException($"'{requested}' is not a valid Dragonborn ancestry.");
     }
 
+    private static string NormalizeTortleSize(string? requested)
+        => string.Equals(requested, "Small", StringComparison.OrdinalIgnoreCase) ? "Small" : "Medium";
+
+    private static string NormalizeTortleNatureSkill(string? requested)
+        => new[] { "Animal Handling", "Medicine", "Nature", "Perception", "Stealth", "Survival" }
+               .FirstOrDefault(v => v.Equals(requested, StringComparison.OrdinalIgnoreCase)) ?? "Survival";
+
+    private static string NormalizeTortleLanguage(string? requested)
+        => string.IsNullOrWhiteSpace(requested) ? "Aquan" : requested.Trim();
+
     public static CharacterFeatureProfile BuildProfile(
         string species,
         string? secondaryHeritage,
         AppliedRacialScores scores,
         string? subrace,
+        string? secondarySubrace,
         string? dragonbornAncestry,
+        string? secondaryDragonbornAncestry,
         string? highElfCantrip,
         string? highElfLanguage,
+        string? secondaryHighElfCantrip,
+        string? secondaryHighElfLanguage,
         string? dwarfTool,
+        string? secondaryDwarfTool,
         string? tortleSize,
         string? tortleNatureSkill,
-        string? tortleLanguage)
+        string? tortleLanguage,
+        string? secondaryTortleSize,
+        string? secondaryTortleNatureSkill,
+        string? secondaryTortleLanguage)
     {
         var primary = PrimaryHeritage(species);
-        var secondary = IsHalfRace(species) ? (secondaryHeritage ?? string.Empty).Trim() : string.Empty;
-        if (IsHalfRace(species) && string.IsNullOrWhiteSpace(secondary))
-            throw new InvalidOperationException("Choose the other half of your character's race.");
-        if (!string.IsNullOrWhiteSpace(secondary) && secondary.Equals(primary, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("The other half must be a different race.");
+        var secondary = NormalizeSecondaryHeritage(species, primary, secondaryHeritage);
 
         var selectedSubrace = GetSubraceRule(primary, subrace, requireWhenSupported: true);
+        var selectedSecondarySubrace = string.IsNullOrWhiteSpace(secondary)
+            ? null
+            : GetSubraceRule(secondary, secondarySubrace, requireWhenSupported: true);
+
         var traits = new List<string>();
         if (TraitSummaries.TryGetValue(primary, out var primaryTraits)) traits.AddRange(primaryTraits);
         if (selectedSubrace is not null) traits.AddRange(selectedSubrace.Traits.Select(t => $"{selectedSubrace.Name}: {t}"));
         if (!string.IsNullOrWhiteSpace(secondary) && TraitSummaries.TryGetValue(secondary, out var secondaryTraits))
             traits.AddRange(secondaryTraits.Select(t => $"{secondary} heritage: {t}"));
+        if (selectedSecondarySubrace is not null)
+            traits.AddRange(selectedSecondarySubrace.Traits.Select(t => $"Secondary {selectedSecondarySubrace.Name}: {t}"));
 
         var size = string.Empty;
+        var secondarySize = string.Empty;
         var natureSkill = string.Empty;
+        var secondaryNatureSkill = string.Empty;
         var extraLanguage = string.Empty;
+        var secondaryExtraLanguage = string.Empty;
         var canonicalCantrip = string.Empty;
+        var secondaryCanonicalCantrip = string.Empty;
         var canonicalDwarfTool = string.Empty;
+        var secondaryCanonicalDwarfTool = string.Empty;
         DragonbornAncestryRule? ancestry = null;
+        DragonbornAncestryRule? secondaryAncestry = null;
 
         if (primary.Equals("Tortle", StringComparison.OrdinalIgnoreCase))
         {
-            size = string.Equals(tortleSize, "Small", StringComparison.OrdinalIgnoreCase) ? "Small" : "Medium";
-            var validSkill = new[] { "Animal Handling", "Medicine", "Nature", "Perception", "Stealth", "Survival" }
-                .FirstOrDefault(v => v.Equals(tortleNatureSkill, StringComparison.OrdinalIgnoreCase));
-            natureSkill = validSkill ?? "Survival";
-            extraLanguage = string.IsNullOrWhiteSpace(tortleLanguage) ? "Aquan" : tortleLanguage.Trim();
+            size = NormalizeTortleSize(tortleSize);
+            natureSkill = NormalizeTortleNatureSkill(tortleNatureSkill);
+            extraLanguage = NormalizeTortleLanguage(tortleLanguage);
+            traits.Add($"Tortle Size: {size}");
+            traits.Add($"Nature's Intuition Proficiency: {natureSkill}");
+            traits.Add($"Tortle Additional Language: {extraLanguage}");
+        }
+        if (secondary.Equals("Tortle", StringComparison.OrdinalIgnoreCase))
+        {
+            secondarySize = NormalizeTortleSize(secondaryTortleSize);
+            secondaryNatureSkill = NormalizeTortleNatureSkill(secondaryTortleNatureSkill);
+            secondaryExtraLanguage = NormalizeTortleLanguage(secondaryTortleLanguage);
+            traits.Add($"Secondary Tortle Size Choice: {secondarySize}");
+            traits.Add($"Secondary Nature's Intuition Proficiency: {secondaryNatureSkill}");
+            traits.Add($"Secondary Tortle Additional Language: {secondaryExtraLanguage}");
         }
 
         if (primary.Equals("Dwarf", StringComparison.OrdinalIgnoreCase))
@@ -391,6 +479,12 @@ public static class CharacterFeatureRules
             canonicalDwarfTool = DwarfToolChoices.FirstOrDefault(v => v.Equals(dwarfTool, StringComparison.OrdinalIgnoreCase))
                                  ?? throw new InvalidOperationException("Choose Smith's Tools, Brewer's Supplies, or Mason's Tools for Dwarven Tool Proficiency.");
             traits.Add($"Dwarven Tool Proficiency: {canonicalDwarfTool}");
+        }
+        if (secondary.Equals("Dwarf", StringComparison.OrdinalIgnoreCase))
+        {
+            secondaryCanonicalDwarfTool = DwarfToolChoices.FirstOrDefault(v => v.Equals(secondaryDwarfTool, StringComparison.OrdinalIgnoreCase))
+                                          ?? throw new InvalidOperationException("Choose the Dwarf half's Smith's Tools, Brewer's Supplies, or Mason's Tools proficiency.");
+            traits.Add($"Secondary Dwarf Tool Proficiency: {secondaryCanonicalDwarfTool}");
         }
 
         if (selectedSubrace?.Name.Equals("High Elf", StringComparison.OrdinalIgnoreCase) == true)
@@ -403,38 +497,79 @@ public static class CharacterFeatureRules
             traits.Add($"High Elf Cantrip: {canonicalCantrip} (Intelligence spellcasting)");
             traits.Add($"High Elf Extra Language: {extraLanguage}");
         }
+        if (selectedSecondarySubrace?.Name.Equals("High Elf", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            secondaryCanonicalCantrip = HighElfWizardCantrips.FirstOrDefault(v => v.Equals(secondaryHighElfCantrip, StringComparison.OrdinalIgnoreCase))
+                                        ?? throw new InvalidOperationException("Choose a valid High Elf wizard cantrip for the Elf half.");
+            secondaryExtraLanguage = (secondaryHighElfLanguage ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(secondaryExtraLanguage))
+                throw new InvalidOperationException("Choose the High Elf extra language for the Elf half.");
+            traits.Add($"Secondary High Elf Cantrip: {secondaryCanonicalCantrip} (Intelligence spellcasting)");
+            traits.Add($"Secondary High Elf Extra Language: {secondaryExtraLanguage}");
+        }
 
         if (primary.Equals("Dragonborn", StringComparison.OrdinalIgnoreCase))
-        {
             ancestry = GetDragonbornAncestry(dragonbornAncestry);
-            traits.RemoveAll(t => t.Equals("Draconic Ancestry", StringComparison.OrdinalIgnoreCase)
-                                  || t.Equals("Breath Weapon", StringComparison.OrdinalIgnoreCase)
-                                  || t.Equals("Damage Resistance", StringComparison.OrdinalIgnoreCase));
-            traits.Add($"Draconic Ancestry: {ancestry.Name} Dragon");
-            traits.Add($"Breath Weapon ({ancestry.DamageType}): {ancestry.Area}; {ancestry.SavingThrow} save; DC = 8 + Constitution modifier + proficiency bonus; 2d6 at level 1, 3d6 at level 6, 4d6 at level 11, 5d6 at level 16; half damage on a successful save; usable once per short or long rest");
-            traits.Add($"Damage Resistance: {ancestry.DamageType}");
+        if (secondary.Equals("Dragonborn", StringComparison.OrdinalIgnoreCase))
+            secondaryAncestry = GetDragonbornAncestry(secondaryDragonbornAncestry);
+
+        var activeAncestry = ancestry ?? secondaryAncestry;
+        if (activeAncestry is not null)
+        {
+            traits.RemoveAll(t =>
+                t.Equals("Draconic Ancestry", StringComparison.OrdinalIgnoreCase) ||
+                t.Equals("Breath Weapon", StringComparison.OrdinalIgnoreCase) ||
+                t.Equals("Damage Resistance", StringComparison.OrdinalIgnoreCase) ||
+                t.EndsWith("heritage: Draconic Ancestry", StringComparison.OrdinalIgnoreCase) ||
+                t.EndsWith("heritage: Breath Weapon", StringComparison.OrdinalIgnoreCase) ||
+                t.EndsWith("heritage: Damage Resistance", StringComparison.OrdinalIgnoreCase));
+
+            var ancestryPrefix = ancestry is not null ? string.Empty : "Secondary Dragonborn ";
+            traits.Add($"{ancestryPrefix}Draconic Ancestry: {activeAncestry.Name} Dragon");
+            traits.Add($"{ancestryPrefix}Breath Weapon ({activeAncestry.DamageType}): {activeAncestry.Area}; {activeAncestry.SavingThrow} save; DC = 8 + Constitution modifier + proficiency bonus; 2d6 at level 1, 3d6 at level 6, 4d6 at level 11, 5d6 at level 16; half damage on a successful save; usable once per short or long rest");
+            traits.Add($"{ancestryPrefix}Damage Resistance: {activeAncestry.DamageType}");
         }
+
+        int? speedOverride = null;
+        if (BaseWalkingSpeeds.TryGetValue(primary, out var primaryBaseSpeed) && primaryBaseSpeed != 30)
+            speedOverride = primaryBaseSpeed;
+        if (!string.IsNullOrWhiteSpace(secondary) && BaseWalkingSpeeds.TryGetValue(secondary, out var secondaryBaseSpeed) && secondaryBaseSpeed != 30)
+            speedOverride = speedOverride.HasValue ? Math.Max(speedOverride.Value, secondaryBaseSpeed) : secondaryBaseSpeed;
+        if (selectedSubrace?.SpeedOverride is int primarySpeed)
+            speedOverride = speedOverride.HasValue ? Math.Max(speedOverride.Value, primarySpeed) : primarySpeed;
+        if (selectedSecondarySubrace?.SpeedOverride is int secondarySpeed)
+            speedOverride = speedOverride.HasValue ? Math.Max(speedOverride.Value, secondarySpeed) : secondarySpeed;
+
+        var hpBonusPerLevel = (selectedSubrace?.HitPointBonusPerLevel ?? 0) +
+                              (selectedSecondarySubrace?.HitPointBonusPerLevel ?? 0);
 
         return new CharacterFeatureProfile
         {
             PrimaryHeritage = primary,
             SecondaryHeritage = secondary,
             Subrace = selectedSubrace?.Name ?? string.Empty,
+            SecondarySubrace = selectedSecondarySubrace?.Name ?? string.Empty,
             DragonbornAncestry = ancestry?.Name ?? string.Empty,
+            SecondaryDragonbornAncestry = secondaryAncestry?.Name ?? string.Empty,
             RacialAbilityBonuses = scores.Bonuses,
             RacialTraits = traits.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
-            NaturalArmorBase = primary.Equals("Tortle", StringComparison.OrdinalIgnoreCase) ? 17 : null,
-            SpeedOverride = selectedSubrace?.SpeedOverride,
-            HitPointBonusPerLevel = selectedSubrace?.HitPointBonusPerLevel ?? 0,
+            NaturalArmorBase = primary.Equals("Tortle", StringComparison.OrdinalIgnoreCase) || secondary.Equals("Tortle", StringComparison.OrdinalIgnoreCase) ? 17 : null,
+            SpeedOverride = speedOverride,
+            HitPointBonusPerLevel = hpBonusPerLevel,
             Size = size,
+            SecondarySize = secondarySize,
             NatureIntuitionSkill = natureSkill,
+            SecondaryNatureIntuitionSkill = secondaryNatureSkill,
             ExtraLanguage = extraLanguage,
+            SecondaryExtraLanguage = secondaryExtraLanguage,
             HighElfCantrip = canonicalCantrip,
+            SecondaryHighElfCantrip = secondaryCanonicalCantrip,
             DwarfToolProficiency = canonicalDwarfTool,
-            BreathWeaponDamageType = ancestry?.DamageType ?? string.Empty,
-            BreathWeaponArea = ancestry?.Area ?? string.Empty,
-            BreathWeaponSavingThrow = ancestry?.SavingThrow ?? string.Empty,
-            DamageResistance = ancestry?.DamageType ?? string.Empty
+            SecondaryDwarfToolProficiency = secondaryCanonicalDwarfTool,
+            BreathWeaponDamageType = activeAncestry?.DamageType ?? string.Empty,
+            BreathWeaponArea = activeAncestry?.Area ?? string.Empty,
+            BreathWeaponSavingThrow = activeAncestry?.SavingThrow ?? string.Empty,
+            DamageResistance = activeAncestry?.DamageType ?? string.Empty
         };
     }
 
@@ -454,8 +589,12 @@ public static class CharacterFeatureRules
             lines.Add($"Secondary heritage: {secondary.GetString()}");
         if (features.TryGetProperty("subrace", out var subrace) && !string.IsNullOrWhiteSpace(subrace.GetString()))
             lines.Add($"Subrace: {subrace.GetString()}");
+        if (features.TryGetProperty("secondarySubrace", out var secondarySubrace) && !string.IsNullOrWhiteSpace(secondarySubrace.GetString()))
+            lines.Add($"Secondary subrace: {secondarySubrace.GetString()}");
         if (features.TryGetProperty("dragonbornAncestry", out var ancestry) && !string.IsNullOrWhiteSpace(ancestry.GetString()))
             lines.Add($"Draconic ancestry: {ancestry.GetString()}");
+        if (features.TryGetProperty("secondaryDragonbornAncestry", out var secondaryAncestry) && !string.IsNullOrWhiteSpace(secondaryAncestry.GetString()))
+            lines.Add($"Secondary Draconic ancestry: {secondaryAncestry.GetString()}");
         if (features.TryGetProperty("racialTraits", out var traits) && traits.ValueKind == JsonValueKind.Array)
         {
             foreach (var trait in traits.EnumerateArray())
@@ -466,8 +605,12 @@ public static class CharacterFeatureRules
         }
         if (features.TryGetProperty("natureIntuitionSkill", out var skill) && !string.IsNullOrWhiteSpace(skill.GetString()))
             lines.Add($"Nature's Intuition proficiency: {skill.GetString()}");
+        if (features.TryGetProperty("secondaryNatureIntuitionSkill", out var secondarySkill) && !string.IsNullOrWhiteSpace(secondarySkill.GetString()))
+            lines.Add($"Secondary Tortle Nature's Intuition proficiency: {secondarySkill.GetString()}");
         if (features.TryGetProperty("extraLanguage", out var language) && !string.IsNullOrWhiteSpace(language.GetString()))
             lines.Add($"Additional language: {language.GetString()}");
+        if (features.TryGetProperty("secondaryExtraLanguage", out var secondaryLanguage) && !string.IsNullOrWhiteSpace(secondaryLanguage.GetString()))
+            lines.Add($"Secondary heritage additional language: {secondaryLanguage.GetString()}");
         return string.Join("; ", lines.Distinct(StringComparer.OrdinalIgnoreCase));
     }
 }
@@ -490,17 +633,24 @@ public sealed class CharacterFeatureProfile
     [JsonPropertyName("primaryHeritage")] public string PrimaryHeritage { get; set; } = string.Empty;
     [JsonPropertyName("secondaryHeritage")] public string SecondaryHeritage { get; set; } = string.Empty;
     [JsonPropertyName("subrace")] public string Subrace { get; set; } = string.Empty;
+    [JsonPropertyName("secondarySubrace")] public string SecondarySubrace { get; set; } = string.Empty;
     [JsonPropertyName("dragonbornAncestry")] public string DragonbornAncestry { get; set; } = string.Empty;
+    [JsonPropertyName("secondaryDragonbornAncestry")] public string SecondaryDragonbornAncestry { get; set; } = string.Empty;
     [JsonPropertyName("racialAbilityBonuses")] public IReadOnlyDictionary<string, int> RacialAbilityBonuses { get; set; } = new Dictionary<string, int>();
     [JsonPropertyName("racialTraits")] public IReadOnlyList<string> RacialTraits { get; set; } = Array.Empty<string>();
     [JsonPropertyName("naturalArmorBase")] public int? NaturalArmorBase { get; set; }
     [JsonPropertyName("speedOverride")] public int? SpeedOverride { get; set; }
     [JsonPropertyName("hitPointBonusPerLevel")] public int HitPointBonusPerLevel { get; set; }
     [JsonPropertyName("size")] public string Size { get; set; } = string.Empty;
+    [JsonPropertyName("secondarySize")] public string SecondarySize { get; set; } = string.Empty;
     [JsonPropertyName("natureIntuitionSkill")] public string NatureIntuitionSkill { get; set; } = string.Empty;
+    [JsonPropertyName("secondaryNatureIntuitionSkill")] public string SecondaryNatureIntuitionSkill { get; set; } = string.Empty;
     [JsonPropertyName("extraLanguage")] public string ExtraLanguage { get; set; } = string.Empty;
+    [JsonPropertyName("secondaryExtraLanguage")] public string SecondaryExtraLanguage { get; set; } = string.Empty;
     [JsonPropertyName("highElfCantrip")] public string HighElfCantrip { get; set; } = string.Empty;
+    [JsonPropertyName("secondaryHighElfCantrip")] public string SecondaryHighElfCantrip { get; set; } = string.Empty;
     [JsonPropertyName("dwarfToolProficiency")] public string DwarfToolProficiency { get; set; } = string.Empty;
+    [JsonPropertyName("secondaryDwarfToolProficiency")] public string SecondaryDwarfToolProficiency { get; set; } = string.Empty;
     [JsonPropertyName("breathWeaponDamageType")] public string BreathWeaponDamageType { get; set; } = string.Empty;
     [JsonPropertyName("breathWeaponArea")] public string BreathWeaponArea { get; set; } = string.Empty;
     [JsonPropertyName("breathWeaponSavingThrow")] public string BreathWeaponSavingThrow { get; set; } = string.Empty;
@@ -527,14 +677,23 @@ public sealed class EnhancedManualCharacterRequest
     public string? Backstory { get; set; }
     public string? Notes { get; set; }
     public Dictionary<string, int>? RacialAbilityChoices { get; set; }
+    public Dictionary<string, int>? SecondaryRacialAbilityChoices { get; set; }
     public string? Subrace { get; set; }
+    public string? SecondarySubrace { get; set; }
     public string? DragonbornAncestry { get; set; }
+    public string? SecondaryDragonbornAncestry { get; set; }
     public string? HighElfCantrip { get; set; }
     public string? HighElfLanguage { get; set; }
+    public string? SecondaryHighElfCantrip { get; set; }
+    public string? SecondaryHighElfLanguage { get; set; }
     public string? DwarfTool { get; set; }
+    public string? SecondaryDwarfTool { get; set; }
     public string? TortleSize { get; set; }
     public string? TortleNatureSkill { get; set; }
     public string? TortleLanguage { get; set; }
+    public string? SecondaryTortleSize { get; set; }
+    public string? SecondaryTortleNatureSkill { get; set; }
+    public string? SecondaryTortleLanguage { get; set; }
 }
 
 public sealed class EnhancedRandomCharacterRequest
@@ -544,14 +703,23 @@ public sealed class EnhancedRandomCharacterRequest
     public string? SecondaryHeritage { get; set; }
     public string ClassName { get; set; } = string.Empty;
     public Dictionary<string, int>? RacialAbilityChoices { get; set; }
+    public Dictionary<string, int>? SecondaryRacialAbilityChoices { get; set; }
     public string? Subrace { get; set; }
+    public string? SecondarySubrace { get; set; }
     public string? DragonbornAncestry { get; set; }
+    public string? SecondaryDragonbornAncestry { get; set; }
     public string? HighElfCantrip { get; set; }
     public string? HighElfLanguage { get; set; }
+    public string? SecondaryHighElfCantrip { get; set; }
+    public string? SecondaryHighElfLanguage { get; set; }
     public string? DwarfTool { get; set; }
+    public string? SecondaryDwarfTool { get; set; }
     public string? TortleSize { get; set; }
     public string? TortleNatureSkill { get; set; }
     public string? TortleLanguage { get; set; }
+    public string? SecondaryTortleSize { get; set; }
+    public string? SecondaryTortleNatureSkill { get; set; }
+    public string? SecondaryTortleLanguage { get; set; }
 }
 
 public sealed class CharacterDetailsUpdateRequest
