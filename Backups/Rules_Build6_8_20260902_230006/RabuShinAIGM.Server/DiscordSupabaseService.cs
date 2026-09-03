@@ -1070,20 +1070,6 @@ public sealed class DiscordSupabaseService
         return await ReadGmTurnStateAsync(response, "Unable to acquire AI Game Master turn");
     }
 
-    public async Task<GmTurnStateResult> TouchGmTurnInputAsync(
-        Guid playerId,
-        Guid campaignId,
-        Guid lockToken)
-    {
-        using var response = await CallRpcAsync("discord_touch_gm_turn_input", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_lock_token = lockToken
-        });
-        return await ReadGmTurnStateAsync(response, "Unable to refresh AI Game Master typing activity");
-    }
-
     public async Task<GmTurnStateResult> BeginGmProcessingAsync(
         Guid playerId,
         Guid campaignId,

@@ -29,8 +29,6 @@ let gmTurnState = null;
 let gmCombatTurnState = null; // COMBAT BUILD 6.1 - strict initiative state shown in GM composer
 let gmTurnToken = null;
 let gmTurnAcquirePending = false;
-let gmTurnInputHeartbeatPending = false;
-let gmTurnInputHeartbeatQueued = false;
 let gmTurnSubmitting = false;
 let gmTurnDraft = '';
 let campaignChatDraft = '';
@@ -1328,7 +1326,6 @@ function stopConversationLiveSync() {
   conversationLiveSyncBusy=false;
   if(gmTurnCountdownTimer)clearInterval(gmTurnCountdownTimer);
   gmTurnCountdownTimer=null;
-  gmTurnInputHeartbeatQueued=false;
 }
 
 function normalizeGmTurnState(state) {
@@ -1356,15 +1353,7 @@ function currentGmTurnSeconds() {
 }
 
 function setGmTurnState(state) {
-  const previous=gmTurnState;
-  const next=normalizeGmTurnState(state);
-  // Live polls and hidden input heartbeats report the same absolute expiry.
-  // Preserve the local deadline so repeated input can never restart the
-  // visible 30-second countdown through response-rounding.
-  if(previous?.active&&next.active&&!next.processing&&previous._deadlineMs&&
-     previous.expiresAt&&previous.expiresAt===next.expiresAt)
-    next._deadlineMs=previous._deadlineMs;
-  gmTurnState=next;
+  gmTurnState=normalizeGmTurnState(state);
   gmTurnToken=gmTurnState.isOwner?gmTurnState.lockToken:null;
   updateGmTurnUi();
 }
@@ -1518,9 +1507,6 @@ async function acquireGmTurnForDraft() {
       return false;
     }
     document.querySelector('#gmError').textContent='';
-    // Acquiring is itself an input event. Touch once more after the response so
-    // input typed while the acquire request was in flight is also recognized.
-    void touchGmTurnInput();
     return true;
   } catch(error) {
     document.querySelector('#gmError').textContent=error.message;
@@ -1528,45 +1514,6 @@ async function acquireGmTurnForDraft() {
   } finally {
     gmTurnAcquirePending=false;
     updateGmTurnUi();
-  }
-}
-
-// RULES BUILD 6.8 - HIDDEN FIVE-SECOND GM INPUT-IDLE LEASE
-// Input heartbeats are serialized and coalesced so rapid typing cannot create
-// overlapping requests. Supabase tracks the hidden idle deadline; this does not
-// alter the visible, absolute 30-second countdown.
-async function touchGmTurnInput() {
-  if(gmTurnInputHeartbeatPending) {
-    gmTurnInputHeartbeatQueued=true;
-    return;
-  }
-  if(gmTurnSubmitting||!currentCampaignId||!gmTurnState?.active||
-     gmTurnState.processing||!gmTurnState.isOwner||!gmTurnToken)return;
-
-  const campaignId=currentCampaignId;
-  const token=gmTurnToken;
-  gmTurnInputHeartbeatPending=true;
-  try {
-    const result=await api(`/game-api/campaigns/${campaignId}/gm/turn/input`,{
-      method:'POST',
-      headers:{'X-RabuShin-GM-Turn-Token':token}
-    });
-    if(currentCampaignId===campaignId&&gmTurnToken===token&&!gmTurnSubmitting)
-      setGmTurnState(result.turnState);
-  } catch(error) {
-    if(currentCampaignId===campaignId&&gmTurnToken===token&&error.data?.turnExpired) {
-      gmTurnToken=null;
-      gmTurnState={active:false,processing:false,isOwner:false,ownerName:'',lockToken:null,remainingSeconds:0,_deadlineMs:null};
-      updateGmTurnUi();
-      const input=document.querySelector('#gmInput');
-      if(input?.value.trim())void acquireGmTurnForDraft();
-    }
-  } finally {
-    gmTurnInputHeartbeatPending=false;
-    if(gmTurnInputHeartbeatQueued) {
-      gmTurnInputHeartbeatQueued=false;
-      void touchGmTurnInput();
-    }
   }
 }
 
@@ -2449,9 +2396,7 @@ function renderGameMasterTab() {
   input.addEventListener('input',()=>{
     gmTurnDraft=input.value;
     updateGmTurnUi();
-    if(gmTurnState?.active&&gmTurnState.isOwner&&!gmTurnState.processing)
-      void touchGmTurnInput();
-    else if(input.value.trim()&&(!gmTurnState?.active||(!gmTurnState.isOwner&&currentGmTurnSeconds()<=0)))
+    if(input.value.trim()&&(!gmTurnState?.active||(!gmTurnState.isOwner&&currentGmTurnSeconds()<=0)))
       void acquireGmTurnForDraft();
   });
   input.addEventListener('focus',()=>{

@@ -1994,53 +1994,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/acquire", async (
     }
 });
 
-// RULES BUILD 6.8 - HIDDEN FIVE-SECOND GM INPUT-IDLE LEASE
-// Actual input events refresh only the hidden inactivity deadline. The original
-// 30-second turn deadline remains absolute and is never extended here.
-app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/input", async (
-    Guid campaignId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        var tokenText = request.Headers["X-RabuShin-GM-Turn-Token"].ToString();
-        if (!Guid.TryParse(tokenText, out var lockToken))
-            return Results.BadRequest(new { success = false, error = "The AI Game Master turn token is missing." });
-
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        var turnState = await service.TouchGmTurnInputAsync(player, campaignId, lockToken);
-        return Results.Ok(new
-        {
-            success = true,
-            turnState = new
-            {
-                active = turnState.Active,
-                processing = turnState.Processing,
-                isOwner = turnState.IsOwner,
-                ownerPlayerId = turnState.OwnerPlayerId,
-                ownerName = turnState.OwnerName,
-                lockToken = turnState.IsOwner ? turnState.LockToken : null,
-                remainingSeconds = turnState.RemainingSeconds,
-                expiresAt = turnState.ExpiresAt
-            }
-        });
-    }
-    catch (Exception ex) when (
-        ex.Message.Contains("five-second", StringComparison.OrdinalIgnoreCase) ||
-        ex.Message.Contains("30-second", StringComparison.OrdinalIgnoreCase) ||
-        ex.Message.Contains("owned by another player", StringComparison.OrdinalIgnoreCase))
-    {
-        return Results.Conflict(new { success = false, error = ex.Message, turnExpired = true });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
 // COMBAT BUILD 6.1 - PLAYER END TURN / AUTOMATIC CONSECUTIVE ENEMY TURNS
 app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/end-turn", async (
     Guid campaignId,
