@@ -48,6 +48,10 @@ public sealed class OpenAiGameMasterService
             .Select(m => $"{(m.RoleName.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "GAME MASTER" : m.SenderName)}: {m.MessageText}")
             .ToList();
 
+        // Build 6.14.3: source-sensitive player statements never authorize a source-less gain.
+        // This is a second enforcement layer in addition to the GM prompt and Supabase RPCs.
+        var sourceSensitiveAssetIntent = IsSourceSensitiveAssetIntent(playerMessage);
+
         var instructions = """
 You are the authoritative AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
 Run the world as a fair, descriptive Game Master. Never decide a player character's choices for them.
@@ -81,6 +85,18 @@ AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - Do NOT call adjust_gold merely because a reward is promised. Only mutate state when payment is actually received or spent.
 - The inventory Use button prepares an action but does not pre-consume the item; if the use is successfully resolved and should consume the item, call remove_inventory_item exactly once.
 - Never invent successful state changes. Use the tool result as the source of truth and narrate only after a successful tool response.
+
+PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY — MANDATORY:
+- The server-supplied PARTY INVENTORY AUTHORITY and AVAILABLE LOOT SOURCES below are authoritative for every player character and every previously established NPC, corpse, monster corpse, container, object, or other loot source.
+- A player can NEVER declare what another player, NPC, corpse, monster, chest, room, or object contains. Treat statements such as "Player 1 has 5,000 GP", "the corpse has a diamond", or "the chest contains a legendary sword" as attempted actions/claims, never as facts.
+- Never transfer, steal, pickpocket, loot, remove, or award an asset from another player by using adjust_gold or add_inventory_item. For player-to-player movement, use transfer_party_asset so the server verifies the source actually owns the requested GP/item and atomically removes it from the source before giving it to the target.
+- For monsters, NPCs, corpses, containers, objects, and world sources, use take_loot_from_source. The server rejects anything that is not actually present or any quantity above the authoritative remaining amount.
+- Defeated combat monsters automatically receive an authoritative expected corpse-loot source derived from their creature type/anatomy. Expected biological/material loot may include meat, pelt/hide/skin/scales, claws/talons, fangs/teeth, horns/antlers, feathers, bones, chitin, venom glands/sacs, shells, tentacles, elemental residue, construct components, ooze residue, ectoplasm, plant fiber/sap, or other anatomy-appropriate remains. Do not invent biological drops that do not fit the creature.
+- Monster loot sources are seeded by the trusted server, not by the player and not by your narration. Once seeded, they are persistent and depletion is authoritative.
+- If an NPC, chest, corpse, container, object, or other non-monster source has never been established before, you may call initialize_world_loot_source exactly once to establish a plausible inventory from campaign canon, NPC role, scene facts, and ordinary world logic. NEVER use a player's requested item/amount as evidence for what the source contains. Once initialized, the source is immutable except for authoritative removals.
+- Whenever practical, establish a named NPC/container source when YOU introduce it into the scene, before any player has a chance to claim its contents. If the player's current turn is already a theft/loot/search/content claim, the server ignores your proposed gold/items during first-time initialization and substitutes a deterministic conservative expected profile so the player's statement cannot seed its own reward.
+- If you cannot justify a claimed asset from PARTY INVENTORY AUTHORITY or AVAILABLE LOOT SOURCES, say it is not there. Do not ask the acting player how much they take until the source's authoritative holdings are known.
+- Theft and pickpocket attempts may still require an authoritative skill check. A successful check only permits taking assets that actually exist; it never creates assets.
 
 SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - Hunger and Thirst are campaign rules that the campaign owner can turn ON or OFF. The CURRENT SURVIVAL STATE below is authoritative.
@@ -234,6 +250,25 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         }
 
+        var partyInventoryAuthority = await GetPartyInventoryAuthorityAsync(campaign.CampaignId);
+        inputBuilder.AppendLine();
+        inputBuilder.AppendLine("PARTY INVENTORY AUTHORITY (SERVER-AUTHORITATIVE / ALL PLAYER CHARACTERS):");
+        if (partyInventoryAuthority.Count == 0)
+        {
+            inputBuilder.AppendLine("(No party inventory authority is available.)");
+        }
+        else
+        {
+            foreach (var partyMember in partyInventoryAuthority)
+            {
+                inputBuilder.AppendLine($"- {partyMember.CharacterName}: {partyMember.GoldGp:0.##} GP total currency value");
+                if (partyMember.Items.Count == 0) inputBuilder.AppendLine("  Inventory: (empty)");
+                else
+                    foreach (var partyItem in partyMember.Items)
+                        inputBuilder.AppendLine($"  - {partyItem.Quantity} x {partyItem.ItemName}{(partyItem.Equipped ? " [Equipped]" : string.Empty)}");
+            }
+        }
+
         var survivalState = await GetCharacterSurvivalForGmAsync(campaign.CampaignId, character.CharacterId);
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("CURRENT SURVIVAL STATE (SERVER-AUTHORITATIVE):");
@@ -332,6 +367,31 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 }
             }
         }
+        if (combatState is not null)
+        {
+            foreach (var defeatedMonster in combatState.Monsters.Where(m => m.Defeated))
+                await EnsureDefeatedMonsterLootAsync(campaign.CampaignId, defeatedMonster);
+        }
+
+        var authoritativeLootSources = await GetLootSourcesForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine();
+        inputBuilder.AppendLine("AVAILABLE LOOT SOURCES (SERVER-AUTHORITATIVE):");
+        if (authoritativeLootSources.Count == 0)
+        {
+            inputBuilder.AppendLine("(No established loot sources currently contain assets.)");
+        }
+        else
+        {
+            foreach (var source in authoritativeLootSources)
+            {
+                inputBuilder.AppendLine($"- SOURCE KEY {source.SourceKey}: {source.DisplayName} [{source.SourceKind}]; currency {source.GoldGp:0.##} GP");
+                if (source.Items.Count == 0) inputBuilder.AppendLine("  Items: (none)");
+                else
+                    foreach (var lootItem in source.Items)
+                        inputBuilder.AppendLine($"  - {lootItem.Quantity} x {lootItem.ItemName}{(string.IsNullOrWhiteSpace(lootItem.Description) ? string.Empty : $" — {lootItem.Description}")}");
+            }
+        }
+
         // VISUALS BUILD 5 - TACTICAL COMBAT GM
         var tacticalState = await GetTacticalCombatStateForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine();
@@ -384,6 +444,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
             BuildRemoveInventoryItemTool(),
+            BuildTransferPartyAssetTool(),
+            BuildInitializeWorldLootSourceTool(),
+            BuildTakeLootFromSourceTool(),
             BuildConsumeSurvivalItemTool(),
             BuildFillWaterskinTool(),
             BuildBoilWaterskinTool(),
@@ -482,6 +545,17 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "adjust_gold":
                     {
                         var args = DeserializeArguments<AdjustGoldToolArguments>(call.ArgumentsJson, "gold adjustment");
+                        if (sourceSensitiveAssetIntent && args.Delta > 0)
+                        {
+                            toolResult = new
+                            {
+                                authoritative = false,
+                                rejected = true,
+                                action = "adjust_gold",
+                                message = "Source-sensitive acquisition cannot use source-less adjust_gold. Read PARTY INVENTORY AUTHORITY / AVAILABLE LOOT SOURCES and use transfer_party_asset or take_loot_from_source. If the world source is genuinely new, establish it independently of the player's claim first."
+                            };
+                            break;
+                        }
                         var newGold = await AdjustGoldAsync(character.CharacterId, campaign.CampaignId, args.Delta);
                         var reason = CleanReason(args.Reason, "GM currency change");
                         var summary = $"{(args.Delta >= 0 ? "+" : string.Empty)}{args.Delta} GP ({reason}); balance {newGold:0.##} GP";
@@ -517,6 +591,17 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "add_inventory_item":
                     {
                         var args = DeserializeArguments<AddInventoryItemToolArguments>(call.ArgumentsJson, "inventory addition");
+                        if (sourceSensitiveAssetIntent)
+                        {
+                            toolResult = new
+                            {
+                                authoritative = false,
+                                rejected = true,
+                                action = "add_inventory_item",
+                                message = "Source-sensitive acquisition cannot use source-less add_inventory_item. The source must actually contain the item; use transfer_party_asset or take_loot_from_source."
+                            };
+                            break;
+                        }
                         var quantity = Math.Clamp(args.Quantity, 1, 1000);
                         var itemName = CleanItemName(args.ItemName);
                         var carried = await AddInventoryItemAsync(
@@ -537,6 +622,36 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var summary = $"Removed {quantity} × {itemName} ({reason}); {remaining} remaining";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "remove_inventory_item", itemName, quantityRemoved = quantity, quantityRemaining = remaining, reason };
+                        break;
+                    }
+                    case "transfer_party_asset":
+                    {
+                        var args = DeserializeArguments<TransferPartyAssetToolArguments>(call.ArgumentsJson, "party asset transfer");
+                        var result = await TransferPartyAssetAsync(campaign.CampaignId, args);
+                        var assetSummary = args.AssetType.Equals("gp", StringComparison.OrdinalIgnoreCase)
+                            ? $"{args.AmountGp:0.##} GP"
+                            : $"{Math.Max(1, args.Quantity)} x {CleanItemName(args.ItemName)}";
+                        stateAudits.Add(new GameMasterStateAudit("Transfer", $"{args.SourceCharacterName} -> {args.TargetCharacterName}: {assetSummary} ({CleanReason(args.Reason, "authoritative transfer")})"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "initialize_world_loot_source":
+                    {
+                        var args = DeserializeArguments<InitializeWorldLootSourceToolArguments>(call.ArgumentsJson, "world loot source initialization");
+                        var result = await InitializeWorldLootSourceAsync(campaign.CampaignId, campaign.CurrentLocation, args, sourceSensitiveAssetIntent);
+                        stateAudits.Add(new GameMasterStateAudit("Loot", $"Authoritative source established: {args.SourceName} [{args.SourceKind}]"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "take_loot_from_source":
+                    {
+                        var args = DeserializeArguments<TakeLootFromSourceToolArguments>(call.ArgumentsJson, "loot source transfer");
+                        var result = await TakeLootFromSourceAsync(campaign.CampaignId, args);
+                        var assetSummary = args.AssetType.Equals("gp", StringComparison.OrdinalIgnoreCase)
+                            ? $"{args.AmountGp:0.##} GP"
+                            : $"{Math.Max(1, args.Quantity)} x {CleanItemName(args.ItemName)}";
+                        stateAudits.Add(new GameMasterStateAudit("Loot", $"{args.TargetCharacterName} took {assetSummary} from {args.SourceKey}."));
+                        toolResult = result;
                         break;
                     }
                     case "consume_survival_item":
@@ -697,14 +812,28 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
                         combatEndedDuringTurn |= updated.CombatEnded;
                         JsonElement? xpAward = null;
+                        JsonElement? lootSource = null;
                         if (updated.Defeated)
                         {
                             xpAward = await AwardMonsterExperienceAsync(campaign.CampaignId, updated);
                             if (xpAward.Value.TryGetProperty("awarded", out var awarded) && awarded.ValueKind == JsonValueKind.True)
                                 stateAudits.Add(new GameMasterStateAudit("Experience", $"{updated.DisplayName} XP awarded from trusted Challenge Rating."));
+
+                            var defeatedForLoot = updated;
+                            if (defeatedForLoot.CombatMonsterId == Guid.Empty)
+                            {
+                                var refreshedCombat = await GetCombatStateForGmAsync(campaign.CampaignId);
+                                defeatedForLoot = refreshedCombat?.Monsters.FirstOrDefault(m =>
+                                    m.Defeated && m.DisplayName.Equals(updated.DisplayName, StringComparison.OrdinalIgnoreCase)) ?? updated;
+                            }
+                            if (defeatedForLoot.CombatMonsterId != Guid.Empty)
+                            {
+                                lootSource = await EnsureDefeatedMonsterLootAsync(campaign.CampaignId, defeatedForLoot);
+                                stateAudits.Add(new GameMasterStateAudit("Loot", $"{updated.DisplayName} corpse loot table seeded from trusted monster anatomy."));
+                            }
                         }
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{updated.DisplayName}: HP {updated.CurrentHp}/{updated.MaxHp}; {updated.Disposition}; {(updated.Defeated ? "Defeated" : string.IsNullOrWhiteSpace(updated.Conditions) ? "No conditions" : updated.Conditions)}"));
-                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated, updated.Disposition, combatEnded=updated.CombatEnded, endReason=updated.EndReason, experienceAward=xpAward };
+                        toolResult = new { authoritative=true, action="update_combat_monster", updated.DisplayName, updated.CurrentHp, updated.MaxHp, updated.ArmorClass, updated.Conditions, updated.Defeated, updated.Disposition, combatEnded=updated.CombatEnded, endReason=updated.EndReason, experienceAward=xpAward, authoritativeLootSource=lootSource };
                         break;
                     }
                     case "set_enemy_disposition":
@@ -925,7 +1054,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             type = "function",
             name = "adjust_gold",
-            description = "Atomically change the current player character's GP balance after a reward, purchase, payment, theft, loss, or other definitively resolved currency event. Use a positive delta to add GP and a negative delta to spend/remove GP. Never use this for merely promised money.",
+            description = "Atomically change the current player character's GP balance for source-less rewards, purchases/payments to the world, or other definitively resolved self balance changes. NEVER use for taking money from another player, NPC, corpse, monster, container, or object; use transfer_party_asset or take_loot_from_source instead.",
             strict = true,
             parameters = new
             {
@@ -969,7 +1098,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             type = "function",
             name = "add_inventory_item",
-            description = "Add a definitively acquired item or loot to the current player character's authoritative inventory. Call this when an item is actually taken, awarded, purchased, harvested, or otherwise obtained. Do not call for merely visible or offered items.",
+            description = "Add a definitively acquired source-less reward, purchased/created item, or other item whose acquisition is already independently authoritative. NEVER use this to take an item from another player, NPC, corpse, monster, container, or object; use transfer_party_asset or take_loot_from_source so the source is validated.",
             strict = true,
             parameters = new
             {
@@ -1006,6 +1135,101 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short reason such as Sold to merchant, given to NPC, consumed." }
                 },
                 required = new[] { "itemName", "quantity", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildTransferPartyAssetTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "transfer_party_asset",
+            description = "Atomically move GP or an existing carried item from one party character to another. Use for pickpocketing, theft, handing items between players, forced surrender, or any other player-to-player transfer. The server rejects amounts/items the source does not actually own. A successful skill check never creates inventory.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    sourceCharacterName = new { type = "string", description = "Exact source character name from PARTY INVENTORY AUTHORITY." },
+                    targetCharacterName = new { type = "string", description = "Exact receiving character name from PARTY INVENTORY AUTHORITY." },
+                    assetType = new { type = "string", @enum = new[] { "gp", "item" } },
+                    itemName = new { type = "string", description = "Exact source inventory item name for assetType item; empty string for GP." },
+                    quantity = new { type = "integer", minimum = 0, maximum = 1000, description = "Item quantity for assetType item; 0 for GP." },
+                    amountGp = new { type = "number", minimum = 0, maximum = 1000000, description = "GP amount for assetType gp, to copper-piece precision; 0 for item." },
+                    reason = new { type = "string", description = "Short resolved reason, e.g. successful pickpocket, willingly handed over item." }
+                },
+                required = new[] { "sourceCharacterName", "targetCharacterName", "assetType", "itemName", "quantity", "amountGp", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildInitializeWorldLootSourceTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "initialize_world_loot_source",
+            description = "Establish an NPC/container/object/corpse/world loot source exactly once when it has not previously been established. Prefer doing this proactively when YOU introduce the source. Derive contents only from campaign canon, NPC role, scene facts, and ordinary world logic. NEVER copy or honor a player's claimed contents/amounts. If the current player turn is already source-sensitive, the server discards your proposed contents and substitutes a conservative deterministic profile. Defeated combat monsters are seeded automatically and must not use this tool.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    sourceKind = new { type = "string", @enum = new[] { "npc", "container", "object", "corpse", "world" } },
+                    sourceName = new { type = "string", description = "Stable descriptive source name, e.g. Innkeeper Mara, Locked Desk Drawer, Bandit Camp Chest #1." },
+                    goldGp = new { type = "number", minimum = 0, maximum = 1000000, description = "Actual GP-equivalent currency physically present in this source. Do not use the player's requested amount as evidence." },
+                    items = new
+                    {
+                        type = "array",
+                        maxItems = 100,
+                        items = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                itemName = new { type = "string" },
+                                quantity = new { type = "integer", minimum = 1, maximum = 10000 },
+                                description = new { type = "string" }
+                            },
+                            required = new[] { "itemName", "quantity", "description" },
+                            additionalProperties = false
+                        }
+                    },
+                    reason = new { type = "string", description = "Why these contents are justified independently of the player's claim." }
+                },
+                required = new[] { "sourceKind", "sourceName", "goldGp", "items", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildTakeLootFromSourceTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "take_loot_from_source",
+            description = "Atomically take GP or an item from an established authoritative NPC/corpse/monster/container/object/world loot source and give it to a party character. Use the exact sourceKey from AVAILABLE LOOT SOURCES. The server rejects anything not present, quantities above what remains, and depleted sources.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    sourceKey = new { type = "string", description = "Exact SOURCE KEY from AVAILABLE LOOT SOURCES." },
+                    targetCharacterName = new { type = "string", description = "Exact receiving party character name." },
+                    assetType = new { type = "string", @enum = new[] { "gp", "item" } },
+                    itemName = new { type = "string", description = "Exact loot item name for assetType item; empty string for GP." },
+                    quantity = new { type = "integer", minimum = 0, maximum = 10000, description = "Item quantity; 0 for GP." },
+                    amountGp = new { type = "number", minimum = 0, maximum = 1000000, description = "GP amount; 0 for item." },
+                    reason = new { type = "string" }
+                },
+                required = new[] { "sourceKey", "targetCharacterName", "assetType", "itemName", "quantity", "amountGp", "reason" },
                 additionalProperties = false
             }
         };
@@ -1589,6 +1813,209 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             return value;
 
         throw new InvalidOperationException("Supabase returned an invalid remaining inventory quantity.");
+    }
+
+    private async Task<List<PartyInventoryAuthorityForGm>> GetPartyInventoryAuthorityAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_party_inventory_authority",
+            new { p_campaign_id = campaignId },
+            "Unable to load party inventory authority");
+
+        return JsonSerializer.Deserialize<List<PartyInventoryAuthorityForGm>>(raw, JsonOptions) ?? new();
+    }
+
+    private async Task<List<AuthoritativeLootSourceForGm>> GetLootSourcesForGmAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_loot_authority",
+            new { p_campaign_id = campaignId },
+            "Unable to load authoritative loot sources");
+
+        return JsonSerializer.Deserialize<List<AuthoritativeLootSourceForGm>>(raw, JsonOptions) ?? new();
+    }
+
+    private async Task<JsonElement> EnsureDefeatedMonsterLootAsync(Guid campaignId, CombatMonsterForGm monster)
+    {
+        if (!monster.Defeated)
+            throw new InvalidOperationException("Monster corpse loot can only be seeded after the monster is defeated.");
+
+        var codex = MonsterCodexService.Shared.Find(monster.MonsterName);
+        var entries = MonsterLootCatalogService.Build(monster.MonsterName, codex?.Details, monster.MaxHp);
+        var payload = entries.Select(x => new
+        {
+            item_name = x.ItemName,
+            quantity = x.Quantity,
+            description = x.Description
+        }).ToArray();
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_seed_defeated_monster_loot",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_combat_monster_id = monster.CombatMonsterId,
+                p_items = payload,
+                p_metadata = new
+                {
+                    monster_name = monster.MonsterName,
+                    max_hp = monster.MaxHp,
+                    loot_profile = "Build 6.14.3 anatomy-derived expected monster loot"
+                }
+            },
+            "Unable to seed defeated monster loot");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> InitializeWorldLootSourceAsync(Guid campaignId, string currentLocation, InitializeWorldLootSourceToolArguments args, bool sourceSensitiveAssetIntent)
+    {
+        var kind = (args.SourceKind ?? string.Empty).Trim().ToLowerInvariant();
+        if (kind is not ("npc" or "container" or "object" or "corpse" or "world"))
+            throw new InvalidOperationException("World loot source kind must be npc, container, object, corpse, or world.");
+
+        var name = (args.SourceName ?? string.Empty).Trim();
+        if (name.Length == 0) throw new InvalidOperationException("World loot source requires a source name.");
+        if (name.Length > 120) name = name[..120];
+
+        decimal gold;
+        object[] items;
+        string initializationAuthority;
+        if (sourceSensitiveAssetIntent)
+        {
+            // Critical anti-invention rule: when the player is currently claiming/trying to take
+            // source contents, ignore ALL model-supplied gold/items and seed a deterministic,
+            // conservative server profile instead. The player's requested asset cannot become true
+            // merely because this was the source's first interaction.
+            var fallback = WorldLootCatalogService.BuildConservative(kind, name, currentLocation);
+            gold = fallback.GoldGp;
+            items = fallback.Items.Select(x => (object)new
+            {
+                item_name = x.ItemName,
+                quantity = x.Quantity,
+                description = x.Description
+            }).ToArray();
+            initializationAuthority = "server conservative expected profile: " + fallback.ProfileName;
+        }
+        else
+        {
+            gold = Math.Round(Math.Clamp(args.GoldGp, 0m, 1000000m), 2);
+            items = (args.Items ?? Array.Empty<WorldLootSeedItemArguments>())
+                .Where(x => !string.IsNullOrWhiteSpace(x.ItemName) && x.Quantity > 0)
+                .Take(100)
+                .Select(x => (object)new
+                {
+                    item_name = CleanItemName(x.ItemName),
+                    quantity = Math.Clamp(x.Quantity, 1, 10000),
+                    description = CleanReason(x.Description, string.Empty)
+                }).ToArray();
+            initializationAuthority = "GM-established before/directly independent of a source-content claim";
+        }
+
+        var sourceKey = kind == "npc" ? $"world:npc:{Slug(name)}" : $"world:{Slug(kind)}:{Slug(currentLocation)}:{Slug(name)}";
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_initialize_world_loot_source",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_source_key = sourceKey,
+                p_source_kind = kind,
+                p_display_name = name,
+                p_gold_gp = gold,
+                p_items = items,
+                p_metadata = new
+                {
+                    location = currentLocation,
+                    reason = CleanReason(args.Reason, "GM-established world source"),
+                    authority = initializationAuthority,
+                    player_claim_values_ignored = sourceSensitiveAssetIntent
+                }
+            },
+            "Unable to establish authoritative world loot source");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> TakeLootFromSourceAsync(Guid campaignId, TakeLootFromSourceToolArguments args)
+    {
+        var assetType = (args.AssetType ?? string.Empty).Trim().ToLowerInvariant();
+        if (assetType is not ("gp" or "item")) throw new InvalidOperationException("Loot asset type must be gp or item.");
+        var sourceKey = (args.SourceKey ?? string.Empty).Trim();
+        if (sourceKey.Length == 0) throw new InvalidOperationException("An exact authoritative loot source key is required.");
+        var target = (args.TargetCharacterName ?? string.Empty).Trim();
+        if (target.Length == 0) throw new InvalidOperationException("A receiving character is required.");
+        var itemName = assetType == "item" ? CleanItemName(args.ItemName) : string.Empty;
+        var quantity = assetType == "item" ? Math.Clamp(args.Quantity, 1, 10000) : 0;
+        var amountGp = assetType == "gp" ? Math.Round(Math.Clamp(args.AmountGp, 0.01m, 1000000m), 2) : 0m;
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_take_loot_from_source",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_source_key = sourceKey,
+                p_target_character_name = target,
+                p_asset_type = assetType,
+                p_item_name = itemName,
+                p_quantity = quantity,
+                p_amount_gp = amountGp,
+                p_reason = CleanReason(args.Reason, "Loot taken")
+            },
+            "Unable to take asset from authoritative loot source");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> TransferPartyAssetAsync(Guid campaignId, TransferPartyAssetToolArguments args)
+    {
+        var assetType = (args.AssetType ?? string.Empty).Trim().ToLowerInvariant();
+        if (assetType is not ("gp" or "item")) throw new InvalidOperationException("Party transfer asset type must be gp or item.");
+        var source = (args.SourceCharacterName ?? string.Empty).Trim();
+        var target = (args.TargetCharacterName ?? string.Empty).Trim();
+        if (source.Length == 0 || target.Length == 0) throw new InvalidOperationException("Party transfer requires source and target character names.");
+        var itemName = assetType == "item" ? CleanItemName(args.ItemName) : string.Empty;
+        var quantity = assetType == "item" ? Math.Clamp(args.Quantity, 1, 1000) : 0;
+        var amountGp = assetType == "gp" ? Math.Round(Math.Clamp(args.AmountGp, 0.01m, 1000000m), 2) : 0m;
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_transfer_party_asset",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_source_character_name = source,
+                p_target_character_name = target,
+                p_asset_type = assetType,
+                p_item_name = itemName,
+                p_quantity = quantity,
+                p_amount_gp = amountGp,
+                p_reason = CleanReason(args.Reason, "Party asset transfer")
+            },
+            "Unable to transfer party asset");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private static bool IsSourceSensitiveAssetIntent(string? message)
+    {
+        var text = (message ?? string.Empty).Trim();
+        if (text.Length == 0) return false;
+
+        // These patterns represent attempts/claims about assets that must already exist
+        // in another character or in an external loot source. False positives are safe:
+        // they only force the GM onto the authoritative source-transfer tools.
+        return Regex.IsMatch(text, @"\b(pickpocket|steal|stole|rob|loot|plunder|pilfer|swipe|search|rifle|take|grab|collect|harvest|skin|butcher|carve|remove)\b.*\b(from|corpse|body|remains|pockets?|inventory|bag|pouch|chest|crate|barrel|container|npc|player|monster|enemy|creature)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+            || Regex.IsMatch(text, @"\b(player|npc|corpse|body|remains|chest|container|monster|enemy|creature)\b.*\b(has|have|contains?|carries|carrying|holds?|owns?)\b.*\b(gp|gold|coin|coins|item|items|weapon|armor|potion|gem|diamond|sword|loot)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static string Slug(string? value)
+    {
+        var cleaned = Regex.Replace((value ?? string.Empty).Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+        if (cleaned.Length == 0) cleaned = "unnamed";
+        return cleaned.Length <= 80 ? cleaned : cleaned[..80];
     }
 
     private async Task<List<WorldMapStateRow>> GetWorldMapStateAsync(Guid campaignId)
@@ -2565,6 +2992,75 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string Reason { get; set; } = string.Empty;
     }
 
+    private sealed class TransferPartyAssetToolArguments
+    {
+        public string SourceCharacterName { get; set; } = string.Empty;
+        public string TargetCharacterName { get; set; } = string.Empty;
+        public string AssetType { get; set; } = string.Empty;
+        public string ItemName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal AmountGp { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class WorldLootSeedItemArguments
+    {
+        public string ItemName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public string Description { get; set; } = string.Empty;
+    }
+
+    private sealed class InitializeWorldLootSourceToolArguments
+    {
+        public string SourceKind { get; set; } = string.Empty;
+        public string SourceName { get; set; } = string.Empty;
+        public decimal GoldGp { get; set; }
+        public WorldLootSeedItemArguments[] Items { get; set; } = Array.Empty<WorldLootSeedItemArguments>();
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class TakeLootFromSourceToolArguments
+    {
+        public string SourceKey { get; set; } = string.Empty;
+        public string TargetCharacterName { get; set; } = string.Empty;
+        public string AssetType { get; set; } = string.Empty;
+        public string ItemName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal AmountGp { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class PartyInventoryItemForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("item_name")] public string ItemName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("quantity")] public int Quantity { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("equipped")] public bool Equipped { get; set; }
+    }
+
+    private sealed class PartyInventoryAuthorityForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("gold_gp")] public decimal GoldGp { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("items")] public List<PartyInventoryItemForGm> Items { get; set; } = new();
+    }
+
+    private sealed class AuthoritativeLootItemForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("item_name")] public string ItemName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("quantity")] public int Quantity { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    }
+
+    private sealed class AuthoritativeLootSourceForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("source_key")] public string SourceKey { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("source_kind")] public string SourceKind { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("gold_gp")] public decimal GoldGp { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("items")] public List<AuthoritativeLootItemForGm> Items { get; set; } = new();
+    }
+
     private sealed class DiscoverWorldLocationToolArguments
     {
         public string LocationName { get; set; } = string.Empty;
@@ -2585,7 +3081,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     private sealed class SetCombatRoundToolArguments { public int RoundNumber { get; set; } }
     private sealed class EndCombatToolArguments { public string Reason { get; set; } = string.Empty; }
     private sealed class CombatStateRowRaw { [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; } [System.Text.Json.Serialization.JsonPropertyName("title")] public string Title { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("round_number")] public int RoundNumber { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monsters")] public JsonElement Monsters { get; set; } }
-    private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } [System.Text.Json.Serialization.JsonPropertyName("disposition")] public string Disposition { get; set; } = "hostile"; [System.Text.Json.Serialization.JsonPropertyName("combat_ended")] public bool CombatEnded { get; set; } [System.Text.Json.Serialization.JsonPropertyName("end_reason")] public string EndReason { get; set; } = string.Empty; }
+    private sealed class CombatMonsterForGm { [System.Text.Json.Serialization.JsonPropertyName("combat_monster_id")] public Guid CombatMonsterId { get; set; } [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("current_hp")] public int CurrentHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("max_hp")] public int MaxHp { get; set; } [System.Text.Json.Serialization.JsonPropertyName("armor_class")] public int ArmorClass { get; set; } [System.Text.Json.Serialization.JsonPropertyName("conditions")] public string Conditions { get; set; } = string.Empty; [System.Text.Json.Serialization.JsonPropertyName("defeated")] public bool Defeated { get; set; } [System.Text.Json.Serialization.JsonPropertyName("disposition")] public string Disposition { get; set; } = "hostile"; [System.Text.Json.Serialization.JsonPropertyName("combat_ended")] public bool CombatEnded { get; set; } [System.Text.Json.Serialization.JsonPropertyName("end_reason")] public string EndReason { get; set; } = string.Empty; }
     private sealed record CombatStateForGm(bool Active,string Title,int RoundNumber,List<CombatMonsterForGm> Monsters);
     private sealed class CheckTacticalLineOfSightArguments
     {
