@@ -946,6 +946,7 @@ async function showStartingEquipment(campaignId, character) {
   }catch(error){document.querySelector('#equipLoading').textContent='Unable to load starting equipment.';showNotice(error.message,true);}
 }
 
+// RULES BUILD 6.14 - SPELL & CANTRIP SELECTION COUNTERS
 async function showSpellSelection(campaignId, character, fromLevelUp=false) {
   const main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Spells & Cantrips</h2><p>${escapeHtml(character.characterName)} • Level ${character.level} ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="spellLoading" class="loading">Loading spell rules...</div><div id="spellForm" hidden></div><div id="spellError" class="error"></div></section></div>`;
@@ -955,13 +956,20 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
     const p=data.progression,form=document.querySelector('#spellForm');
     const spellCard=(s,kind)=>`<label class="spell-option"><input type="checkbox" class="${kind}" value="${escapeHtml(s.name)}"><span><b>${escapeHtml(s.name)}</b><small>${s.level===0?'Cantrip':`Level ${s.level}`} • ${escapeHtml(s.school||'')}</small><em>${escapeHtml(s.description||'')}</em></span></label>`;
     const wizard=data.className.toLowerCase()==='wizard';
+    const cantripLimit=Math.max(0,Number(p.cantripsKnown)||0);
+    const spellLimit=Math.max(0,Number(wizard?p.wizardSpellbookCount:p.preparedSpells)||0);
+    const preparedLimit=Math.max(0,Number(wizard?p.preparedSpells:0)||0);
     form.innerHTML=`
       <div class="selection-summary">Choose <b>${p.cantripsKnown}</b> cantrip(s). ${wizard?`Add <b>${p.wizardSpellbookCount}</b> spells to your spellbook and prepare <b>${p.preparedSpells}</b>.`:`Choose <b>${p.preparedSpells}</b> class spell(s).`} ${data.alwaysPrepared?.length?`Always prepared: ${data.alwaysPrepared.map(escapeHtml).join(', ')}`:''}</div>
+      <div id="spellSelectionCounters" class="selection-summary">
+        ${cantripLimit>0?`<span><b id="cantripRemaining">${cantripLimit}</b> cantrip(s) remaining</span>`:''}
+        ${spellLimit>0?`<span>${cantripLimit>0?' • ':''}<b id="spellRemaining">${spellLimit}</b> ${wizard?'spellbook spell(s)':'spell(s)'} remaining</span>`:''}
+        ${wizard&&preparedLimit>0?`<span> • <b id="preparedRemaining">${preparedLimit}</b> prepared spell(s) remaining</span>`:''}
+      </div>
       ${p.cantripsKnown>0?`<h3>Cantrips</h3><div class="spell-grid">${data.cantrips.map(s=>spellCard(s,'cantrip-check')).join('')}</div>`:''}
       ${p.preparedSpells>0||p.wizardSpellbookCount>0?`<h3 class="subhead">Spells</h3><div class="spell-grid">${data.spells.map(s=>wizard?`<div class="wizard-spell"><label><input class="spell-check" type="checkbox" value="${escapeHtml(s.name)}"> <b>${escapeHtml(s.name)}</b> <small>L${s.level}</small></label><label class="prepare"><input class="prepare-check" type="checkbox" value="${escapeHtml(s.name)}" disabled> Prepare</label><p>${escapeHtml(s.description||'')}</p></div>`:spellCard(s,'spell-check')).join('')}</div>`:''}
       <div id="arcanumArea"></div><button id="saveSpells" class="button primary wide">Save Spell Selection</button>`;
     document.querySelector('#spellLoading').hidden=true;form.hidden=false;
-    if(wizard){document.querySelectorAll('.spell-check').forEach(ch=>ch.onchange=()=>{const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===ch.value);prep.disabled=!ch.checked;if(!ch.checked)prep.checked=false;});}
     if(p.warlockArcanumLevels?.length){const ar=document.querySelector('#arcanumArea');ar.innerHTML='<h3 class="subhead">Mystic Arcanum</h3>'+p.warlockArcanumLevels.map(level=>`<label>Level ${level}<select class="input arcanum" data-level="${level}">${data.spells.filter(s=>s.level===level).map(s=>`<option>${escapeHtml(s.name)}</option>`).join('')}</select></label>`).join('');}
 
     // During a post-rest level up, keep the character's existing spell choices checked
@@ -988,11 +996,71 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
       }
     });
 
+    const setCounter=(id,limit,selected,label)=>{
+      const el=document.querySelector(`#${id}`);if(!el)return selected===limit;
+      const remaining=limit-selected;
+      if(remaining<0){el.textContent=`Over by ${Math.abs(remaining)}`;el.parentElement?.classList.add('error');return false;}
+      el.textContent=String(remaining);
+      el.parentElement?.classList.remove('error');
+      return remaining===0;
+    };
+
+    const updateSpellSelectionCounters=()=>{
+      const cantripBoxes=[...document.querySelectorAll('.cantrip-check')];
+      const spellBoxes=[...document.querySelectorAll('.spell-check')];
+      const prepBoxes=[...document.querySelectorAll('.prepare-check')];
+      const cantripSelected=cantripBoxes.filter(x=>x.checked).length;
+      const spellSelected=spellBoxes.filter(x=>x.checked).length;
+
+      cantripBoxes.forEach(box=>{box.disabled=!box.checked&&cantripSelected>=cantripLimit;});
+      spellBoxes.forEach(box=>{box.disabled=!box.checked&&spellSelected>=spellLimit;});
+
+      let preparedSelected=0;
+      if(wizard){
+        prepBoxes.forEach(prep=>{
+          const spell=spellBoxes.find(x=>x.value===prep.value);
+          if(!spell?.checked)prep.checked=false;
+        });
+        preparedSelected=prepBoxes.filter(x=>x.checked).length;
+        prepBoxes.forEach(prep=>{
+          const spell=spellBoxes.find(x=>x.value===prep.value);
+          prep.disabled=!spell?.checked||(!prep.checked&&preparedSelected>=preparedLimit);
+        });
+      }
+
+      const cantripsComplete=cantripLimit===0||setCounter('cantripRemaining',cantripLimit,cantripSelected,'cantrip');
+      const spellsComplete=spellLimit===0||setCounter('spellRemaining',spellLimit,spellSelected,'spell');
+      const preparedComplete=!wizard||preparedLimit===0||setCounter('preparedRemaining',preparedLimit,preparedSelected,'prepared spell');
+      const complete=cantripsComplete&&spellsComplete&&preparedComplete;
+      const save=document.querySelector('#saveSpells');
+      if(save&&!String(save.textContent||'').startsWith('Saving')){
+        save.disabled=!complete;
+        if(complete)save.textContent='Save Spell Selection';
+        else {
+          const remaining=[];
+          if(cantripLimit>cantripSelected)remaining.push(`${cantripLimit-cantripSelected} cantrip`);
+          if(spellLimit>spellSelected)remaining.push(`${spellLimit-spellSelected} ${wizard?'spellbook spell':'spell'}`);
+          if(wizard&&preparedLimit>preparedSelected)remaining.push(`${preparedLimit-preparedSelected} prepared spell`);
+          save.textContent=remaining.length?`Select ${remaining.join(', ')} more`:'Complete Required Selections';
+        }
+      }
+      return complete;
+    };
+
+    document.querySelectorAll('.cantrip-check').forEach(ch=>ch.addEventListener('change',updateSpellSelectionCounters));
+    document.querySelectorAll('.spell-check').forEach(ch=>ch.addEventListener('change',()=>{
+      if(wizard&&!ch.checked){const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===ch.value);if(prep)prep.checked=false;}
+      updateSpellSelectionCounters();
+    }));
+    document.querySelectorAll('.prepare-check').forEach(ch=>ch.addEventListener('change',updateSpellSelectionCounters));
+    updateSpellSelectionCounters();
+
     document.querySelector('#saveSpells').onclick=async()=>{
+      if(!updateSpellSelectionCounters()){document.querySelector('#spellError').textContent='Complete all required cantrip and spell selections before saving.';return;}
       const cantrips=[...document.querySelectorAll('.cantrip-check:checked')].map(x=>x.value),spells=[...document.querySelectorAll('.spell-check:checked')].map(x=>x.value),preparedWizardSpells=[...document.querySelectorAll('.prepare-check:checked')].map(x=>x.value),mysticArcanum={};
       document.querySelectorAll('.arcanum').forEach(x=>mysticArcanum[x.dataset.level]=x.value);
-      const btn=document.querySelector('#saveSpells');btn.disabled=true;btn.textContent='Saving Spells...';
-      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});levelUpSpellRecoveryBusy=false;showNotice(fromLevelUp?'Level-up spell choices saved.':'Spell selection saved.');await enterCampaign(campaignId,fromLevelUp?'character':'gm');}catch(error){document.querySelector('#spellError').textContent=error.message;btn.disabled=false;btn.textContent='Save Spell Selection';}
+      const btn=document.querySelector('#saveSpells');btn.disabled=true;btn.textContent='Saving Spells...';document.querySelector('#spellError').textContent='';
+      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});levelUpSpellRecoveryBusy=false;showNotice(fromLevelUp?'Level-up spell choices saved.':'Spell selection saved.');await enterCampaign(campaignId,fromLevelUp?'character':'gm');}catch(error){document.querySelector('#spellError').textContent=error.message;btn.textContent='Save Spell Selection';updateSpellSelectionCounters();}
     };
   }catch(error){document.querySelector('#spellLoading').textContent='Unable to load spell selection.';document.querySelector('#spellError').textContent=error.message;}
 }
