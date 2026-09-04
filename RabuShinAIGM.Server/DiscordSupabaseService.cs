@@ -1099,6 +1099,15 @@ public sealed class DiscordSupabaseService
             p_respawn = respawn
         }), "Unable to resolve respawn choice");
 
+    // RULES BUILD 6.14.2 - donor Yes is persisted before any 1 GP donations.
+    public async Task<DeathActionResult> AcceptRespawnDonationAsync(Guid playerId, Guid campaignId, Guid deathId)
+        => await ReadDeathActionAsync(await CallRpcAsync("discord_accept_respawn_donation", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_death_id = deathId
+        }), "Unable to accept revival donation request");
+
     public async Task<DeathActionResult> DonateToRespawnAsync(Guid playerId, Guid campaignId, Guid deathId, int amountGp)
         => await ReadDeathActionAsync(await CallRpcAsync("discord_donate_to_respawn", new
         {

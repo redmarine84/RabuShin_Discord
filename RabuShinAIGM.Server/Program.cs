@@ -399,11 +399,16 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
 
+        // RULES BUILD 6.14.1: validate the Other Half against the modern heritage catalog
+        // before touching the older Core character creator. This prevents Tortle (and future
+        // modern heritages) from being rejected by CharacterGenerationService.BaseSpecies.
+        var secondaryHeritage = CharacterFeatureRules.ResolveSecondaryHeritage(species, body.SecondaryHeritage);
+
         var scores = CharacterFeatureRules.ApplyAbilityScores(
             species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
-            body.RacialAbilityChoices, body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+            body.RacialAbilityChoices, body.Subrace, secondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
         var profile = CharacterFeatureRules.BuildProfile(
-            species, body.SecondaryHeritage, scores,
+            species, secondaryHeritage, scores,
             body.Subrace, body.SecondarySubrace,
             body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
             body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
@@ -411,9 +416,22 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
             body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
             body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
 
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
+        var primaryHeritage = CharacterFeatureRules.PrimaryHeritage(species);
+        var legacyPrimarySupported = CharacterFeatureRules.LegacyCoreSupportsHeritage(primaryHeritage, CharacterGenerationService.BaseSpecies);
+        var legacySecondarySupported = string.IsNullOrWhiteSpace(secondaryHeritage)
+            || CharacterFeatureRules.LegacyCoreSupportsHeritage(secondaryHeritage, CharacterGenerationService.BaseSpecies);
+
+        // When both halves exist in the older Core, preserve the existing path exactly.
+        // Otherwise use the primary heritage (or Human shell for a modern-only primary)
+        // and let CharacterFeatureRules + CreateCharacterWithFeaturesAsync remain authoritative
+        // for the final scores, racial traits, AC, speed, size, HP, subrace and ancestry.
+        var useLegacyHybrid = CharacterFeatureRules.IsHalfRace(species) && legacyPrimarySupported && legacySecondarySupported;
+        var legacySpeciesRequest = useLegacyHybrid ? species : primaryHeritage;
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(legacySpeciesRequest, CharacterGenerationService.Species);
+        var engineSecondaryHeritage = useLegacyHybrid ? secondaryHeritage : string.Empty;
+
         var character = ManualCharacterCreationService.Create(
-            body.CharacterName, engineSpecies, body.SecondaryHeritage ?? "", body.ClassName,
+            body.CharacterName, engineSpecies, engineSecondaryHeritage, body.ClassName,
             body.Background, body.Alignment, body.Level,
             scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
@@ -1911,6 +1929,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
 });
 
 // RULES BUILD 6.2 - SERVER-AUTHORITATIVE DEATH / RESPAWN WORKFLOW
+// RULES BUILD 6.14.2 - ACTIVE-PLAYER 1 GP DONATION FLOW
 app.MapGet("/game-api/campaigns/{campaignId:guid}/death-state", async (
     Guid campaignId,
     HttpRequest request,
@@ -1941,13 +1960,14 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/choice", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.ChooseRespawnAsync(player, campaignId, body.Respawn);
 
         var characterName = string.IsNullOrWhiteSpace(result.CharacterName) ? "A party member" : result.CharacterName;
         if (result.Outcome.Equals("awaiting_donations", StringComparison.OrdinalIgnoreCase))
         {
             await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{characterName} has died and does not have enough gold to respawn. Do you want to donate GP to revive them? 10 GP needed for revival.");
+                $"{characterName} has died and does not have enough gold to Respawn. The other active players are being asked whether they want to donate. 10 GP is required.");
         }
         else if (result.Outcome.Equals("self_paid_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -1973,6 +1993,26 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/choice", async (
     }
 });
 
+app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/accept-donation", async (
+    Guid campaignId,
+    Guid deathId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var player = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
+        var result = await service.AcceptRespawnDonationAsync(player, campaignId, deathId);
+        return Results.Ok(new { success = true, result });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/donate", async (
     Guid campaignId,
     Guid deathId,
@@ -1984,13 +2024,16 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/donate",
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.DonateToRespawnAsync(player, campaignId, deathId, body.AmountGp);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
+        if (body.AmountGp != 1)
+            return Results.BadRequest(new { success = false, error = "Respawn donations are made exactly 1 GP at a time." });
+        var result = await service.DonateToRespawnAsync(player, campaignId, deathId, 1);
 
         if (result.Outcome.Equals("donated", StringComparison.OrdinalIgnoreCase))
         {
             var donor = string.IsNullOrWhiteSpace(result.DonorCharacterName) ? (user.GlobalName ?? user.Username) : result.DonorCharacterName;
             await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{donor} donated {result.DonatedNow} GP to the Respawn fund. {result.RemainingGp} GP still needed.");
+                $"{donor} donated 1 GP to the Respawn fund. {result.RemainingGp} GP still needed.");
         }
         else if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -2017,6 +2060,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/decline"
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.DeclineRespawnDonationAsync(player, campaignId, deathId);
         if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -2042,6 +2086,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/revive",
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.FinalizePartyRespawnAsync(player, campaignId, deathId);
         var name = string.IsNullOrWhiteSpace(result.CharacterName) ? "The fallen party member" : result.CharacterName;
         await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",

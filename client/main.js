@@ -38,6 +38,7 @@ let gmMessageSignature = '';
 let chatMessageSignature = '';
 
 // RULES BUILD 6.2 - DEATH / RESPAWN LIVE STATE
+// RULES BUILD 6.14.2 - ACTIVE PLAYER 1 GP RESPAWN DONATIONS
 let deathStatePollTimer = null;
 let deathStatePollBusy = false;
 let deathActionBusy = false;
@@ -1585,16 +1586,16 @@ function renderDeathOverlay(death) {
       <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
       <p>Normal D&amp;D revival magic or a valid revival item can still return this character. You may also use the campaign Respawn system.</p>
       <div class="death-price"><span>Respawn Price</span><b>10 GP</b><small>You currently have ${currencyPurseText(gold)}.</small></div>
-      <p>If you choose Respawn and cannot pay 10 GP yourself, the living party will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
+      <p>If you choose Respawn and cannot pay 10 GP yourself, the other active players will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
       <div class="death-actions"><button id="deathRespawnYes" class="button primary">Yes — Respawn</button><button id="deathRespawnNo" class="button danger">No — Create New Character</button></div>
       <div id="deathActionError" class="error"></div>
     </div>`;
   } else if(status==='awaiting_donations') {
     const progress=respawnProgressHtml(death);
-    const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Revive ${name}</button>`:'';
+    const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Respawn ${name}</button>`:'';
     if(viewerIsDeadPlayer) {
       body=`<div class="death-card dead-player-card"><div class="death-icon">✦</div><h2>Waiting for Party Revival</h2>${cause}
-        <p>${name} did not have enough GP for Respawn. The living party has been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
+        <p>${name} did not have enough GP for Respawn. The other active players have been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
         <p class="muted">A valid D&amp;D revival spell or revival item can still revive you while this fund is open.</p><div id="deathActionError" class="error"></div></div>`;
     } else if(death.viewerIsEligibleDonor) {
       const decision=String(death.viewerDecision||'').toLowerCase();
@@ -1602,19 +1603,21 @@ function renderDeathOverlay(death) {
       const viewerGold=Math.max(0,Number(death.viewerGold)||0);
       const viewerWholeGp=Math.floor(viewerGold);
       const remaining=Math.max(0,Number(death.remainingGp)||0);
-      const maxDonation=Math.max(0,Math.min(viewerWholeGp,remaining));
+      const canDonateOne=viewerWholeGp>=1&&remaining>0;
       let controls='';
-      if(decision==='decline') {
-        controls='<div class="death-decision-note">You declined this donation request.</div>';
+      if(death.canFinalize) {
+        controls='<div class="death-decision-note">The full 10 GP has been collected. Respawn is ready.</div>';
+      } else if(decision==='decline') {
+        controls='<div class="death-decision-note">You declined this donation request. Other active players may still contribute.</div>';
       } else if(decision==='donate'||deathDonationMode) {
-        controls=`<div class="donation-controls"><label>Donation amount (purse: ${currencyPurseText(viewerGold)}; donations use whole GP)</label><div class="row gap"><input id="deathDonationAmount" class="input" type="number" min="1" max="${Math.max(1,maxDonation)}" value="${Math.max(1,Math.min(maxDonation||1,remaining||1))}" ${maxDonation<1?'disabled':''}><button id="deathDonateGp" class="button primary" ${maxDonation<1?'disabled':''}>Donate GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div>${donatedByViewer?`<small>You have already donated ${donatedByViewer} GP.</small>`:''}</div>`;
+        controls=`<div class="donation-controls"><label>Donate 1 GP at a time (purse: ${currencyPurseText(viewerGold)})</label><div class="row gap"><button id="deathDonateGp" class="button primary" ${canDonateOne?'':'disabled'}>Donate 1 GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div><small>Each click contributes exactly 1 GP. ${Math.max(0,remaining)} GP remains before ${name} can Respawn.</small>${donatedByViewer?`<small>You have donated ${donatedByViewer} GP to this Respawn fund.</small>`:''}${!canDonateOne&&remaining>0?'<small class="muted">You do not currently have 1 full GP available to donate.</small>':''}</div>`;
       } else {
-        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerWholeGp<1?'disabled':''}>Yes — Donate GP</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerWholeGp<1?'<small class="muted">Your purse does not contain a full 1 GP worth of currency available for this whole-GP donation.</small>':''}`;
+        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerWholeGp<1?'disabled':''}>Yes — Donate</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerWholeGp<1?'<small class="muted">You do not currently have 1 full GP available to donate.</small>':''}`;
       }
       body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Party Member Needs Revival</h2>
-        <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to revive them? <b>10 GP needed for revival.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
+        <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to Respawn them? <b>10 GP is required.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
     } else {
-      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to revive <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
+      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to Respawn <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
     }
   }
 
@@ -1675,19 +1678,22 @@ function wireDeathOverlayActions(death) {
   });
 
   const donateYes=document.querySelector('#deathDonationYes');
-  if(donateYes)donateYes.onclick=()=>{deathDonationMode=true;renderDeathOverlay(death);};
+  if(donateYes)donateYes.onclick=()=>runDeathAction(async()=>{
+    await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/accept-donation`,{method:'POST'});
+    deathDonationMode=false;
+  });
   const cancel=document.querySelector('#deathDonationCancel');
   if(cancel)cancel.onclick=()=>{deathDonationMode=false;renderDeathOverlay(death);};
 
   const donate=document.querySelector('#deathDonateGp');
   if(donate)donate.onclick=()=>runDeathAction(async()=>{
-    const amount=Math.floor(Number(document.querySelector('#deathDonationAmount')?.value)||0);
-    if(amount<1)throw new Error('Enter at least 1 GP to donate.');
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:amount})});
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:1})});
     deathDonationMode=false;
     if(currentGameData?.character&&data.result?.remainingGold!==undefined)currentGameData.character.gold=data.result.remainingGold;
     updateLiveGoldDisplay();
-    showNotice(data.result?.outcome==='rag_respawn'?'Party Respawn could not be funded.':'Donation added to the Respawn fund.');
+    if(data.result?.outcome==='rag_respawn')showNotice('Party Respawn could not be funded.');
+    else if(data.result?.canFinalize)showNotice(`The Respawn fund has reached 10 GP. ${death.deadCharacterName||'The fallen player'} can now be Respawned.`);
+    else showNotice(`1 GP donated. ${Math.max(0,Number(data.result?.remainingGp)||0)} GP still needed.`);
   });
 
   const decline=document.querySelector('#deathDonationNo');
@@ -1699,7 +1705,7 @@ function wireDeathOverlayActions(death) {
   const revive=document.querySelector('#deathFinalizeRespawn');
   if(revive)revive.onclick=()=>runDeathAction(async()=>{
     await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/revive`,{method:'POST'});
-    showNotice(`${death.deadCharacterName} has been revived at half health.`);
+    showNotice(`${death.deadCharacterName} has been Respawned at half health.`);
   });
 }
 
