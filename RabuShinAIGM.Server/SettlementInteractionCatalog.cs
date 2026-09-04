@@ -44,7 +44,7 @@ public static class SettlementInteractionCatalog
     {
         new("greymoor-hollow","Greymoor Hollow",new List<SettlementPoiDefinition>
         {
-            P("mudhaven-inn","Mudhaven Inn","Inn",null,H(7,27,20,5)),
+            P("mudhaven-inn","Mudhaven Inn","Inn","inn",H(7,27,20,5)),
             P("shepherds-croft","Shepherd's Croft","Residence",null,H(22,47,19,5)),
             P("raffs-smithy","Raff's Smithy","Smithy","smithy",H(77,43,18,5)),
             P("farmers-market","Farmer's Market","Market","market",H(34,60,19,5)),
@@ -54,22 +54,22 @@ public static class SettlementInteractionCatalog
         }),
         new("stonewake-port","Stonewake Port",new List<SettlementPoiDefinition>
         {
-            P("octopus-tankard","The Octopus' Tankard","Tavern",null,H(2,52,23,5)),
+            P("octopus-tankard","The Octopus' Tankard","Tavern","tavern",H(2,52,23,5)),
             P("starboard-pier","Starboard Pier","Pier",null,H(36,54,18,6)),
             P("seafront-fish-market","Seafront Fish Market","Fish Market","fishmarket",H(10,71,20,5)),
             P("hillwatch-temple","Hillwatch Temple","Temple",null,H(70,30,20,5)),
             P("hiltsrick-smithy","The Hiltsrick Smithy","Smithy","smithy",H(80,64,18,5)),
             P("rigid-brick-smithy","Rigid Brick Smithy","Smithy","smithy",H(70,73,17,5)),
             P("foomcloak-apothecary","Foomcloak Apothecary","Apothecary","apothecary",H(25,92,23,5)),
-            P("seaworthy-inn","Seaworthy Inn","Inn",null,H(46,74,18,5)),
+            P("seaworthy-inn","Seaworthy Inn","Inn","inn",H(46,74,18,5)),
             P("port-bazaar","Port Bazaar","Bazaar","market",H(69,84,18,6))
         }),
         new("emberfall","Emberfall",new List<SettlementPoiDefinition>
         {
-            P("ember-tavern","Ember Tavern","Tavern",null,H(59,25,17,5)),
+            P("ember-tavern","Ember Tavern","Tavern","tavern",H(59,25,17,5)),
             P("mine-entrance","Mine Entrance","Mine",null,H(80,43,16,5)),
             P("brass-anvil","The Brass Anvil","Smithy","smithy",H(65,57,16,5)),
-            P("ashgrip-inn","Ashgrip Inn","Inn",null,H(5,67,14,5)),
+            P("ashgrip-inn","Ashgrip Inn","Inn","inn",H(5,67,14,5)),
             P("steel-forge","The Steel Forge","Forge","smithy",H(17,81,19,5)),
             P("moltenvein-mercantile","Moltenvein Mercantile","Mercantile","general",H(80,71,17,5)),
             P("grimroots-apothecary","Grimroot's Apothecary","Apothecary","apothecary",H(41,86,20,5)),
@@ -77,8 +77,8 @@ public static class SettlementInteractionCatalog
         }),
         new("lunareth","Lunareth",new List<SettlementPoiDefinition>
         {
-            P("creeping-rose-tavern","Creeping Rose Tavern","Tavern",null,H(5,27,21,5)),
-            P("greenwood-hearth-inn","Greenwood Hearth Inn","Inn",null,H(46,38,23,5)),
+            P("creeping-rose-tavern","Creeping Rose Tavern","Tavern","tavern",H(5,27,21,5)),
+            P("greenwood-hearth-inn","Greenwood Hearth Inn","Inn","inn",H(46,38,23,5)),
             P("rosethorn-smithy","Rosethorn Smithy","Smithy","smithy",H(10,58,19,5)),
             P("evergreen-apothecary","Evergreen Apothecary","Apothecary","apothecary",H(55,64,21,5)),
             P("evergreen-shrine","Evergreen Shrine","Shrine",null,H(76,69,19,5)),
@@ -89,24 +89,24 @@ public static class SettlementInteractionCatalog
         {
             P("stoneborn-smithy","Stoneborn Smithy","Smithy","smithy",H(6,67,19,5)),
             P("stoutheart-arms","Stoutheart Arms","Armorer","arms",H(25,78,18,5)),
-            P("ironmaul-inn","Ironmaul Inn","Inn",null,H(44,74,16,5)),
+            P("ironmaul-inn","Ironmaul Inn","Inn","inn",H(44,74,16,5)),
             P("bastion-bazaar","Bastion Bazaar","Bazaar","market",H(62,63,28,7)),
             P("citadel-of-dawn","Citadel of the Dawn","Citadel",null,H(80,74,18,5)),
-            P("wyvernguard-tavern","Wyvernguard Tavern","Tavern",null,H(63,90,20,5))
+            P("wyvernguard-tavern","Wyvernguard Tavern","Tavern","tavern",H(63,90,20,5))
         }),
         new("marrowfen","Marrowfen",new List<SettlementPoiDefinition>
         {
             P("imalers-hut","Imalers' Hut","Residence",null,H(10,37,18,5)),
             P("neighbors-folly","Neighbor's Folly","Landmark",null,H(48,36,18,5)),
             P("hags-hive-apothecary","The Hag's Hive Apothecary","Apothecary","apothecary",H(72,37,23,5)),
-            P("broken-barrel-tavern","The Broken Barrel Tavern","Tavern",null,H(11,62,26,5)),
+            P("broken-barrel-tavern","The Broken Barrel Tavern","Tavern","tavern",H(11,62,26,5)),
             P("swampgourd-blends","Swampgourd Blends","Alchemy Shop","alchemy",H(62,80,30,7))
         }),
         new("silverreach","Silverreach",new List<SettlementPoiDefinition>
         {
             P("brightwater-smithy","Brightwater Smithy","Smithy","smithy",H(16,35,20,5)),
             P("celestial-temple","Celestial Temple","Temple",null,H(74,30,18,5)),
-            P("golden-cup-tavern","Golden Cup Tavern","Tavern",null,H(5,53,20,5)),
+            P("golden-cup-tavern","Golden Cup Tavern","Tavern","tavern",H(5,53,20,5)),
             P("kings-hall","The King's Hall","Civic",null,H(42,47,18,5)),
             P("lavinas-ceramics","Lavina's Ceramics","Artisan Shop","ceramics",H(66,52,22,5)),
             P("alchemists-emporium","Alchemist's Emporium","Alchemy Shop","alchemy",H(10,72,22,5)),
@@ -114,45 +114,45 @@ public static class SettlementInteractionCatalog
         }),
         new("duskmire-crossing","Duskmire Crossing",new List<SettlementPoiDefinition>
         {
-            P("drovers-rest-inn","Drover's Rest Inn","Inn",null,H(11,27,20,5)),
-            P("cloven-helm-tavern","The Cloven Helm Tavern","Tavern",null,H(6,52,22,5)),
+            P("drovers-rest-inn","Drover's Rest Inn","Inn","inn",H(11,27,20,5)),
+            P("cloven-helm-tavern","The Cloven Helm Tavern","Tavern","tavern",H(6,52,22,5)),
             P("willowbell-remedies","Willowbell Remedies","Apothecary","apothecary",H(72,40,20,5)),
             P("hedgwick-bazaar","Hedgwick Bazaar","Bazaar","market",H(49,64,20,5)),
             P("willowell-alchemy","Willowell Alchemy Shop","Alchemy Shop","alchemy",H(74,70,22,7))
         }),
         new("frostharbor","Frostharbor",new List<SettlementPoiDefinition>
         {
-            P("frigid-winds-inn","Frigid Winds Inn","Inn",null,H(11,37,20,5)),
+            P("frigid-winds-inn","Frigid Winds Inn","Inn","inn",H(11,37,20,5)),
             P("winteis-bounty","Winteis Bounty","Outfitter","general",H(70,21,18,5)),
-            P("deepwater-tavern","Deepwater Tavern","Tavern",null,H(81,50,17,5)),
+            P("deepwater-tavern","Deepwater Tavern","Tavern","tavern",H(81,50,17,5)),
             P("icevein-smithy","Icevein Smithy","Smithy","smithy",H(7,64,18,5)),
             P("coldwater-fish-market","Coldwater Fish Market","Fish Market","fishmarket",H(59,67,22,5)),
             P("bitterbalm-apothecary","Bitterbalm Apothecary","Apothecary","apothecary",H(71,87,22,7))
         }),
         new("sunspire","Sunspire",new List<SettlementPoiDefinition>
         {
-            P("shimmering-sands-inn","Shimmering Sands Inn","Inn",null,H(10,22,21,5)),
+            P("shimmering-sands-inn","Shimmering Sands Inn","Inn","inn",H(10,22,21,5)),
             P("bardic-university","Bardic University","University",null,H(76,42,18,5)),
             P("kazuds-well","Kazud's Well","Landmark",null,H(40,57,17,5)),
-            P("brifegin-quail-tavern","Brifegin & Quail Tavern","Tavern",null,H(7,66,25,5)),
+            P("brifegin-quail-tavern","Brifegin & Quail Tavern","Tavern","tavern",H(7,66,25,5)),
             P("finehilt-forge","Finehilt Forge","Forge","smithy",H(79,65,17,5),H(72,88,20,5)),
             P("coldswa-fish-market","Coldswa Fish Market","Fish Market","fishmarket",H(55,73,22,5))
         }),
         new("blackroot-enclave","Blackroot Enclave",new List<SettlementPoiDefinition>
         {
-            P("smolderstone-inn","Smolderstone Inn","Inn",null,H(11,25,22,5)),
+            P("smolderstone-inn","Smolderstone Inn","Inn","inn",H(11,25,22,5)),
             P("deepdelve-temple","Deepdelve Temple","Temple",null,H(71,27,19,5)),
             P("gemhold-bazaar","Gemhold Bazaar","Bazaar","market",H(7,50,21,5),H(20,74,20,5)),
             P("obsidian-vault","Obsidian Vault","Vault",null,H(74,63,19,5)),
-            P("grim-glory-tavern","Grim Glory Tavern","Tavern",null,H(68,84,20,5))
+            P("grim-glory-tavern","Grim Glory Tavern","Tavern","tavern",H(68,84,20,5))
         }),
         new("aetherfall","Aetherfall",new List<SettlementPoiDefinition>
         {
-            P("starseekers-inn","Starseekers Inn","Inn",null,H(11,34,20,5)),
+            P("starseekers-inn","Starseekers Inn","Inn","inn",H(11,34,20,5)),
             P("mystic-spiral","Mystic Spiral","Landmark",null,H(69,32,20,5)),
             P("gateway-realities","Gateway of Realities","Gateway",null,H(40,50,23,5)),
             P("skylight-enchanters","Skylight Enchanters","Enchanter","enchanter",H(11,70,21,5)),
-            P("wild-hex-tavern","The Wild Hex Tavern","Tavern",null,H(70,72,22,5))
+            P("wild-hex-tavern","The Wild Hex Tavern","Tavern","tavern",H(70,72,22,5))
         })
     };
 
@@ -288,6 +288,86 @@ public static class SettlementInteractionCatalog
         I("potion-healing","Potion of Healing","Potion",50,"A red healing draught that restores hit points when consumed.")
     };
 
+    // RULES BUILD 6.15 - HOSPITALITY CATALOG
+    // Prepared food is consumed immediately for +33 Hunger. Drinks and rooms are
+    // hospitality services and never become backpack inventory items.
+    private static SettlementShopItemDefinition Hospitality(
+        string key,string name,string category,decimal price,string description,string valueClass)
+        => new(key,name,category,price,description,"Common",valueClass);
+
+    private static readonly IReadOnlyList<SettlementShopItemDefinition> InnPreparedFood = new List<SettlementShopItemDefinition>
+    {
+        Hospitality("bread","Fresh Bread","Prepared Food",0.02m,"A simple serving of fresh bread. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("vegetable-soup","Vegetable Soup","Prepared Food",0.05m,"A hot bowl of vegetables and broth. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("hearth-soup","Hearth Soup","Prepared Food",0.08m,"A thick house soup prepared over the common-room hearth. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("meat-loaf","Meat Loaf","Prepared Food",0.10m,"A hearty slice of seasoned meat loaf with simple sides. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("beef-stew","Beef Stew","Prepared Food",0.15m,"A filling bowl of slow-cooked beef, root vegetables, and gravy. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("roast-meat","Roast Meat Plate","Prepared Food",0.20m,"A hot plate of roasted meat and local vegetables. Served and eaten immediately; restores 33 Hunger.","Prepared Meal")
+    };
+
+    private static readonly IReadOnlyList<SettlementShopItemDefinition> LifestyleRooms = new List<SettlementShopItemDefinition>
+    {
+        Hospitality("room-squalid","Squalid Room","Room / Lifestyle",0.10m,"One day of bare-minimum lodging. Lifestyle: Squalid.","Lodging"),
+        Hospitality("room-poor","Poor Room","Room / Lifestyle",0.20m,"One day of simple low-cost lodging. Lifestyle: Poor.","Lodging"),
+        Hospitality("room-modest","Modest Room","Room / Lifestyle",1.00m,"One day of clean, ordinary lodging. Lifestyle: Modest.","Lodging"),
+        Hospitality("room-comfortable","Comfortable Room","Room / Lifestyle",2.00m,"One day of comfortable private lodging. Lifestyle: Comfortable.","Lodging"),
+        Hospitality("room-wealthy","Wealthy Room","Room / Lifestyle",4.00m,"One day of high-quality lodging with superior service. Lifestyle: Wealthy.","Lodging"),
+        Hospitality("room-aristocratic","Aristocratic Suite","Room / Lifestyle",10.00m,"One day of elite lodging. Lifestyle: Aristocratic; 10 GP per day minimum.","Lodging")
+    };
+
+    private static readonly IReadOnlyList<SettlementShopItemDefinition> TavernDrinks = new List<SettlementShopItemDefinition>
+    {
+        Hospitality("water","Clean Water","Drink",0.01m,"A clean mug of water. The strongest tavern option for restoring Thirst.","Drink"),
+        Hospitality("ale","House Ale","Drink",0.04m,"A mug of the tavern's everyday ale.","Alcoholic Drink"),
+        Hospitality("light-ale","Light Ale","Drink",0.03m,"A lighter local ale served by the mug.","Alcoholic Drink"),
+        Hospitality("dark-ale","Dark Ale","Drink",0.05m,"A dark, malty ale served by the mug.","Alcoholic Drink"),
+        Hospitality("cider","Hard Cider","Drink",0.05m,"A mug of fermented local cider.","Alcoholic Drink"),
+        Hospitality("stout","Stout","Drink",0.06m,"A heavy dark stout with a roasted finish.","Alcoholic Drink"),
+        Hospitality("mead","Mead","Drink",0.10m,"A mug of honey mead.","Alcoholic Drink"),
+        Hospitality("common-wine","Common Wine","Drink",0.20m,"A cup of ordinary table wine.","Alcoholic Drink"),
+        Hospitality("fine-wine","Fine Wine","Drink",1.00m,"A glass of the establishment's better vintage.","Fine Drink")
+    };
+
+    private static IReadOnlyList<SettlementShopItemDefinition> GetInnItems(SettlementPoiDefinition poi)
+    {
+        // Every Inn always has the two cheapest lifestyles. Better Inns extend upward.
+        var roomTier = poi.PoiKey switch
+        {
+            "mudhaven-inn" => 3,
+            "seaworthy-inn" => 4,
+            "ashgrip-inn" => 3,
+            "greenwood-hearth-inn" => 5,
+            "ironmaul-inn" => 4,
+            "drovers-rest-inn" => 3,
+            "frigid-winds-inn" => 4,
+            "shimmering-sands-inn" => 5,
+            "smolderstone-inn" => 3,
+            "starseekers-inn" => 6,
+            _ => 3
+        };
+        return InnPreparedFood.Concat(LifestyleRooms.Take(Math.Clamp(roomTier,2,6))).ToList();
+    }
+
+    private static IReadOnlyList<SettlementShopItemDefinition> GetTavernItems(SettlementPoiDefinition poi)
+    {
+        // Taverns are drink-first venues. Better establishments carry broader selections.
+        var drinkCount = poi.PoiKey switch
+        {
+            "broken-barrel-tavern" => 2,
+            "ember-tavern" => 5,
+            "cloven-helm-tavern" => 5,
+            "deepwater-tavern" => 5,
+            "grim-glory-tavern" => 5,
+            "octopus-tankard" => 8,
+            "creeping-rose-tavern" => 8,
+            "wyvernguard-tavern" => 8,
+            "brifegin-quail-tavern" => 8,
+            "golden-cup-tavern" => 9,
+            "wild-hex-tavern" => 9,
+            _ => 5
+        };
+        return TavernDrinks.Take(Math.Clamp(drinkCount,2,TavernDrinks.Count)).ToList();
+    }
     private static readonly IReadOnlyList<SettlementShopItemDefinition> ArmsItems = SmithyItems
         .Where(i => i.Category is "Weapon" or "Armor")
         .ToList();
@@ -360,6 +440,9 @@ public static class SettlementInteractionCatalog
             "fishmarket" => FishMarketItems,
             "ceramics" => CeramicsItems,
             "enchanter" => EnchanterItems,
+            "inn" => GetInnItems(poi),
+            "tavern" => GetTavernItems(poi),
+            "inn-tavern" => GetInnItems(poi).Concat(GetTavernItems(poi)).GroupBy(i=>i.ItemKey,StringComparer.OrdinalIgnoreCase).Select(g=>g.First()).ToList(),
             "market" => DeterministicMarket(campaignId,settlement.SettlementKey,poi.PoiKey),
             _ => Array.Empty<SettlementShopItemDefinition>()
         };

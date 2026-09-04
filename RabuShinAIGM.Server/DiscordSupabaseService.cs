@@ -927,6 +927,30 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException("Supabase returned an invalid shop purchase result.");
     }
 
+    // RULES BUILD 6.15 - HOSPITALITY PURCHASE RPC
+    public async Task<JsonElement> BuyHospitalityServiceAsync(
+        Guid playerId, Guid campaignId, string settlementKey, string poiKey,
+        SettlementShopItemDefinition item, int quantity, string venueName)
+    {
+        using var response = await CallRpcAsync("discord_buy_hospitality_service", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_settlement_key = settlementKey,
+            p_poi_key = poiKey,
+            p_service_key = item.ItemKey,
+            p_service_name = item.ItemName,
+            p_service_category = item.Category,
+            p_quantity = quantity,
+            p_unit_price_gp = item.PriceGp,
+            p_venue_name = venueName
+        });
+        var text = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to purchase Inn/Tavern service: " + text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
     public async Task<DiscordSettlementShopSaleResult> SellSettlementShopItemAsync(
         Guid playerId, Guid campaignId, string settlementKey, string poiKey,
         Guid inventoryItemId, string itemName, int quantity, decimal unitPriceGp, string shopName)

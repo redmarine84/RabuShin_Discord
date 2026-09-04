@@ -1468,6 +1468,37 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
         if (item is null)
             return Results.BadRequest(new { success = false, error = "That item is not sold by this shop." });
 
+        // RULES BUILD 6.15 - INN/TAVERN SERVICES
+        var hospitalityKind = (poi.ShopKind ?? string.Empty).Trim().ToLowerInvariant();
+        if (hospitalityKind is "inn" or "tavern" or "inn-tavern")
+        {
+            var hospitality = await service.BuyHospitalityServiceAsync(
+                playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
+            decimal ReadDecimal(string name, decimal fallback)
+                => hospitality.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
+                    ? value.GetDecimal() : fallback;
+            string ReadString(string name, string fallback)
+                => hospitality.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                    ? value.GetString() ?? fallback : fallback;
+
+            return Results.Ok(new
+            {
+                success = true,
+                shopName = poi.Name,
+                itemKey = item.ItemKey,
+                itemName = item.ItemName,
+                quantityPurchased = quantity,
+                quantityCarried = 0,
+                unitPriceGp = item.PriceGp,
+                totalPriceGp = ReadDecimal("total_price_gp", item.PriceGp * quantity),
+                remainingGold = ReadDecimal("remaining_gold", 0m),
+                message = ReadString("message", "Purchase completed."),
+                hungerBefore = ReadDecimal("hunger_before", -1m),
+                hungerAfter = ReadDecimal("hunger_after", -1m),
+                thirstBefore = ReadDecimal("thirst_before", -1m),
+                thirstAfter = ReadDecimal("thirst_after", -1m)
+            });
+        }
         var result = await service.BuySettlementShopItemAsync(
             playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
 

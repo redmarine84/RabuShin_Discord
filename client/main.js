@@ -2676,6 +2676,8 @@ function renderSettlementShop(shop,initialMode='buy') {
   const overlay=document.createElement('div');
   overlay.id='settlementShopOverlay';
   overlay.className='modal-overlay settlement-shop-overlay';
+  // RULES BUILD 6.15 - HOSPITALITY UI
+  const hospitality=['inn','tavern','inn-tavern'].includes(String(shop.shopKind||'').toLowerCase());
 
   const groups=new Map();
   (shop.items||[]).forEach(item=>{
@@ -2703,7 +2705,15 @@ function renderSettlementShop(shop,initialMode='buy') {
     <div id="shopSellPane" class="settlement-shop-catalog shop-mode-pane" hidden>${sellCatalog}</div>
   </div>`;
   document.body.appendChild(overlay);
-  if(currentGameData?.character&&shop.gold!==undefined) {
+  if(hospitality) {
+    const eyebrow=overlay.querySelector('.settlement-shop-header .eyebrow');
+    if(eyebrow) eyebrow.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'?'TAVERN':'INN';
+    overlay.querySelector('.shop-mode-tabs')?.remove();
+    const note=overlay.querySelector('.settlement-shop-actions .muted');
+    if(note) note.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'
+      ? 'Drinks are served immediately and do not enter inventory.'
+      : 'Meals are served immediately; room quantity is the number of lodging days.';
+  }  if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
     updateLiveGoldDisplay();
   }
