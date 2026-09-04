@@ -1520,12 +1520,54 @@ async function reloadCampaignAfterDeathResolution() {
   renderGameMasterTab();
 }
 
+// RULES BUILD 6.14.2 v5 - Normalize Supabase/ASP.NET respawn DTO field names.
+// DeathStateRow and DeathActionResult carry JsonPropertyName(snake_case) for Supabase,
+// while older client code reads camelCase. Accept both so Discord and browser clients
+// render the same authoritative respawn state.
+function normalizeRespawnPayload(value) {
+  if(!value||typeof value!=='object')return value;
+  const pick=(camel,snake,fallback)=>{
+    const camelValue=value[camel];
+    if(camelValue!==undefined&&camelValue!==null)return camelValue;
+    const snakeValue=value[snake];
+    if(snakeValue!==undefined&&snakeValue!==null)return snakeValue;
+    return fallback;
+  };
+  return {
+    ...value,
+    deathId:pick('deathId','death_id',null),
+    deadPlayerId:pick('deadPlayerId','dead_player_id',null),
+    deadCharacterName:pick('deadCharacterName','dead_character_name',''),
+    requiredGp:pick('requiredGp','required_gp',10),
+    donatedGp:pick('donatedGp','donated_gp',0),
+    remainingGp:pick('remainingGp','remaining_gp',10),
+    viewerIsDeadPlayer:pick('viewerIsDeadPlayer','viewer_is_dead_player',false),
+    viewerIsEligibleDonor:pick('viewerIsEligibleDonor','viewer_is_eligible_donor',false),
+    viewerDecision:pick('viewerDecision','viewer_decision',''),
+    viewerDonatedGp:pick('viewerDonatedGp','viewer_donated_gp',0),
+    viewerGold:pick('viewerGold','viewer_gold',0),
+    deadCharacterGold:pick('deadCharacterGold','dead_character_gold',0),
+    eligibleDonorCount:pick('eligibleDonorCount','eligible_donor_count',0),
+    answeredDonorCount:pick('answeredDonorCount','answered_donor_count',0),
+    canFinalize:pick('canFinalize','can_finalize',false),
+    characterName:pick('characterName','character_name',''),
+    requiresNewCharacter:pick('requiresNewCharacter','requires_new_character',false),
+    paidGp:pick('paidGp','paid_gp',0),
+    currentHp:pick('currentHp','current_hp',0),
+    maxHp:pick('maxHp','max_hp',0),
+    remainingGold:pick('remainingGold','remaining_gold',undefined),
+    donorCharacterName:pick('donorCharacterName','donor_character_name',''),
+    donatedNow:pick('donatedNow','donated_now',0),
+    refundedGp:pick('refundedGp','refunded_gp',0)
+  };
+}
+
 async function refreshDeathState(force=false) {
   if(!currentCampaignId||deathStatePollBusy||deathActionBusy)return;
   deathStatePollBusy=true;
   try {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death-state`);
-    const death=data.death||null;
+    const death=normalizeRespawnPayload(data.death||null);
     const previous=lastDeathState;
     if(!death) {
       document.querySelector('#deathOverlay')?.remove();
@@ -1657,6 +1699,7 @@ function wireDeathOverlayActions(death) {
   const yes=document.querySelector('#deathRespawnYes');
   if(yes)yes.onclick=()=>runDeathAction(async()=>{
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:true})});
+    data.result=normalizeRespawnPayload(data.result);
     if(data.result?.outcome==='self_paid_respawn'||data.result?.outcome==='rag_respawn') {
       lastDeathState=null; document.querySelector('#deathOverlay')?.remove();
       document.body.classList.remove('death-modal-open');
@@ -1667,6 +1710,7 @@ function wireDeathOverlayActions(death) {
   const no=document.querySelector('#deathRespawnNo');
   if(no)no.onclick=()=>runDeathAction(async()=>{
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:false})});
+    data.result=normalizeRespawnPayload(data.result);
     if(data.result?.requiresNewCharacter||data.result?.outcome==='new_character') {
       stopDeathStatePolling();
       lastDeathState=null;
@@ -1688,6 +1732,7 @@ function wireDeathOverlayActions(death) {
   const donate=document.querySelector('#deathDonateGp');
   if(donate)donate.onclick=()=>runDeathAction(async()=>{
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:1})});
+    data.result=normalizeRespawnPayload(data.result);
     deathDonationMode=false;
     if(currentGameData?.character&&data.result?.remainingGold!==undefined)currentGameData.character.gold=data.result.remainingGold;
     updateLiveGoldDisplay();
