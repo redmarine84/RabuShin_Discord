@@ -2,10 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using QuestsOfRabuShinAIGM;
 
-// RULES BUILD 6.13.1 - FULL HYBRID HERITAGE INHERITANCE
+// RULES BUILD 6.14.1 - HYBRID SECONDARY HERITAGE VALIDATION FIX
 public static class CharacterFeatureRules
 {
-    public const string RulesVersion = "6.13.1";
+    public const string RulesVersion = "6.14.1";
 
     public static readonly string[] AlignmentLadder =
     {
@@ -16,6 +16,25 @@ public static class CharacterFeatureRules
 
     public static readonly string[] AbilityNames =
         { "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma" };
+
+    // Build 6.14.1: this is the authoritative list of complete racial heritages that
+    // may occupy either side of a Half Race. Character creation must validate against
+    // this catalog instead of CharacterGenerationService.BaseSpecies, because the
+    // older Core list predates Tortle and may lag behind future server-side races.
+    public static readonly string[] HeritageCatalog =
+    {
+        "Aasimar", "Dragonborn", "Dwarf", "Elf", "Gnome", "Goliath",
+        "Halfling", "Human", "Orc", "Tiefling", "Tortle"
+    };
+
+    public static string? CanonicalHeritage(string? heritage)
+    {
+        var value = (heritage ?? string.Empty).Trim();
+        if (value.StartsWith("Half ", StringComparison.OrdinalIgnoreCase)) value = value[5..].Trim();
+        return HeritageCatalog.FirstOrDefault(v => v.Equals(value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static bool IsSupportedHeritage(string? heritage) => CanonicalHeritage(heritage) is not null;
 
     private static Dictionary<string, int> Bonus(params (string Ability, int Value)[] values)
         => values.ToDictionary(v => v.Ability, v => v.Value, StringComparer.OrdinalIgnoreCase);
@@ -150,17 +169,23 @@ public static class CharacterFeatureRules
 
     public static IReadOnlyList<string> WithTortleSpecies(IEnumerable<string> existing)
     {
+        // Preserve any existing Core entries, but guarantee that every authoritative
+        // heritage is available as both a full race and a Half Race selection.
         var result = existing.Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (!result.Contains("Tortle", StringComparer.OrdinalIgnoreCase)) result.Add("Tortle");
-        if (!result.Contains("Half Tortle", StringComparer.OrdinalIgnoreCase)) result.Add("Half Tortle");
+        foreach (var heritage in HeritageCatalog)
+        {
+            if (!result.Contains(heritage, StringComparer.OrdinalIgnoreCase)) result.Add(heritage);
+            var half = "Half " + heritage;
+            if (!result.Contains(half, StringComparer.OrdinalIgnoreCase)) result.Add(half);
+        }
         return result.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public static IReadOnlyList<string> WithTortleBaseSpecies(IEnumerable<string> existing)
     {
-        var result = existing.Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (!result.Contains("Tortle", StringComparer.OrdinalIgnoreCase)) result.Add("Tortle");
-        return result.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList();
+        // The modern heritage catalog, not the legacy Core array, controls what may
+        // be selected as the Other Half.
+        return HeritageCatalog.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public static object GetClientRules()
@@ -181,6 +206,7 @@ public static class CharacterFeatureRules
         {
             rulesVersion = RulesVersion,
             abilityNames = AbilityNames,
+            heritageCatalog = HeritageCatalog,
             fixedBonuses = FixedAbilityBonuses,
             subraces,
             dragonbornAncestries = DragonbornAncestries.Select(a => new
@@ -209,7 +235,9 @@ public static class CharacterFeatureRules
     public static string PrimaryHeritage(string species)
     {
         var value = (species ?? string.Empty).Trim();
-        return value.StartsWith("Half ", StringComparison.OrdinalIgnoreCase) ? value[5..].Trim() : value;
+        if (value.Contains('/')) value = value.Split('/')[0].Trim();
+        if (value.StartsWith("Half ", StringComparison.OrdinalIgnoreCase)) value = value[5..].Trim();
+        return CanonicalHeritage(value) ?? value;
     }
 
     public static bool IsHalfRace(string species) => (species ?? string.Empty).Trim().StartsWith("Half ", StringComparison.OrdinalIgnoreCase);
@@ -220,13 +248,22 @@ public static class CharacterFeatureRules
     private static string NormalizeSecondaryHeritage(string species, string primary, string? secondaryHeritage)
     {
         if (!IsHalfRace(species)) return string.Empty;
-        var secondary = (secondaryHeritage ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(secondary))
+        if (string.IsNullOrWhiteSpace(secondaryHeritage))
             throw new InvalidOperationException("Choose the other half of your character's race.");
+
+        var secondary = CanonicalHeritage(secondaryHeritage);
+        if (secondary is null)
+            throw new InvalidOperationException($"Invalid secondary heritage '{secondaryHeritage}'. Choose one of: {string.Join(", ", HeritageCatalog)}.");
         if (secondary.Equals(primary, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The other half must be a different race.");
         return secondary;
     }
+
+    public static string ResolveSecondaryHeritage(string species, string? secondaryHeritage)
+        => NormalizeSecondaryHeritage(species, PrimaryHeritage(species), secondaryHeritage);
+
+    public static bool LegacyCoreSupportsHeritage(string heritage, IEnumerable<string> legacyBaseSpecies)
+        => legacyBaseSpecies.Any(v => v.Equals(heritage, StringComparison.OrdinalIgnoreCase));
 
     public static AppliedRacialScores ApplyAbilityScores(
         string species,
