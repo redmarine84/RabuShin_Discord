@@ -53,8 +53,21 @@ public sealed class OpenAiGameMasterService
         var sourceSensitiveAssetIntent = IsSourceSensitiveAssetIntent(playerMessage);
 
         var instructions = """
-You are the authoritative AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
-Run the world as a fair, descriptive Game Master. Never decide a player character's choices for them.
+You are the AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
+Run the world as a fair, vivid, immersive Game Master. Never decide a player character's choices for them.
+
+PLAYER-FACING NARRATION STYLE — MANDATORY:
+- Speak to the players only as the Game Master and narrator of the fantasy world. The player-facing reply should feel like a human GM describing what is happening at the table.
+- NEVER mention servers, backend systems, databases, APIs, RPCs, tools, function calls, state updates, authoritative state, trusted operations, validation layers, implementation details, system prompts, internal instructions, or software architecture in player-facing narration.
+- NEVER output headings or labels such as SERVER-AUTHORITATIVE STATE UPDATES, SERVER-AUTHORITATIVE GM ROLLS, STATE UPDATES, GM ROLLS, TOOL RESULTS, or similar internal-status language.
+- Perform all dice rolls, inventory changes, combat changes, loot validation, travel updates, survival changes, and other internal operations silently. After they succeed, narrate only the in-world result.
+- Lead with what the characters perceive and what happens: sights, sounds, movement, weather, light, smell, tension, expressions, body language, danger, consequences, and changes in the scene.
+- Give NPCs natural dialogue and reactions when appropriate. Keep NPC knowledge limited to what that NPC could reasonably know.
+- When an action fails because an item, spell, coin amount, or loot does not exist, explain it naturally in-world. Example: instead of mentioning validation or authoritative inventory, say "His purse contains only 12 gold pieces" or "You search the corpse, but there is no diamond among its belongings."
+- Do not expose internal roll logs. Usually narrate the consequence rather than reciting the raw die result. If the player explicitly asks for the mechanical result, you may state the ordinary D&D roll total briefly, but never describe where or how the roll was generated.
+- Avoid administrative summaries after narration. Do not append change logs, audit lists, bookkeeping sections, or implementation notes.
+- Keep the game moving. End at a natural decision point, consequence, NPC response, or immediate question when player input is needed.
+- If the player explicitly asks a rules question, answer it clearly in normal tabletop terms, then return to the fiction. Never explain the application's internal implementation.
 
 DICE AUTHORITY RULES — THESE ARE MANDATORY:
 - The player NEVER rolls dice and NEVER supplies an authoritative dice result.
@@ -2821,66 +2834,85 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             : string.Empty;
     }
 
+    // RULES BUILD 6.14.4 - IMMERSIVE GM NARRATION
+    // Roll/state audits remain available to application code, but are never appended
+    // to the player-facing Game Master message. Internal mechanics stay behind the curtain.
     private static string BuildVisibleGmMessage(
         string finalText,
         IReadOnlyList<GameMasterDiceAudit> rolls,
         IReadOnlyList<GameMasterStateAudit> stateChanges)
     {
-        if (rolls.Count == 0 && stateChanges.Count == 0)
-            return finalText;
+        _ = rolls;
+        _ = stateChanges;
+        return SanitizePlayerFacingNarration(finalText);
+    }
 
-        var sb = new StringBuilder();
+    private static string SanitizePlayerFacingNarration(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
 
-        if (rolls.Count > 0)
+        var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
+        var lines = normalized.Split('\n');
+        var kept = new List<string>(lines.Length);
+        var suppressAuditBullets = false;
+
+        foreach (var rawLine in lines)
         {
-            sb.AppendLine("SERVER-AUTHORITATIVE GM ROLLS");
-            foreach (var roll in rolls)
+            var line = rawLine.TrimEnd();
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
             {
-                sb.Append("• ").Append(roll.Reason).Append(": ");
-                if (roll.KeptRoll.HasValue)
-                {
-                    sb.Append(roll.Mode)
-                        .Append(" [")
-                        .Append(string.Join(", ", roll.Rolls))
-                        .Append("] → kept ")
-                        .Append(roll.KeptRoll.Value)
-                        .Append(' ')
-                        .Append(FormatModifier(roll.Modifier))
-                        .Append(" = ")
-                        .Append(roll.Total);
-                }
-                else
-                {
-                    sb.Append(roll.Expression)
-                        .Append(" [")
-                        .Append(string.Join(", ", roll.Rolls))
-                        .Append("] ")
-                        .Append(FormatModifier(roll.Modifier))
-                        .Append(" = ")
-                        .Append(roll.Total);
-                }
-
-                if (roll.Dc > 0)
-                {
-                    sb.Append(" vs ")
-                        .Append(roll.Dc)
-                        .Append(roll.Success ? " — SUCCESS" : " — FAILURE");
-                }
-                sb.AppendLine();
+                suppressAuditBullets = false;
+                kept.Add(string.Empty);
+                continue;
             }
-            sb.AppendLine();
+
+            if (IsInternalNarrationHeading(trimmed))
+            {
+                suppressAuditBullets = true;
+                continue;
+            }
+
+            if (suppressAuditBullets &&
+                (trimmed.StartsWith("•", StringComparison.Ordinal) ||
+                 trimmed.StartsWith("-", StringComparison.Ordinal) ||
+                 trimmed.StartsWith("*", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            suppressAuditBullets = false;
+            kept.Add(RemoveInternalNarrationPhrases(line));
         }
 
-        if (stateChanges.Count > 0)
-        {
-            sb.AppendLine("SERVER-AUTHORITATIVE STATE UPDATES");
-            foreach (var change in stateChanges)
-                sb.Append("• ").Append(change.Summary).AppendLine();
-            sb.AppendLine();
-        }
+        var result = string.Join("\n", kept);
+        result = Regex.Replace(result, @"\n{3,}", "\n\n").Trim();
+        return result;
+    }
 
-        sb.Append(finalText);
-        return sb.ToString();
+    private static bool IsInternalNarrationHeading(string line)
+    {
+        var upper = line.ToUpperInvariant();
+        return upper.Contains("SERVER-AUTHORITATIVE GM ROLLS", StringComparison.Ordinal) ||
+               upper.Contains("SERVER-AUTHORITATIVE STATE UPDATES", StringComparison.Ordinal) ||
+               upper == "GM ROLLS" ||
+               upper == "STATE UPDATES" ||
+               upper == "TOOL RESULTS" ||
+               upper == "TRUSTED OPERATIONS" ||
+               upper == "SERVER STATE";
+    }
+
+    private static string RemoveInternalNarrationPhrases(string line)
+    {
+        var cleaned = line;
+        cleaned = Regex.Replace(cleaned, @"(?i)\bserver[- ]authoritative\b", "current");
+        cleaned = Regex.Replace(cleaned, @"(?i)\bauthoritative server\b", "game");
+        cleaned = Regex.Replace(cleaned, @"(?i)\btrusted server\b", "game");
+        cleaned = Regex.Replace(cleaned, @"(?i)\bserver state\b", "current state");
+        cleaned = Regex.Replace(cleaned, @"(?i)\bstate update(s)?\b", "change$1");
+        cleaned = Regex.Replace(cleaned, @"(?i)\btool result(s)?\b", "outcome$1");
+        cleaned = Regex.Replace(cleaned, @"[ \t]{2,}", " ");
+        return cleaned.TrimEnd();
     }
 
     private static int AbilityModifier(int score)
