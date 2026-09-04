@@ -307,6 +307,49 @@ public sealed class DiscordSupabaseService
         return rows.FirstOrDefault();
     }
 
+    // RULES BUILD 6.16 - WORLD TIME / SLEEP STATE
+    public async Task<JsonElement> GetWorldTimeStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_world_time_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var text = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to load world time: " + text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    public async Task<JsonElement> GetSleepStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_sleep_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var text = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to load sleeping state: " + text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    public async Task<JsonElement> WakeFromLongRestAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_wake_from_long_rest", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var text = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException("Unable to wake character: " + text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     public async Task<DiscordSurvivalState?> GetSurvivalStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_survival_state", new
@@ -934,15 +977,9 @@ public sealed class DiscordSupabaseService
     {
         using var response = await CallRpcAsync("discord_buy_hospitality_service", new
         {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_settlement_key = settlementKey,
-            p_poi_key = poiKey,
-            p_service_key = item.ItemKey,
-            p_service_name = item.ItemName,
-            p_service_category = item.Category,
-            p_quantity = quantity,
-            p_unit_price_gp = item.PriceGp,
+            p_player_id = playerId, p_campaign_id = campaignId, p_settlement_key = settlementKey,
+            p_poi_key = poiKey, p_service_key = item.ItemKey, p_service_name = item.ItemName,
+            p_service_category = item.Category, p_quantity = quantity, p_unit_price_gp = item.PriceGp,
             p_venue_name = venueName
         });
         var text = await response.Content.ReadAsStringAsync();
@@ -951,6 +988,7 @@ public sealed class DiscordSupabaseService
         using var document = JsonDocument.Parse(text);
         return document.RootElement.Clone();
     }
+
     public async Task<DiscordSettlementShopSaleResult> SellSettlementShopItemAsync(
         Guid playerId, Guid campaignId, string settlementKey, string poiKey,
         Guid inventoryItemId, string itemName, int quantity, decimal unitPriceGp, string shopName)

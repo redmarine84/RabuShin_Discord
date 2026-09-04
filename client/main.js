@@ -64,6 +64,16 @@ let restOverlaySignature = '';
 let survivalPollTimer = null;
 let survivalPollBusy = false;
 
+// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
+let worldTimePollTimer = null;
+let worldTimePollBusy = false;
+let sleepStatePollTimer = null;
+let sleepStatePollBusy = false;
+let sleepWakeBusy = false;
+let lastSleepState = null;
+let sleepOverlaySignature = '';
+
+
 // RULES BUILD 6.12 - AI GAME MASTER VOICE
 // Voice preferences are intentionally local to each Discord player/device.
 // No speech audio is generated or stored by the RabuShin server.
@@ -243,6 +253,8 @@ async function showCampaignLauncher() {
   stopProgressionPolling();
   stopRestStatePolling();
   stopSurvivalPolling();
+  stopWorldTimePolling();
+  stopSleepStatePolling();
   document.querySelector('#deathOverlay')?.remove();
   document.body.classList.remove('death-modal-open');
   document.querySelector('#levelUpOverlay')?.remove();
@@ -253,6 +265,9 @@ async function showCampaignLauncher() {
   lastDeathState=null;
   lastRestState=null;
   restOverlaySignature='';
+  lastSleepState=null;
+  sleepOverlaySignature='';
+  document.querySelector('#sleepOverlay')?.remove();
   activeGameTab = 'gm';
   gmTurnState = null;
   gmTurnToken = null;
@@ -1085,6 +1100,8 @@ async function enterCampaign(campaignId, initialTab='gm') {
     startProgressionPolling();
     startRestStatePolling();
     startSurvivalPolling();
+    startWorldTimePolling();
+    startSleepStatePolling();
     if(initialTab&&initialTab!=='gm'){
       const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
       if(target)switchGameTab(initialTab,target);
@@ -1095,7 +1112,7 @@ async function enterCampaign(campaignId, initialTab='gm') {
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div id="worldClockHost">${worldClockHtml(d.worldTime)}</div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -1338,6 +1355,169 @@ async function saveLevelUpChoices(progression) {
   } finally {
     levelUpActionBusy=false;
   }
+}
+
+
+// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
+function worldClockHtml(world) {
+  if(!world)return '<div class="world-clock-chip"><span>WORLD TIME</span><b>Loading...</b></div>';
+  const day=Math.max(1,Number(world.dayNumber)||1);
+  const time=String(world.displayTime||'--:--');
+  const weather=String(world.weatherLabel||'Clear');
+  const part=String(world.dayPart||'');
+  return `<div class="world-clock-chip"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span><b>${escapeHtml(time)}</b><small>${escapeHtml(weather)}</small></div>`;
+}
+
+function updateWorldClockUi(world) {
+  if(currentGameData)currentGameData.worldTime=world||currentGameData.worldTime;
+  const host=document.querySelector('#worldClockHost');
+  if(host)host.innerHTML=worldClockHtml(world||currentGameData?.worldTime);
+}
+
+function stopWorldTimePolling() {
+  if(worldTimePollTimer)clearInterval(worldTimePollTimer);
+  worldTimePollTimer=null;
+  worldTimePollBusy=false;
+}
+
+function startWorldTimePolling() {
+  stopWorldTimePolling();
+  if(!currentCampaignId)return;
+  void refreshWorldTime(true);
+  worldTimePollTimer=setInterval(()=>void refreshWorldTime(false),5000);
+}
+
+async function refreshWorldTime(force=false) {
+  if(!currentCampaignId||!currentGameData||worldTimePollBusy)return;
+  worldTimePollBusy=true;
+  try{
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/world-time`);
+    const world=data.world||null;
+    if(world)updateWorldClockUi(world);
+  }catch(error){
+    if(force)console.warn('World time refresh failed:',error);
+  }finally{worldTimePollBusy=false;}
+}
+
+function stopSleepStatePolling() {
+  if(sleepStatePollTimer)clearInterval(sleepStatePollTimer);
+  sleepStatePollTimer=null;
+  sleepStatePollBusy=false;
+}
+
+function startSleepStatePolling() {
+  stopSleepStatePolling();
+  if(!currentCampaignId)return;
+  void refreshSleepState(true);
+  sleepStatePollTimer=setInterval(()=>void refreshSleepState(false),1000);
+}
+
+function sleepDurationText(minutes) {
+  const value=Math.max(0,Math.trunc(Number(minutes)||0));
+  const hours=Math.floor(value/60),mins=value%60;
+  return `${hours}h ${String(mins).padStart(2,'0')}m`;
+}
+
+async function refreshSleepState(force=false) {
+  if(!currentCampaignId||!currentGameData||sleepStatePollBusy||sleepWakeBusy)return;
+  sleepStatePollBusy=true;
+  try{
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/sleep-state`);
+    const sleep=data.sleep||null;
+    lastSleepState=sleep;
+    if(sleep?.world)updateWorldClockUi(sleep.world);
+
+    if(!sleep?.sleeping){
+      document.querySelector('#sleepOverlay')?.remove();
+      sleepOverlaySignature='';
+      return;
+    }
+
+    syncAuthoritativeCharacterHp(sleep.currentHp,sleep.maxHp);
+    const signature=[
+      sleep.sleepSessionId,sleep.currentHp,sleep.elapsedMinutes,
+      sleep.remainingMinutes,sleep.world?.worldMinute,sleep.safeLocation,sleep.paidLodging
+    ].join(':');
+    if(force||signature!==sleepOverlaySignature||!document.querySelector('#sleepOverlay')){
+      sleepOverlaySignature=signature;
+      renderSleepingLongRestOverlay(sleep);
+    }
+  }catch(error){
+    if(force)console.warn('Sleep state refresh failed:',error);
+  }finally{sleepStatePollBusy=false;}
+}
+
+function renderSleepingLongRestOverlay(sleep) {
+  let overlay=document.querySelector('#sleepOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='sleepOverlay';
+    overlay.className='sleep-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  const current=Math.max(0,Number(sleep.currentHp)||0);
+  const max=Math.max(1,Number(sleep.maxHp)||1);
+  const elapsed=Math.max(0,Number(sleep.elapsedMinutes)||0);
+  const remaining=Math.max(0,Number(sleep.remainingMinutes)||0);
+  const exact=Math.max(0,Number(sleep.hpRecoveryExact)||0);
+  const perHour=Math.max(0,Number(sleep.hpPerHour)||0);
+  const progress=Math.min(100,Math.max(0,elapsed/480*100));
+  const world=sleep.world||{};
+  const lodging=sleep.paidLodging
+    ? `<span class="sleep-safe good">Paid ${escapeHtml(sleep.lifestyle||'')} room • ${escapeHtml(sleep.innName||'Inn')}</span>`
+    : sleep.safeLocation
+      ? '<span class="sleep-safe good">Safe Long Rest location</span>'
+      : '<span class="sleep-safe warn">Unsecured rest location</span>';
+
+  overlay.innerHTML=`<section class="sleep-card">
+    <div class="sleep-moon">☾</div>
+    <p class="eyebrow">LONG REST IN PROGRESS</p>
+    <h2>${escapeHtml(sleep.characterName||'Your character')} is sleeping</h2>
+    <div class="sleep-world-clock">
+      <span>World Time</span>
+      <b>Day ${Math.max(1,Number(world.dayNumber)||1)} • ${escapeHtml(world.displayTime||'--:--')}</b>
+      <small>${escapeHtml(world.dayPart||'')} • ${escapeHtml(world.weatherLabel||'Clear')}</small>
+    </div>
+    <div class="sleep-hp-block">
+      <div><span>HP</span><b>${current}/${max}</b></div>
+      <div><span>Recovery Rate</span><b>${perHour.toFixed(2)} HP/hour</b></div>
+      <div><span>Recovered</span><b>${exact.toFixed(2)} HP progress</b></div>
+    </div>
+    <div class="sleep-progress"><i style="width:${progress.toFixed(2)}%"></i></div>
+    <div class="sleep-time-grid">
+      <div><span>Time Rested</span><b>${sleepDurationText(elapsed)}</b></div>
+      <div><span>Remaining</span><b>${sleepDurationText(remaining)}</b></div>
+      <div><span>Required</span><b>8h 00m</b></div>
+    </div>
+    ${lodging}
+    <p class="sleep-note">World time continues for everyone. Your HP recovers gradually as time passes. Waking before 8 hours keeps recovered HP but does not grant full Long Rest recovery.</p>
+    <button id="wakeFromLongRest" class="button danger-button">Wake</button>
+    <div id="sleepWakeError" class="error"></div>
+  </section>`;
+
+  const wake=overlay.querySelector('#wakeFromLongRest');
+  if(wake)wake.onclick=async()=>{
+    if(sleepWakeBusy)return;
+    sleepWakeBusy=true;
+    wake.disabled=true;wake.textContent='Waking...';
+    const error=overlay.querySelector('#sleepWakeError');if(error)error.textContent='';
+    try{
+      const data=await api(`/game-api/campaigns/${currentCampaignId}/rest/long/wake`,{method:'POST'});
+      const result=data.result||{};
+      if(result.world)updateWorldClockUi(result.world);
+      if(result.currentHp!==undefined)syncAuthoritativeCharacterHp(result.currentHp,result.maxHp);
+      overlay.remove();sleepOverlaySignature='';lastSleepState=null;
+      showNotice(result.message||'You wake before completing the Long Rest.');
+      await refreshRestState(true);
+    }catch(ex){
+      const target=document.querySelector('#sleepWakeError');if(target)target.textContent=ex.message;
+      showNotice(ex.message,true);
+    }finally{
+      sleepWakeBusy=false;
+      void refreshSleepState(true);
+    }
+  };
 }
 
 function stopRestStatePolling() {
@@ -2440,7 +2620,7 @@ function requestWorldMapTravel(index) {
 
   showModal(
     `Travel to ${location.name}`,
-    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve the journey and any encounter, obstacle, weather, or event that happens before arrival.</p>`,
+    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve travel time, weather, and any encounter, obstacle, or event before arrival. The shared world clock advances during the journey.</p>`,
     'Begin Travel',
     async()=>{
       document.querySelector('#modalOverlay')?.remove();
@@ -2713,7 +2893,8 @@ function renderSettlementShop(shop,initialMode='buy') {
     if(note) note.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'
       ? 'Drinks are served immediately and do not enter inventory.'
       : 'Meals are served immediately; room quantity is the number of lodging days.';
-  }  if(currentGameData?.character&&shop.gold!==undefined) {
+  }
+  if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
     updateLiveGoldDisplay();
   }

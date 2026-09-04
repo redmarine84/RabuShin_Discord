@@ -254,6 +254,48 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/rest-state", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
+app.MapGet("/game-api/campaigns/{campaignId:guid}/world-time", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(playerId, campaignId);
+        var world = await service.GetWorldTimeStateAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, world });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/sleep-state", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(playerId, campaignId);
+        var sleep = await service.GetSleepStateAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, sleep });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/long/wake", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await service.WakeFromLongRestAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, result });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/short/hit-die", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -772,6 +814,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         var chat = await service.GetMessagesAsync(playerId, campaignId, "chat", 100);
         var journal = await service.GetJournalAsync(playerId, campaignId);
         var survival = await service.GetSurvivalStateAsync(playerId, campaignId);
+        var worldTime = await service.GetWorldTimeStateAsync(playerId, campaignId);
         var encumbrance = ItemPhysicalProfileService.CalculateEncumbrance(character.Strength, inventory);
 
         return Results.Ok(new
@@ -789,6 +832,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             chatMessages = chat.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             journal = journal.Select(j => new { journalId=j.JournalId,category=j.Category,title=j.Title,entryText=j.EntryText,createdAt=j.CreatedAt }),
             survival = survival?.ToClientState(),
+            worldTime,
             encumbrance = new
             {
                 carriedWeightLb = encumbrance.CarriedWeightLb,
@@ -1483,22 +1527,16 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
 
             return Results.Ok(new
             {
-                success = true,
-                shopName = poi.Name,
-                itemKey = item.ItemKey,
-                itemName = item.ItemName,
-                quantityPurchased = quantity,
-                quantityCarried = 0,
-                unitPriceGp = item.PriceGp,
+                success = true, shopName = poi.Name, itemKey = item.ItemKey, itemName = item.ItemName,
+                quantityPurchased = quantity, quantityCarried = 0, unitPriceGp = item.PriceGp,
                 totalPriceGp = ReadDecimal("total_price_gp", item.PriceGp * quantity),
                 remainingGold = ReadDecimal("remaining_gold", 0m),
                 message = ReadString("message", "Purchase completed."),
-                hungerBefore = ReadDecimal("hunger_before", -1m),
-                hungerAfter = ReadDecimal("hunger_after", -1m),
-                thirstBefore = ReadDecimal("thirst_before", -1m),
-                thirstAfter = ReadDecimal("thirst_after", -1m)
+                hungerBefore = ReadDecimal("hunger_before", -1m), hungerAfter = ReadDecimal("hunger_after", -1m),
+                thirstBefore = ReadDecimal("thirst_before", -1m), thirstAfter = ReadDecimal("thirst_after", -1m)
             });
         }
+
         var result = await service.BuySettlementShopItemAsync(
             playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
 

@@ -318,3 +318,26 @@ body.death-modal-open{overflow:hidden!important}
 
 /* RULES BUILD 6.13 - SUBRACES + DRACONIC ANCESTRY */
 .racial-choice-section{margin-top:14px;padding-top:12px;border-top:1px solid #3f3523}.racial-choice-section>label{display:block;margin-bottom:6px;color:#cdb77f;font-size:12px;font-weight:700}.subrace-summary{margin-top:9px;padding:10px;border:1px solid #463b27;border-radius:7px;background:#090806}.subrace-summary>b,.subrace-summary>small{display:block}.subrace-summary>b{color:#dfc47e;margin-bottom:5px}.subrace-summary>small{color:#a79a80;line-height:1.45;margin-top:3px}.subrace-traits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.subrace-traits span{border:1px solid #51442d;border-radius:999px;padding:5px 8px;background:#11100b;color:#b7a57e;font-size:10px}.subrace-extra-choices{margin-top:10px}.ancestry-summary{border-color:#5c4329;background:#100a07}
+
+
+/* RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST */
+.world-clock-chip{min-width:145px;padding:8px 12px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(7,13,22,.78);display:flex;flex-direction:column;gap:1px;align-items:flex-end}
+.world-clock-chip span{font-size:10px;letter-spacing:.08em;color:#aeb8c5}
+.world-clock-chip b{font-size:16px;color:#fff}
+.world-clock-chip small{font-size:11px;color:#c7d2df}
+.sleep-overlay{position:fixed;inset:0;z-index:10080;background:radial-gradient(circle at 50% 20%,rgba(35,49,79,.95),rgba(4,7,14,.985) 62%);display:flex;align-items:center;justify-content:center;padding:24px}
+.sleep-card{width:min(580px,96vw);max-height:94vh;overflow:auto;background:linear-gradient(180deg,#111a2b,#0b111d);border:1px solid rgba(188,207,255,.28);border-radius:18px;padding:28px;box-shadow:0 28px 90px rgba(0,0,0,.65);text-align:center}
+.sleep-moon{font-size:50px;line-height:1;color:#d8e2ff;text-shadow:0 0 28px rgba(151,180,255,.55)}
+.sleep-card h2{margin:.25rem 0 1rem}
+.sleep-world-clock{margin:16px 0;padding:15px;border-radius:12px;background:rgba(255,255,255,.055);display:flex;flex-direction:column;gap:3px}
+.sleep-world-clock span,.sleep-hp-block span,.sleep-time-grid span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9faabd}
+.sleep-world-clock b{font-size:21px}
+.sleep-world-clock small{color:#b8c4d5}
+.sleep-hp-block,.sleep-time-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.sleep-hp-block>div,.sleep-time-grid>div{padding:12px 8px;border-radius:10px;background:rgba(255,255,255,.045);display:flex;flex-direction:column;gap:4px}
+.sleep-hp-block b,.sleep-time-grid b{font-size:15px}
+.sleep-progress{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:16px 0}
+.sleep-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7696d8,#b9caff)}
+.sleep-safe{display:inline-block;margin:4px 0 12px;font-weight:700}
+.sleep-note{color:#b8c3d3;font-size:13px;line-height:1.55}
+@media(max-width:620px){.sleep-hp-block,.sleep-time-grid{grid-template-columns:1fr}.world-clock-chip{align-items:flex-start;min-width:0}}
