@@ -64,6 +64,7 @@ app.MapPost("/api/token", async (
     }
 });
 
+// RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
 app.MapGet("/game-api/health", () => Results.Ok(new
 {
     success = true,
@@ -88,7 +89,7 @@ app.MapGet("/game-api/campaigns", async (HttpRequest request, DiscordSupabaseSer
             {
                 campaignId = c.CampaignId, campaignName = c.CampaignName, joinCode = c.JoinCode,
                 currentChapter = c.CurrentChapter, currentLocation = c.CurrentLocation,
-                isOwner = c.IsOwner, memberCount = c.MemberCount
+                isOwner = c.IsOwner, memberCount = c.MemberCount, campaignMode = c.CampaignMode
             })
         });
     }
@@ -104,6 +105,18 @@ app.MapPost("/game-api/campaigns", async (HttpRequest request, CreateDiscordCamp
         var playerId = await service.GetOrCreatePlayerAsync(user);
         var id = await service.CreateCampaignAsync(playerId, body.CampaignName);
         return Results.Ok(new { success = true, campaignId = id });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/solo", async (HttpRequest request, CreateDiscordCampaignRequest body, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var id = await service.CreateSoloCampaignAsync(playerId, body.CampaignName);
+        return Results.Ok(new { success = true, campaignId = id, campaignMode = "solo" });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
@@ -486,6 +499,128 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+
+// RULES BUILD 6.17 - FULL SOLO PARTY CHARACTER CREATION
+app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random", async (
+    Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var soloState = await service.GetSoloPartyStateAsync(playerId, campaignId);
+        if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
+        if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
+
+        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
+        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
+        var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
+        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
+        if (className is null) return Results.BadRequest(new { success = false, error = "Invalid class." });
+
+        // Build 6.13.1: Half Race secondary heritage is chosen by the player. Generate only the
+        // primary heritage here so the legacy random generator cannot silently inject a different second half.
+        var generationSpecies = CharacterFeatureRules.IsHalfRace(species) ? CharacterFeatureRules.PrimaryHeritage(species) : species;
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(generationSpecies, CharacterGenerationService.Species);
+        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
+
+        AppliedRacialScores scores;
+        if (CharacterFeatureRules.IsTortleLineage(species))
+        {
+            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
+            // the classic Human +1s are removed before applying the player's Tortle choices.
+            scores = CharacterFeatureRules.ApplyAbilityScores(
+                species,
+                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
+                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
+                body.RacialAbilityChoices,
+                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+        }
+        else
+        {
+            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
+                species,
+                generated.Strength, generated.Dexterity, generated.Constitution,
+                generated.Intelligence, generated.Wisdom, generated.Charisma,
+                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+        }
+
+        var profile = CharacterFeatureRules.BuildProfile(
+            species, body.SecondaryHeritage, scores,
+            body.Subrace, body.SecondarySubrace,
+            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
+            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
+            body.DwarfTool, body.SecondaryDwarfTool,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
+            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
+        var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
+            string.Empty, string.Empty, string.Empty, string.Empty);
+        var saved = await service.GetCharacterAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/manual", async (
+    Guid campaignId, EnhancedManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var soloState = await service.GetSoloPartyStateAsync(playerId, campaignId);
+        if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
+        if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
+
+        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
+        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
+        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
+
+        // RULES BUILD 6.14.1: validate the Other Half against the modern heritage catalog
+        // before touching the older Core character creator. This prevents Tortle (and future
+        // modern heritages) from being rejected by CharacterGenerationService.BaseSpecies.
+        var secondaryHeritage = CharacterFeatureRules.ResolveSecondaryHeritage(species, body.SecondaryHeritage);
+
+        var scores = CharacterFeatureRules.ApplyAbilityScores(
+            species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
+            body.RacialAbilityChoices, body.Subrace, secondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+        var profile = CharacterFeatureRules.BuildProfile(
+            species, secondaryHeritage, scores,
+            body.Subrace, body.SecondarySubrace,
+            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
+            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
+            body.DwarfTool, body.SecondaryDwarfTool,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
+            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
+
+        var primaryHeritage = CharacterFeatureRules.PrimaryHeritage(species);
+        var legacyPrimarySupported = CharacterFeatureRules.LegacyCoreSupportsHeritage(primaryHeritage, CharacterGenerationService.BaseSpecies);
+        var legacySecondarySupported = string.IsNullOrWhiteSpace(secondaryHeritage)
+            || CharacterFeatureRules.LegacyCoreSupportsHeritage(secondaryHeritage, CharacterGenerationService.BaseSpecies);
+
+        // When both halves exist in the older Core, preserve the existing path exactly.
+        // Otherwise use the primary heritage (or Human shell for a modern-only primary)
+        // and let CharacterFeatureRules + CreateCharacterWithFeaturesAsync remain authoritative
+        // for the final scores, racial traits, AC, speed, size, HP, subrace and ancestry.
+        var useLegacyHybrid = CharacterFeatureRules.IsHalfRace(species) && legacyPrimarySupported && legacySecondarySupported;
+        var legacySpeciesRequest = useLegacyHybrid ? species : primaryHeritage;
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(legacySpeciesRequest, CharacterGenerationService.Species);
+        var engineSecondaryHeritage = useLegacyHybrid ? secondaryHeritage : string.Empty;
+
+        var character = ManualCharacterCreationService.Create(
+            body.CharacterName, engineSpecies, engineSecondaryHeritage, body.ClassName,
+            body.Background, body.Alignment, body.Level,
+            scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
+            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
+
+        var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
+            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
+        var saved = await service.GetCharacterAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 app.MapPost("/game-api/campaigns/{campaignId:guid}/character/portrait", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -552,6 +687,59 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/party", async (
         return Results.Ok(new { success = true, party = party.Select(ProgramHelpers.ToClientPartyMember) });
     }
     catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 401); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/solo-party", async (Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var state = await service.GetSoloPartyStateAsync(playerId, campaignId);
+        var party = await service.GetPartyAsync(playerId, campaignId);
+        return Results.Ok(new
+        {
+            success = true, isSolo = state.IsSolo, characterCount = state.CharacterCount,
+            maxCharacters = state.MaxCharacters, activeCharacterId = state.ActiveCharacterId,
+            activeCharacterName = state.ActiveCharacterName, canAdd = state.CanAdd,
+            characters = party.Select(p => new { characterId = p.CharacterId, characterName = p.CharacterName, level = p.Level })
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/active", async (Guid campaignId, SoloActiveCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        await service.SetActiveSoloCharacterAsync(playerId, campaignId, body.CharacterId);
+        var character = await service.GetCharacterAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, character = character is null ? null : ProgramHelpers.ToClientCharacter(character) });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/party/{characterId:guid}/details", async (Guid campaignId, Guid characterId, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var detail = await service.GetPartyCharacterDetailsAsync(playerId, campaignId, characterId);
+        return detail is null
+            ? Results.NotFound(new { success = false, error = "Party character could not be found." })
+            : Results.Ok(new
+            {
+                success = true, characterId = detail.CharacterId, level = detail.Level, experience = detail.Experience,
+                alignment = detail.Alignment, alignmentDeedBalance = detail.AlignmentDeedBalance,
+                goodDeeds = detail.AlignmentGoodDeeds, evilDeeds = detail.AlignmentEvilDeeds,
+                activeSoloCharacter = detail.ActiveSoloCharacter
+            });
+    }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
@@ -807,6 +995,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
         var party = await service.GetPartyAsync(playerId, campaignId);
+        var soloPartyState = await service.GetSoloPartyStateAsync(playerId, campaignId);
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var spells = await service.GetSpellsAsync(playerId, campaignId);
         var slots = await service.GetSpellSlotsAsync(playerId, campaignId);
@@ -821,9 +1010,15 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         {
             success = true,
             campaign = new { campaignId = campaign.CampaignId, campaignName = campaign.CampaignName, joinCode = campaign.JoinCode,
-                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount },
+                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount, campaignMode = campaign.CampaignMode },
             character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
             party = party.Select(ProgramHelpers.ToClientPartyMember),
+            soloParty = new
+            {
+                isSolo = soloPartyState.IsSolo, characterCount = soloPartyState.CharacterCount, maxCharacters = soloPartyState.MaxCharacters,
+                activeCharacterId = soloPartyState.ActiveCharacterId, activeCharacterName = soloPartyState.ActiveCharacterName, canAdd = soloPartyState.CanAdd,
+                characters = party.Select(p => new { characterId = p.CharacterId, characterName = p.CharacterName, level = p.Level })
+            },
             inventory = inventory.Select(WaterskinMechanicsService.ToClientItem),
             inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
             spells = spells.Select(s => new { characterSpellId=s.CharacterSpellId,spellName=s.SpellName,spellLevel=s.SpellLevel,prepared=s.Prepared,sourceTag=s.SourceTag,spellData=s.SpellData }),
@@ -2667,6 +2862,7 @@ public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
 public sealed record SurvivalSettingsRequest(bool Enabled);
+public sealed record SoloActiveCharacterRequest(Guid CharacterId);
 public sealed record SettlementMoveRequest(string PoiKey);
 public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);
 public sealed record SettlementShopSaleRequest(Guid InventoryItemId, int Quantity);

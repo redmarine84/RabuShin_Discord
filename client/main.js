@@ -73,6 +73,9 @@ let sleepWakeBusy = false;
 let lastSleepState = null;
 let sleepOverlaySignature = '';
 
+// RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
+let soloSwitchBusy = false;
+
 
 // RULES BUILD 6.12 - AI GAME MASTER VOICE
 // Voice preferences are intentionally local to each Discord player/device.
@@ -289,7 +292,7 @@ async function showCampaignLauncher() {
         <div id="campaignList" class="campaign-list"><div class="loading">Loading campaigns...</div></div>
       </section>
       <div class="launcher-actions">
-        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Create a new multiplayer adventure</span></button>
+        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Choose Solo Play or Play with Friends</span></button>
         <button id="joinCampaign" class="action"><b># Join With Campaign Code</b><span>Enter a code from another player</span></button>
       </div>
       <div class="public-legal-note">By using RabuShinAIGM, you agree to the <button class="link-button" data-legal="terms">Terms of Service</button> and acknowledge the <button class="link-button" data-legal="privacy">Privacy Policy</button>. <button class="link-button" data-legal="support">Support</button></div>
@@ -316,8 +319,10 @@ async function loadCampaigns() {
       <div class="campaign-card">
         <div>
           <h4>${escapeHtml(c.campaignName)}</h4>
-          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}</p>
-          <small>Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong></small>
+          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${String(c.campaignMode||'friends').toLowerCase()==='solo'?'Solo Campaign':`${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}`}</p>
+          <small>${String(c.campaignMode||'friends').toLowerCase()==='solo'
+            ? `Solo Play: <strong>${escapeHtml(currentDiscordUser?.global_name||currentDiscordUser?.username||'Player')}</strong>`
+            : `Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong>`}</small>
         </div>
         <div class="row gap campaign-actions">
           ${c.isOwner ? '<span class="badge">OWNER</span>' : ''}
@@ -391,12 +396,18 @@ function showLeaveCampaignDialog(campaignId, campaignName) {
 }
 
 function showNewCampaignDialog() {
-  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">`, 'Create Campaign', async () => {
+  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">
+    <div class="campaign-mode-picker">
+      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="solo" checked><span><b>Play Solo</b><small>Control your hero plus up to 4 additional party characters.</small></span></label>
+      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="friends"><span><b>Play with Friends</b><small>Use the existing Discord multiplayer campaign and join-code system.</small></span></label>
+    </div>`, 'Create Campaign', async () => {
     const name = document.querySelector('#campaignName').value.trim();
     if (!name) throw new Error('Campaign name is required.');
-    await api('/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
+    const mode=document.querySelector('input[name="campaignMode"]:checked')?.value||'solo';
+    const result=await api(mode==='solo'?'/game-api/campaigns/solo':'/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
     document.querySelector('#modalOverlay').remove();
-    showNotice('Campaign created.');
+    showNotice(mode==='solo'?'Solo Play campaign created.':'Friends campaign created.');
+    if(result.campaignId) return openCampaign(result.campaignId);
     await loadCampaigns();
   });
 }
@@ -748,11 +759,12 @@ function configureHalfRace(prefix,species,data){
   }
 }
 
-async function showCharacterCreator(campaignId) {
+async function showCharacterCreator(campaignId, options={}) {
+  const soloPartyMember=options?.soloPartyMember===true;
   const main = document.querySelector('#mainContent');
   main.innerHTML = `
     <div class="creator">
-      <div class="section-title"><div><h2>Create Your Character</h2><p>One character per player in this campaign. Racial bonuses are applied after the base ability scores you enter.</p></div><button id="creatorBack" class="button">Back</button></div>
+      <div class="section-title"><div><h2>${soloPartyMember?'Add Party Member':'Create Your Character'}</h2><p>${soloPartyMember?'Create a full additional player-controlled character for your Solo party.':'One character per player in Friends campaigns. Racial bonuses are applied after the base ability scores you enter.'}</p></div><button id="creatorBack" class="button">Back</button></div>
       <div class="tabs"><button id="randomTab" class="tab active">Random Build</button><button id="manualTab" class="tab">Manual Sheet</button></div>
       <section class="panel creator-panel">
         <div id="creatorLoading" class="loading">Loading character options...</div>
@@ -793,7 +805,7 @@ async function showCharacterCreator(campaignId) {
       </section>
     </div>`;
 
-  document.querySelector('#creatorBack').onclick = showCampaignLauncher;
+  document.querySelector('#creatorBack').onclick = () => soloPartyMember ? enterCampaign(campaignId,'character') : showCampaignLauncher();
   try {
     const data = await api('/game-api/character-options');
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
@@ -823,7 +835,7 @@ async function showCharacterCreator(campaignId) {
       try {
         const species=document.querySelector('#randomSpecies').value;
         const racial=collectRacialOptions('random',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/characters/random`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`,{method:'POST',body:JSON.stringify({
           characterName:document.querySelector('#randomName').value.trim(),species,
           secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
           className:document.querySelector('#randomClass').value,...racial})});
@@ -838,7 +850,7 @@ async function showCharacterCreator(campaignId) {
       try {
         const species=document.querySelector('#manualSpecies').value;
         const racial=collectRacialOptions('manual',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/characters/manual`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`,{method:'POST',body:JSON.stringify({
           characterName:name,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
@@ -1107,6 +1119,40 @@ async function enterCampaign(campaignId, initialTab='gm') {
       if(target)switchGameTab(initialTab,target);
     }
   } catch(error){showNotice(error.message,true);}
+}
+
+function isSoloCampaign(){return String(currentGameData?.campaign?.campaignMode||'').toLowerCase()==='solo'||currentGameData?.soloParty?.isSolo===true;}
+function soloPartyCharacters(){return Array.isArray(currentGameData?.soloParty?.characters)?currentGameData.soloParty.characters:(currentGameData?.party||[]).map(p=>({characterId:p.characterId,characterName:p.characterName,level:p.level}));}
+function soloCharacterSwitchMarkup(compact=false){
+  if(!isSoloCampaign()||soloPartyCharacters().length<2)return '';
+  const active=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
+  return `<label class="solo-active-character ${compact?'compact':''}"><span>Active Character</span><select class="input" data-solo-character-switch>${soloPartyCharacters().map(c=>`<option value="${escapeHtml(c.characterId)}" ${String(c.characterId)===active?'selected':''}>${escapeHtml(c.characterName)}</option>`).join('')}</select></label>`;
+}
+async function switchSoloActiveCharacter(characterId,{preserveTab=true,quiet=false}={}){
+  if(!characterId||soloSwitchBusy||!currentCampaignId)return false;
+  const current=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
+  if(String(characterId)===current)return false;
+  soloSwitchBusy=true;
+  try{
+    await api(`/game-api/campaigns/${currentCampaignId}/solo-party/active`,{method:'POST',body:JSON.stringify({characterId})});
+    document.querySelector('#sleepOverlay')?.remove();document.querySelector('#deathOverlay')?.remove();document.body.classList.remove('death-modal-open');
+    lastSleepState=null;sleepOverlaySignature='';lastDeathState=null;
+    const tab=preserveTab?activeGameTab:'gm';
+    await enterCampaign(currentCampaignId,tab);
+    if(!quiet)showNotice(`Now playing as ${currentGameData?.character?.characterName||'selected character'}.`);
+    return true;
+  }catch(error){if(!quiet)showNotice(error.message,true);return false;}
+  finally{soloSwitchBusy=false;}
+}
+function wireSoloCharacterSwitches(scope=document){
+  scope.querySelectorAll('[data-solo-character-switch]').forEach(select=>{select.onchange=async()=>{const prior=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');const ok=await switchSoloActiveCharacter(select.value);if(!ok)select.value=prior;};});
+}
+async function autoSwitchSoloInitiativeCharacter(combat){
+  if(!isSoloCampaign()||soloSwitchBusy||!combat?.active||String(combat.currentTurnType||'').toLowerCase()!=='character'||!combat.currentTurnCharacterId)return false;
+  const target=String(combat.currentTurnCharacterId),active=String(currentGameData?.character?.characterId||'');
+  if(target===active)return false;
+  const ours=soloPartyCharacters().some(c=>String(c.characterId)===target);if(!ours)return false;
+  return await switchSoloActiveCharacter(target,{preserveTab:true,quiet:true});
 }
 
 function renderGameShell() {
@@ -1474,6 +1520,7 @@ function renderSleepingLongRestOverlay(sleep) {
     <div class="sleep-moon">☾</div>
     <p class="eyebrow">LONG REST IN PROGRESS</p>
     <h2>${escapeHtml(sleep.characterName||'Your character')} is sleeping</h2>
+    ${soloCharacterSwitchMarkup(true)}
     <div class="sleep-world-clock">
       <span>World Time</span>
       <b>Day ${Math.max(1,Number(world.dayNumber)||1)} • ${escapeHtml(world.displayTime||'--:--')}</b>
@@ -1496,6 +1543,7 @@ function renderSleepingLongRestOverlay(sleep) {
     <div id="sleepWakeError" class="error"></div>
   </section>`;
 
+  wireSoloCharacterSwitches(overlay);
   const wake=overlay.querySelector('#wakeFromLongRest');
   if(wake)wake.onclick=async()=>{
     if(sleepWakeBusy)return;
@@ -1853,7 +1901,9 @@ function renderDeathOverlay(death) {
     </div>`;
   }
 
+  if(isSoloCampaign()&&soloPartyCharacters().length>1) body=body.replace(/<div class="death-card ([^"]+)">/,match=>`${match}${soloCharacterSwitchMarkup(true)}`);
   overlay.innerHTML=body;
+  wireSoloCharacterSwitches(overlay);
   wireDeathOverlayActions(death);
 }
 
@@ -2473,6 +2523,7 @@ async function refreshGmLive(force=false) {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/gm`);
     currentGameData.gmMessages=data.messages||[];
     gmCombatTurnState=data.combatTurn||null;
+    if(await autoSwitchSoloInitiativeCharacter(gmCombatTurnState))return;
     updateLiveTimeline('gmTimeline',currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.','gm',force);
     setGmTurnState(data.turnState);
     updateCombatInitiativeUi();
@@ -3328,10 +3379,11 @@ function renderGameMasterTab() {
   if(existingInput)gmTurnDraft=existingInput.value;
 
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><div><h3>AI Game Master</h3>${soloCharacterSwitchMarkup(true)}</div><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
 
   const input=document.querySelector('#gmInput');
   input.value=gmTurnDraft;
+  wireSoloCharacterSwitches(view);
 
   const gmRefreshButton=document.querySelector('#refreshGm');
   if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
@@ -3574,7 +3626,14 @@ async function removeCharacterPortrait() {
   } catch(error) { showNotice(error.message,true); }
 }
 
-function showPartyMemberDetails(member) {
+const partyXpThresholds=[0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+function partyExperienceGaugeMarkup(detail){
+  const level=Math.max(1,Math.min(20,Number(detail?.level)||1)),xp=Math.max(0,Number(detail?.experience)||0);
+  const floor=partyXpThresholds[level-1]||0,ceil=level>=20?floor:(partyXpThresholds[level]||floor),span=Math.max(1,ceil-floor),pct=level>=20?100:Math.max(0,Math.min(100,((xp-floor)/span)*100));
+  return `<div class="experience-card party-xp-card"><div class="experience-heading"><div><span>Experience</span><b>Level ${level}</b></div><strong>${xp.toLocaleString()} XP</strong></div><div class="experience-track"><i style="width:${pct}%"></i></div><div class="experience-meta"><strong>${level>=20?'Maximum Level':`${Math.max(0,xp-floor).toLocaleString()} / ${span.toLocaleString()} toward Level ${level+1}`}</strong><small>${level>=20?'Level 20':`${Math.max(0,ceil-xp).toLocaleString()} XP remaining`}</small></div></div>`;
+}
+
+async function showPartyMemberDetails(member) {
   document.querySelector('#partyMemberOverlay')?.remove();
   const overlay=document.createElement('div');
   overlay.id='partyMemberOverlay';overlay.className='modal-overlay';
@@ -3587,6 +3646,7 @@ function showPartyMemberDetails(member) {
         <p>${escapeHtml(member.displayName)} • @${escapeHtml(member.discordUsername)}</p>
         <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} • ${escapeHtml(member.backgroundName||'')} ${member.alignment?`• ${escapeHtml(member.alignment)}`:''}</p>
         <div class="vitals party-detail-vitals"><div>HP <b ${member.characterId===currentGameData?.character?.characterId?'data-live-self-hp':''}>${member.currentHp}/${member.maxHp}</b></div><div>AC <b>${member.armorClass}</b></div><div>Initiative <b>${formatSigned(member.initiative)}</b></div><div>Speed <b>${member.speed} ft.</b></div><div>Passive Perception <b>${member.passivePerception}</b></div><div>Proficiency <b>${formatSigned(member.proficiencyBonus)}</b></div></div>
+        <div id="partyProgressionDetail"><div class="loading mini">Loading Experience and Alignment...</div></div>
         <div class="stats">${statBox('STR',member.strength)}${statBox('DEX',member.dexterity)}${statBox('CON',member.constitution)}${statBox('INT',member.intelligence)}${statBox('WIS',member.wisdom)}${statBox('CHA',member.charisma)}</div>
       </div>
     </div>
@@ -3595,6 +3655,12 @@ function showPartyMemberDetails(member) {
   document.querySelector('#closePartyMember').onclick=()=>overlay.remove();
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   hydratePortraits(overlay);
+  try {
+    const detail=await api(`/game-api/campaigns/${currentCampaignId}/party/${member.characterId}/details`);
+    const host=overlay.querySelector('#partyProgressionDetail');
+    if(host)host.innerHTML=`${partyExperienceGaugeMarkup(detail)}${alignmentGaugeMarkup(detail)}${isSoloCampaign()&&!detail.activeSoloCharacter?'<button id="partyPlayAs" class="button primary wide solo-play-as">Play As This Character</button>':''}`;
+    const playAs=overlay.querySelector('#partyPlayAs');if(playAs)playAs.onclick=async()=>{overlay.remove();await switchSoloActiveCharacter(member.characterId,{preserveTab:true});};
+  } catch(error) { const host=overlay.querySelector('#partyProgressionDetail');if(host)host.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`; }
 }
 
 function statBox(name,score){return `<div class="stat"><span>${name}</span><b>${score}</b><small>${formatSigned(abilityMod(score))}</small></div>`;}
@@ -3722,7 +3788,7 @@ function renderCharacterTab(){
           </div>
         </div>
       </section>
-      <section class="panel party-panel"><h3>Campaign Party</h3><p class="muted">Select a character to view their portrait and current public combat stats.</p>
+      <section class="panel party-panel"><div class="party-panel-heading"><div><h3>Campaign Party</h3><p class="muted">Select a character to view combat stats, Experience, and Alignment.</p></div>${isSoloCampaign()?`<button id="addSoloPartyMember" class="button primary small" ${currentGameData.soloParty?.canAdd?'':'disabled'}>Add Party Member</button>`:''}</div>${isSoloCampaign()?`<small class="solo-party-count">${Number(currentGameData.soloParty?.characterCount)||party.length} / ${Number(currentGameData.soloParty?.maxCharacters)||5} player-controlled characters</small>`:''}
         <div class="party-list visual-party-list">${party.length?party.map((p,index)=>`<button class="party-card visual-party-card" data-party-index="${index}">
           ${portraitFrameHtml(p.characterId,p.characterName,p.hasPortrait,'party-thumbnail')}
           <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP <b ${p.characterId===c.characterId?'data-live-self-hp':''}>${p.currentHp}/${p.maxHp}</b> • AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
@@ -3730,6 +3796,7 @@ function renderCharacterTab(){
       </section>
     </div>`;
   document.querySelector('#refreshParty').onclick=refreshPartyData;
+  const addSolo=document.querySelector('#addSoloPartyMember');if(addSolo)addSolo.onclick=()=>showCharacterCreator(currentCampaignId,{soloPartyMember:true});
   document.querySelector('#characterDetails').onclick=showCharacterDetails;
   document.querySelector('#uploadPortrait').onclick=()=>document.querySelector('#portraitFile').click();
   document.querySelector('#portraitFile').onchange=e=>uploadCharacterPortrait(e.target.files?.[0]);
