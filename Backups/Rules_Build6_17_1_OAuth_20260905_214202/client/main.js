@@ -5,8 +5,6 @@ const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
 let discordAccessToken = null;
 let currentDiscordUser = null;
-// RULES BUILD 6.17.1 - DISCORD OAUTH RATE LIMIT / DUPLICATE EXCHANGE GUARD
-let discordSetupPromise = null;
 let currentCampaignId = null;
 let currentGameData = null;
 let selectedInventoryId = null;
@@ -203,16 +201,7 @@ async function checkServer() {
   }
 }
 
-function setupDiscord() {
-  // Startup can be triggered more than once by Activity lifecycle/render behavior.
-  // Share one promise so a one-use Discord authorization code is never exchanged
-  // concurrently by duplicate initialization paths.
-  if (discordSetupPromise) return discordSetupPromise;
-  discordSetupPromise = setupDiscordCore();
-  return discordSetupPromise;
-}
-
-async function setupDiscordCore() {
+async function setupDiscord() {
   const userBox = document.querySelector('#discordUser');
   try {
     if (!import.meta.env.VITE_DISCORD_CLIENT_ID) throw new Error('VITE_DISCORD_CLIENT_ID is missing from .env.');
@@ -233,16 +222,7 @@ async function setupDiscordCore() {
       body: JSON.stringify({ code }),
     });
     const tokenData = await readResponse(tokenResponse);
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      if (tokenResponse.status === 429 || tokenData.error === 'discord_rate_limited') {
-        const retryAfter = Number(tokenData.retry_after);
-        const delayText = Number.isFinite(retryAfter) && retryAfter > 0
-          ? ` Try again in about ${Math.max(1, Math.ceil(retryAfter))} seconds.`
-          : ' Try again shortly.';
-        throw new Error(`Discord is temporarily rate limiting login requests.${delayText}`);
-      }
-      throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
-    }
+    if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
 
     discordAccessToken = tokenData.access_token;
     discordAuth = await discordSdk.commands.authenticate({ access_token: discordAccessToken });

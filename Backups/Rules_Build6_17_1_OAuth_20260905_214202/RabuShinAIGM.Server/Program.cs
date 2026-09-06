@@ -32,7 +32,6 @@ app.MapGet("/api/health", () => Results.Ok(new
     productionHost = true
 }));
 
-// RULES BUILD 6.17.1 - DISCORD OAUTH RATE LIMIT / DUPLICATE EXCHANGE GUARD
 app.MapPost("/api/token", async (
     DiscordTokenRequest body,
     DiscordOAuthService oauth) =>
@@ -51,8 +50,7 @@ app.MapPost("/api/token", async (
         {
             success = false,
             error = ex.ErrorCode,
-            error_description = ex.Message,
-            retry_after = ex.RetryAfterSeconds
+            error_description = ex.Message
         }, statusCode: ex.StatusCode);
     }
     catch (Exception ex)

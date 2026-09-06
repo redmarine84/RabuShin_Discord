@@ -32,7 +32,6 @@ app.MapGet("/api/health", () => Results.Ok(new
     productionHost = true
 }));
 
-// RULES BUILD 6.17.1 - DISCORD OAUTH RATE LIMIT / DUPLICATE EXCHANGE GUARD
 app.MapPost("/api/token", async (
     DiscordTokenRequest body,
     DiscordOAuthService oauth) =>
@@ -51,8 +50,7 @@ app.MapPost("/api/token", async (
         {
             success = false,
             error = ex.ErrorCode,
-            error_description = ex.Message,
-            retry_after = ex.RetryAfterSeconds
+            error_description = ex.Message
         }, statusCode: ex.StatusCode);
     }
     catch (Exception ex)
@@ -66,7 +64,6 @@ app.MapPost("/api/token", async (
     }
 });
 
-// RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
 app.MapGet("/game-api/health", () => Results.Ok(new
 {
     success = true,
@@ -91,7 +88,7 @@ app.MapGet("/game-api/campaigns", async (HttpRequest request, DiscordSupabaseSer
             {
                 campaignId = c.CampaignId, campaignName = c.CampaignName, joinCode = c.JoinCode,
                 currentChapter = c.CurrentChapter, currentLocation = c.CurrentLocation,
-                isOwner = c.IsOwner, memberCount = c.MemberCount, campaignMode = c.CampaignMode
+                isOwner = c.IsOwner, memberCount = c.MemberCount
             })
         });
     }
@@ -107,18 +104,6 @@ app.MapPost("/game-api/campaigns", async (HttpRequest request, CreateDiscordCamp
         var playerId = await service.GetOrCreatePlayerAsync(user);
         var id = await service.CreateCampaignAsync(playerId, body.CampaignName);
         return Results.Ok(new { success = true, campaignId = id });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/solo", async (HttpRequest request, CreateDiscordCampaignRequest body, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var id = await service.CreateSoloCampaignAsync(playerId, body.CampaignName);
-        return Results.Ok(new { success = true, campaignId = id, campaignMode = "solo" });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
@@ -173,7 +158,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/leave", async (Guid campaignI
     }
 });
 
-// RULES BUILD 6.13.1 - FULL HYBRID HERITAGE INHERITANCE
 app.MapGet("/game-api/character-options", () => Results.Ok(new
 {
     success = true,
@@ -269,48 +253,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/rest-state", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
-app.MapGet("/game-api/campaigns/{campaignId:guid}/world-time", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(playerId, campaignId);
-        var world = await service.GetWorldTimeStateAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, world });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapGet("/game-api/campaigns/{campaignId:guid}/sleep-state", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(playerId, campaignId);
-        var sleep = await service.GetSleepStateAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, sleep });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/long/wake", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var result = await service.WakeFromLongRestAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/rest/short/hit-die", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -399,10 +341,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
         if (className is null) return Results.BadRequest(new { success = false, error = "Invalid class." });
 
-        // Build 6.13.1: Half Race secondary heritage is chosen by the player. Generate only the
-        // primary heritage here so the legacy random generator cannot silently inject a different second half.
-        var generationSpecies = CharacterFeatureRules.IsHalfRace(species) ? CharacterFeatureRules.PrimaryHeritage(species) : species;
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(generationSpecies, CharacterGenerationService.Species);
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
         var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
 
         AppliedRacialScores scores;
@@ -414,26 +353,17 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
                 species,
                 Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
                 Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+                body.RacialAbilityChoices);
         }
         else
         {
-            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
-                species,
-                generated.Strength, generated.Dexterity, generated.Constitution,
+            scores = new AppliedRacialScores(generated.Strength, generated.Dexterity, generated.Constitution,
                 generated.Intelligence, generated.Wisdom, generated.Charisma,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
+                new Dictionary<string, int>());
         }
 
-        var profile = CharacterFeatureRules.BuildProfile(
-            species, body.SecondaryHeritage, scores,
-            body.Subrace, body.SecondarySubrace,
-            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
-            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
-            body.DwarfTool, body.SecondaryDwarfTool,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
-            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
+        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
             string.Empty, string.Empty, string.Empty, string.Empty);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
@@ -456,166 +386,20 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
 
-        // RULES BUILD 6.14.1: validate the Other Half against the modern heritage catalog
-        // before touching the older Core character creator. This prevents Tortle (and future
-        // modern heritages) from being rejected by CharacterGenerationService.BaseSpecies.
-        var secondaryHeritage = CharacterFeatureRules.ResolveSecondaryHeritage(species, body.SecondaryHeritage);
-
         var scores = CharacterFeatureRules.ApplyAbilityScores(
             species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
-            body.RacialAbilityChoices, body.Subrace, secondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        var profile = CharacterFeatureRules.BuildProfile(
-            species, secondaryHeritage, scores,
-            body.Subrace, body.SecondarySubrace,
-            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
-            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
-            body.DwarfTool, body.SecondaryDwarfTool,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
-            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
+            body.RacialAbilityChoices);
+        var profile = CharacterFeatureRules.BuildProfile(species, body.SecondaryHeritage, scores,
+            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage);
 
-        var primaryHeritage = CharacterFeatureRules.PrimaryHeritage(species);
-        var legacyPrimarySupported = CharacterFeatureRules.LegacyCoreSupportsHeritage(primaryHeritage, CharacterGenerationService.BaseSpecies);
-        var legacySecondarySupported = string.IsNullOrWhiteSpace(secondaryHeritage)
-            || CharacterFeatureRules.LegacyCoreSupportsHeritage(secondaryHeritage, CharacterGenerationService.BaseSpecies);
-
-        // When both halves exist in the older Core, preserve the existing path exactly.
-        // Otherwise use the primary heritage (or Human shell for a modern-only primary)
-        // and let CharacterFeatureRules + CreateCharacterWithFeaturesAsync remain authoritative
-        // for the final scores, racial traits, AC, speed, size, HP, subrace and ancestry.
-        var useLegacyHybrid = CharacterFeatureRules.IsHalfRace(species) && legacyPrimarySupported && legacySecondarySupported;
-        var legacySpeciesRequest = useLegacyHybrid ? species : primaryHeritage;
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(legacySpeciesRequest, CharacterGenerationService.Species);
-        var engineSecondaryHeritage = useLegacyHybrid ? secondaryHeritage : string.Empty;
-
+        var engineSpecies = CharacterFeatureRules.EngineSpecies(species, CharacterGenerationService.Species);
         var character = ManualCharacterCreationService.Create(
-            body.CharacterName, engineSpecies, engineSecondaryHeritage, body.ClassName,
+            body.CharacterName, engineSpecies, body.SecondaryHeritage ?? "", body.ClassName,
             body.Background, body.Alignment, body.Level,
             scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
 
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
-            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-        var saved = await service.GetCharacterAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-
-// RULES BUILD 6.17 - FULL SOLO PARTY CHARACTER CREATION
-app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random", async (
-    Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var soloState = await service.GetSoloPartyStateAsync(playerId, campaignId);
-        if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
-        if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
-
-        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
-        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
-        var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
-        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
-        if (className is null) return Results.BadRequest(new { success = false, error = "Invalid class." });
-
-        // Build 6.13.1: Half Race secondary heritage is chosen by the player. Generate only the
-        // primary heritage here so the legacy random generator cannot silently inject a different second half.
-        var generationSpecies = CharacterFeatureRules.IsHalfRace(species) ? CharacterFeatureRules.PrimaryHeritage(species) : species;
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(generationSpecies, CharacterGenerationService.Species);
-        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
-
-        AppliedRacialScores scores;
-        if (CharacterFeatureRules.IsTortleLineage(species))
-        {
-            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
-            // the classic Human +1s are removed before applying the player's Tortle choices.
-            scores = CharacterFeatureRules.ApplyAbilityScores(
-                species,
-                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
-                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
-        else
-        {
-            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
-                species,
-                generated.Strength, generated.Dexterity, generated.Constitution,
-                generated.Intelligence, generated.Wisdom, generated.Charisma,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
-
-        var profile = CharacterFeatureRules.BuildProfile(
-            species, body.SecondaryHeritage, scores,
-            body.Subrace, body.SecondarySubrace,
-            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
-            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
-            body.DwarfTool, body.SecondaryDwarfTool,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
-            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
-        var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
-            string.Empty, string.Empty, string.Empty, string.Empty);
-        var saved = await service.GetCharacterAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/manual", async (
-    Guid campaignId, EnhancedManualCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var soloState = await service.GetSoloPartyStateAsync(playerId, campaignId);
-        if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
-        if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
-
-        var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
-        var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
-        if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
-
-        // RULES BUILD 6.14.1: validate the Other Half against the modern heritage catalog
-        // before touching the older Core character creator. This prevents Tortle (and future
-        // modern heritages) from being rejected by CharacterGenerationService.BaseSpecies.
-        var secondaryHeritage = CharacterFeatureRules.ResolveSecondaryHeritage(species, body.SecondaryHeritage);
-
-        var scores = CharacterFeatureRules.ApplyAbilityScores(
-            species, body.Strength, body.Dexterity, body.Constitution, body.Intelligence, body.Wisdom, body.Charisma,
-            body.RacialAbilityChoices, body.Subrace, secondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        var profile = CharacterFeatureRules.BuildProfile(
-            species, secondaryHeritage, scores,
-            body.Subrace, body.SecondarySubrace,
-            body.DragonbornAncestry, body.SecondaryDragonbornAncestry,
-            body.HighElfCantrip, body.HighElfLanguage, body.SecondaryHighElfCantrip, body.SecondaryHighElfLanguage,
-            body.DwarfTool, body.SecondaryDwarfTool,
-            body.TortleSize, body.TortleNatureSkill, body.TortleLanguage,
-            body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
-
-        var primaryHeritage = CharacterFeatureRules.PrimaryHeritage(species);
-        var legacyPrimarySupported = CharacterFeatureRules.LegacyCoreSupportsHeritage(primaryHeritage, CharacterGenerationService.BaseSpecies);
-        var legacySecondarySupported = string.IsNullOrWhiteSpace(secondaryHeritage)
-            || CharacterFeatureRules.LegacyCoreSupportsHeritage(secondaryHeritage, CharacterGenerationService.BaseSpecies);
-
-        // When both halves exist in the older Core, preserve the existing path exactly.
-        // Otherwise use the primary heritage (or Human shell for a modern-only primary)
-        // and let CharacterFeatureRules + CreateCharacterWithFeaturesAsync remain authoritative
-        // for the final scores, racial traits, AC, speed, size, HP, subrace and ancestry.
-        var useLegacyHybrid = CharacterFeatureRules.IsHalfRace(species) && legacyPrimarySupported && legacySecondarySupported;
-        var legacySpeciesRequest = useLegacyHybrid ? species : primaryHeritage;
-        var engineSpecies = CharacterFeatureRules.EngineSpecies(legacySpeciesRequest, CharacterGenerationService.Species);
-        var engineSecondaryHeritage = useLegacyHybrid ? secondaryHeritage : string.Empty;
-
-        var character = ManualCharacterCreationService.Create(
-            body.CharacterName, engineSpecies, engineSecondaryHeritage, body.ClassName,
-            body.Background, body.Alignment, body.Level,
-            scores.Strength, scores.Dexterity, scores.Constitution, scores.Intelligence, scores.Wisdom, scores.Charisma,
-            body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-
-        var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
@@ -689,59 +473,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/party", async (
         return Results.Ok(new { success = true, party = party.Select(ProgramHelpers.ToClientPartyMember) });
     }
     catch (UnauthorizedAccessException ex) { return Results.Json(new { success = false, error = ex.Message }, statusCode: 401); }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-
-app.MapGet("/game-api/campaigns/{campaignId:guid}/solo-party", async (Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var state = await service.GetSoloPartyStateAsync(playerId, campaignId);
-        var party = await service.GetPartyAsync(playerId, campaignId);
-        return Results.Ok(new
-        {
-            success = true, isSolo = state.IsSolo, characterCount = state.CharacterCount,
-            maxCharacters = state.MaxCharacters, activeCharacterId = state.ActiveCharacterId,
-            activeCharacterName = state.ActiveCharacterName, canAdd = state.CanAdd,
-            characters = party.Select(p => new { characterId = p.CharacterId, characterName = p.CharacterName, level = p.Level })
-        });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/active", async (Guid campaignId, SoloActiveCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.SetActiveSoloCharacterAsync(playerId, campaignId, body.CharacterId);
-        var character = await service.GetCharacterAsync(playerId, campaignId);
-        return Results.Ok(new { success = true, character = character is null ? null : ProgramHelpers.ToClientCharacter(character) });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
-app.MapGet("/game-api/campaigns/{campaignId:guid}/party/{characterId:guid}/details", async (Guid campaignId, Guid characterId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var detail = await service.GetPartyCharacterDetailsAsync(playerId, campaignId, characterId);
-        return detail is null
-            ? Results.NotFound(new { success = false, error = "Party character could not be found." })
-            : Results.Ok(new
-            {
-                success = true, characterId = detail.CharacterId, level = detail.Level, experience = detail.Experience,
-                alignment = detail.Alignment, alignmentDeedBalance = detail.AlignmentDeedBalance,
-                goodDeeds = detail.AlignmentGoodDeeds, evilDeeds = detail.AlignmentEvilDeeds,
-                activeSoloCharacter = detail.ActiveSoloCharacter
-            });
-    }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
@@ -997,7 +728,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
         var party = await service.GetPartyAsync(playerId, campaignId);
-        var soloPartyState = await service.GetSoloPartyStateAsync(playerId, campaignId);
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var spells = await service.GetSpellsAsync(playerId, campaignId);
         var slots = await service.GetSpellSlotsAsync(playerId, campaignId);
@@ -1005,22 +735,15 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         var chat = await service.GetMessagesAsync(playerId, campaignId, "chat", 100);
         var journal = await service.GetJournalAsync(playerId, campaignId);
         var survival = await service.GetSurvivalStateAsync(playerId, campaignId);
-        var worldTime = await service.GetWorldTimeStateAsync(playerId, campaignId);
         var encumbrance = ItemPhysicalProfileService.CalculateEncumbrance(character.Strength, inventory);
 
         return Results.Ok(new
         {
             success = true,
             campaign = new { campaignId = campaign.CampaignId, campaignName = campaign.CampaignName, joinCode = campaign.JoinCode,
-                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount, campaignMode = campaign.CampaignMode },
+                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount },
             character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
             party = party.Select(ProgramHelpers.ToClientPartyMember),
-            soloParty = new
-            {
-                isSolo = soloPartyState.IsSolo, characterCount = soloPartyState.CharacterCount, maxCharacters = soloPartyState.MaxCharacters,
-                activeCharacterId = soloPartyState.ActiveCharacterId, activeCharacterName = soloPartyState.ActiveCharacterName, canAdd = soloPartyState.CanAdd,
-                characters = party.Select(p => new { characterId = p.CharacterId, characterName = p.CharacterName, level = p.Level })
-            },
             inventory = inventory.Select(WaterskinMechanicsService.ToClientItem),
             inventoryValuations = inventory.Select(ItemValuationService.ToClientValuation),
             spells = spells.Select(s => new { characterSpellId=s.CharacterSpellId,spellName=s.SpellName,spellLevel=s.SpellLevel,prepared=s.Prepared,sourceTag=s.SourceTag,spellData=s.SpellData }),
@@ -1029,7 +752,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
             chatMessages = chat.Select(m => new { messageId=m.MessageId,roleName=m.RoleName,senderName=m.SenderName,messageText=m.MessageText,createdAt=m.CreatedAt }),
             journal = journal.Select(j => new { journalId=j.JournalId,category=j.Category,title=j.Title,entryText=j.EntryText,createdAt=j.CreatedAt }),
             survival = survival?.ToClientState(),
-            worldTime,
             encumbrance = new
             {
                 carriedWeightLb = encumbrance.CarriedWeightLb,
@@ -1709,31 +1431,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
         if (item is null)
             return Results.BadRequest(new { success = false, error = "That item is not sold by this shop." });
 
-        // RULES BUILD 6.15 - INN/TAVERN SERVICES
-        var hospitalityKind = (poi.ShopKind ?? string.Empty).Trim().ToLowerInvariant();
-        if (hospitalityKind is "inn" or "tavern" or "inn-tavern")
-        {
-            var hospitality = await service.BuyHospitalityServiceAsync(
-                playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
-            decimal ReadDecimal(string name, decimal fallback)
-                => hospitality.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
-                    ? value.GetDecimal() : fallback;
-            string ReadString(string name, string fallback)
-                => hospitality.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-                    ? value.GetString() ?? fallback : fallback;
-
-            return Results.Ok(new
-            {
-                success = true, shopName = poi.Name, itemKey = item.ItemKey, itemName = item.ItemName,
-                quantityPurchased = quantity, quantityCarried = 0, unitPriceGp = item.PriceGp,
-                totalPriceGp = ReadDecimal("total_price_gp", item.PriceGp * quantity),
-                remainingGold = ReadDecimal("remaining_gold", 0m),
-                message = ReadString("message", "Purchase completed."),
-                hungerBefore = ReadDecimal("hunger_before", -1m), hungerAfter = ReadDecimal("hunger_after", -1m),
-                thirstBefore = ReadDecimal("thirst_before", -1m), thirstAfter = ReadDecimal("thirst_after", -1m)
-            });
-        }
-
         var result = await service.BuySettlementShopItemAsync(
             playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);
 
@@ -2195,7 +1892,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
 });
 
 // RULES BUILD 6.2 - SERVER-AUTHORITATIVE DEATH / RESPAWN WORKFLOW
-// RULES BUILD 6.14.2 - ACTIVE-PLAYER 1 GP DONATION FLOW
 app.MapGet("/game-api/campaigns/{campaignId:guid}/death-state", async (
     Guid campaignId,
     HttpRequest request,
@@ -2226,14 +1922,13 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/choice", async (
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.ChooseRespawnAsync(player, campaignId, body.Respawn);
 
         var characterName = string.IsNullOrWhiteSpace(result.CharacterName) ? "A party member" : result.CharacterName;
         if (result.Outcome.Equals("awaiting_donations", StringComparison.OrdinalIgnoreCase))
         {
             await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{characterName} has died and does not have enough gold to Respawn. The other active players are being asked whether they want to donate. 10 GP is required.");
+                $"{characterName} has died and does not have enough gold to respawn. Do you want to donate GP to revive them? 10 GP needed for revival.");
         }
         else if (result.Outcome.Equals("self_paid_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -2259,26 +1954,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/choice", async (
     }
 });
 
-app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/accept-donation", async (
-    Guid campaignId,
-    Guid deathId,
-    HttpRequest request,
-    DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        var result = await service.AcceptRespawnDonationAsync(player, campaignId, deathId);
-        return Results.Ok(new { success = true, result });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
-
 app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/donate", async (
     Guid campaignId,
     Guid deathId,
@@ -2290,16 +1965,13 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/donate",
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
-        if (body.AmountGp != 1)
-            return Results.BadRequest(new { success = false, error = "Respawn donations are made exactly 1 GP at a time." });
-        var result = await service.DonateToRespawnAsync(player, campaignId, deathId, 1);
+        var result = await service.DonateToRespawnAsync(player, campaignId, deathId, body.AmountGp);
 
         if (result.Outcome.Equals("donated", StringComparison.OrdinalIgnoreCase))
         {
             var donor = string.IsNullOrWhiteSpace(result.DonorCharacterName) ? (user.GlobalName ?? user.Username) : result.DonorCharacterName;
             await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
-                $"{donor} donated 1 GP to the Respawn fund. {result.RemainingGp} GP still needed.");
+                $"{donor} donated {result.DonatedNow} GP to the Respawn fund. {result.RemainingGp} GP still needed.");
         }
         else if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -2326,7 +1998,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/decline"
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.DeclineRespawnDonationAsync(player, campaignId, deathId);
         if (result.Outcome.Equals("rag_respawn", StringComparison.OrdinalIgnoreCase))
         {
@@ -2352,7 +2023,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/death/{deathId:guid}/revive",
     {
         var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
         var player = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(player, campaignId);
         var result = await service.FinalizePartyRespawnAsync(player, campaignId, deathId);
         var name = string.IsNullOrWhiteSpace(result.CharacterName) ? "The fallen party member" : result.CharacterName;
         await service.AddMessageAsync(player, campaignId, "gm", "assistant", "RabuShin AI GM",
@@ -2864,7 +2534,6 @@ public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
 public sealed record SurvivalSettingsRequest(bool Enabled);
-public sealed record SoloActiveCharacterRequest(Guid CharacterId);
 public sealed record SettlementMoveRequest(string PoiKey);
 public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);
 public sealed record SettlementShopSaleRequest(Guid InventoryItemId, int Quantity);

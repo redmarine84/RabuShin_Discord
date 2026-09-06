@@ -5,8 +5,6 @@ const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
 let discordAccessToken = null;
 let currentDiscordUser = null;
-// RULES BUILD 6.17.1 - DISCORD OAUTH RATE LIMIT / DUPLICATE EXCHANGE GUARD
-let discordSetupPromise = null;
 let currentCampaignId = null;
 let currentGameData = null;
 let selectedInventoryId = null;
@@ -40,7 +38,6 @@ let gmMessageSignature = '';
 let chatMessageSignature = '';
 
 // RULES BUILD 6.2 - DEATH / RESPAWN LIVE STATE
-// RULES BUILD 6.14.2 - ACTIVE PLAYER 1 GP RESPAWN DONATIONS
 let deathStatePollTimer = null;
 let deathStatePollBusy = false;
 let deathActionBusy = false;
@@ -65,19 +62,6 @@ let restOverlaySignature = '';
 // RULES BUILD 6.8 - SURVIVAL / ENCUMBRANCE
 let survivalPollTimer = null;
 let survivalPollBusy = false;
-
-// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
-let worldTimePollTimer = null;
-let worldTimePollBusy = false;
-let sleepStatePollTimer = null;
-let sleepStatePollBusy = false;
-let sleepWakeBusy = false;
-let lastSleepState = null;
-let sleepOverlaySignature = '';
-
-// RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
-let soloSwitchBusy = false;
-
 
 // RULES BUILD 6.12 - AI GAME MASTER VOICE
 // Voice preferences are intentionally local to each Discord player/device.
@@ -203,16 +187,7 @@ async function checkServer() {
   }
 }
 
-function setupDiscord() {
-  // Startup can be triggered more than once by Activity lifecycle/render behavior.
-  // Share one promise so a one-use Discord authorization code is never exchanged
-  // concurrently by duplicate initialization paths.
-  if (discordSetupPromise) return discordSetupPromise;
-  discordSetupPromise = setupDiscordCore();
-  return discordSetupPromise;
-}
-
-async function setupDiscordCore() {
+async function setupDiscord() {
   const userBox = document.querySelector('#discordUser');
   try {
     if (!import.meta.env.VITE_DISCORD_CLIENT_ID) throw new Error('VITE_DISCORD_CLIENT_ID is missing from .env.');
@@ -233,16 +208,7 @@ async function setupDiscordCore() {
       body: JSON.stringify({ code }),
     });
     const tokenData = await readResponse(tokenResponse);
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      if (tokenResponse.status === 429 || tokenData.error === 'discord_rate_limited') {
-        const retryAfter = Number(tokenData.retry_after);
-        const delayText = Number.isFinite(retryAfter) && retryAfter > 0
-          ? ` Try again in about ${Math.max(1, Math.ceil(retryAfter))} seconds.`
-          : ' Try again shortly.';
-        throw new Error(`Discord is temporarily rate limiting login requests.${delayText}`);
-      }
-      throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
-    }
+    if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
 
     discordAccessToken = tokenData.access_token;
     discordAuth = await discordSdk.commands.authenticate({ access_token: discordAccessToken });
@@ -276,8 +242,6 @@ async function showCampaignLauncher() {
   stopProgressionPolling();
   stopRestStatePolling();
   stopSurvivalPolling();
-  stopWorldTimePolling();
-  stopSleepStatePolling();
   document.querySelector('#deathOverlay')?.remove();
   document.body.classList.remove('death-modal-open');
   document.querySelector('#levelUpOverlay')?.remove();
@@ -288,9 +252,6 @@ async function showCampaignLauncher() {
   lastDeathState=null;
   lastRestState=null;
   restOverlaySignature='';
-  lastSleepState=null;
-  sleepOverlaySignature='';
-  document.querySelector('#sleepOverlay')?.remove();
   activeGameTab = 'gm';
   gmTurnState = null;
   gmTurnToken = null;
@@ -312,7 +273,7 @@ async function showCampaignLauncher() {
         <div id="campaignList" class="campaign-list"><div class="loading">Loading campaigns...</div></div>
       </section>
       <div class="launcher-actions">
-        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Choose Solo Play or Play with Friends</span></button>
+        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Create a new multiplayer adventure</span></button>
         <button id="joinCampaign" class="action"><b># Join With Campaign Code</b><span>Enter a code from another player</span></button>
       </div>
       <div class="public-legal-note">By using RabuShinAIGM, you agree to the <button class="link-button" data-legal="terms">Terms of Service</button> and acknowledge the <button class="link-button" data-legal="privacy">Privacy Policy</button>. <button class="link-button" data-legal="support">Support</button></div>
@@ -339,10 +300,8 @@ async function loadCampaigns() {
       <div class="campaign-card">
         <div>
           <h4>${escapeHtml(c.campaignName)}</h4>
-          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${String(c.campaignMode||'friends').toLowerCase()==='solo'?'Solo Campaign':`${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}`}</p>
-          <small>${String(c.campaignMode||'friends').toLowerCase()==='solo'
-            ? `Solo Play: <strong>${escapeHtml(currentDiscordUser?.global_name||currentDiscordUser?.username||'Player')}</strong>`
-            : `Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong>`}</small>
+          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}</p>
+          <small>Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong></small>
         </div>
         <div class="row gap campaign-actions">
           ${c.isOwner ? '<span class="badge">OWNER</span>' : ''}
@@ -416,18 +375,12 @@ function showLeaveCampaignDialog(campaignId, campaignName) {
 }
 
 function showNewCampaignDialog() {
-  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">
-    <div class="campaign-mode-picker">
-      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="solo" checked><span><b>Play Solo</b><small>Control your hero plus up to 4 additional party characters.</small></span></label>
-      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="friends"><span><b>Play with Friends</b><small>Use the existing Discord multiplayer campaign and join-code system.</small></span></label>
-    </div>`, 'Create Campaign', async () => {
+  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">`, 'Create Campaign', async () => {
     const name = document.querySelector('#campaignName').value.trim();
     if (!name) throw new Error('Campaign name is required.');
-    const mode=document.querySelector('input[name="campaignMode"]:checked')?.value||'solo';
-    const result=await api(mode==='solo'?'/game-api/campaigns/solo':'/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
+    await api('/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
     document.querySelector('#modalOverlay').remove();
-    showNotice(mode==='solo'?'Solo Play campaign created.':'Friends campaign created.');
-    if(result.campaignId) return openCampaign(result.campaignId);
+    showNotice('Campaign created.');
     await loadCampaigns();
   });
 }
@@ -470,7 +423,7 @@ function populateSelect(selector, values) {
   select.innerHTML = (values || []).map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
 }
 
-// RULES BUILD 6.13.1 - FULL HYBRID HERITAGE INHERITANCE
+// RULES BUILD 6.13 - SUBRACES + DRACONIC ANCESTRY
 function primaryRaceName(species) {
   const value=String(species||'').trim();
   return value.startsWith('Half ')?value.substring(5).trim():value;
@@ -478,18 +431,18 @@ function primaryRaceName(species) {
 
 function isTortleRace(species){return primaryRaceName(species).toLowerCase()==='tortle';}
 
-function subraceRulesForHeritage(heritage,data){
-  const rules=data?.racialRules?.subraces?.[String(heritage||'').trim()];
+function subraceRulesFor(species,data){
+  const heritage=primaryRaceName(species);
+  const rules=data?.racialRules?.subraces?.[heritage];
   return Array.isArray(rules)?rules:[];
 }
-
-function subraceRulesFor(species,data){return subraceRulesForHeritage(primaryRaceName(species),data);}
 
 function selectedSubraceRule(species,name,data){
   return subraceRulesFor(species,data).find(r=>String(r?.name||'').toLowerCase()===String(name||'').toLowerCase())||null;
 }
 
 function subraceDetailHtml(prefix,species,name,data){
+  const heritage=primaryRaceName(species);
   const rule=selectedSubraceRule(species,name,data);
   if(!rule)return '';
   const bonuses=rule.abilityBonuses&&typeof rule.abilityBonuses==='object'
@@ -520,76 +473,28 @@ function dragonbornAncestryDetailHtml(ancestry){
   </div>`;
 }
 
-function tortleChoiceFieldsHtml(optionPrefix,data,labelPrefix=''){
-  const t=data?.racialRules?.tortle||{};
-  const abilityOptions=(data?.racialRules?.abilityNames||['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
-  const skills=(t.natureSkills||['Animal Handling','Medicine','Nature','Perception','Stealth','Survival']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
-  return `<div class="racial-choice-section tortle-choice-section">
-    <small>${escapeHtml(labelPrefix)}Natural Armor (base AC 17), 1d6 claws, Hold Breath, Nature's Intuition, and Shell Defense are inherited.</small>
-    <div class="form-grid racial-choice-grid">
-      <div><label>Ability Increase Pattern</label><select id="${optionPrefix}TortlePattern" class="input"><option value="21">+2 / +1</option><option value="111">+1 / +1 / +1</option></select></div>
-      <div><label>Tortle Size Choice</label><select id="${optionPrefix}TortleSize" class="input"><option>Medium</option><option>Small</option></select></div>
-      <div><label id="${optionPrefix}AbilityALabel">+2 Ability</label><select id="${optionPrefix}AbilityA" class="input">${abilityOptions}</select></div>
-      <div><label>+1 Ability</label><select id="${optionPrefix}AbilityB" class="input">${abilityOptions}</select></div>
-      <div id="${optionPrefix}AbilityCBox" hidden><label>+1 Ability</label><select id="${optionPrefix}AbilityC" class="input">${abilityOptions}</select></div>
-      <div><label>Nature's Intuition</label><select id="${optionPrefix}TortleSkill" class="input">${skills}</select></div>
-      <div><label>Additional Language</label><input id="${optionPrefix}TortleLanguage" class="input" value="${escapeHtml(t.defaultLanguage||'Aquan')}"></div>
-    </div>
-  </div>`;
-}
-
-function wireTortleChoiceFields(optionPrefix,saved={}){
-  const pattern=document.querySelector(`#${optionPrefix}TortlePattern`);
-  if(!pattern)return;
-  const updatePattern=()=>{
-    const three=pattern.value==='111';
-    const cBox=document.querySelector(`#${optionPrefix}AbilityCBox`);
-    const aLabel=document.querySelector(`#${optionPrefix}AbilityALabel`);
-    if(cBox)cBox.hidden=!three;
-    if(aLabel)aLabel.textContent=three?'+1 Ability':'+2 Ability';
-  };
-  if(saved.tortlePattern)pattern.value=saved.tortlePattern;
-  pattern.onchange=updatePattern; updatePattern();
-  const a=document.querySelector(`#${optionPrefix}AbilityA`),b=document.querySelector(`#${optionPrefix}AbilityB`),c=document.querySelector(`#${optionPrefix}AbilityC`);
-  if(a)a.value=saved.abilityA||'Strength';
-  if(b)b.value=saved.abilityB||'Wisdom';
-  if(c)c.value=saved.abilityC||'Constitution';
-  const size=document.querySelector(`#${optionPrefix}TortleSize`),skill=document.querySelector(`#${optionPrefix}TortleSkill`),language=document.querySelector(`#${optionPrefix}TortleLanguage`);
-  if(size&&saved.tortleSize)size.value=saved.tortleSize;
-  if(skill&&saved.tortleSkill)skill.value=saved.tortleSkill;
-  if(language&&saved.tortleLanguage)language.value=saved.tortleLanguage;
-}
-
-function collectTortleChoiceFields(optionPrefix,label){
-  const pattern=document.querySelector(`#${optionPrefix}TortlePattern`)?.value;
-  if(!pattern)return null;
-  const a=document.querySelector(`#${optionPrefix}AbilityA`)?.value;
-  const b=document.querySelector(`#${optionPrefix}AbilityB`)?.value;
-  const c=document.querySelector(`#${optionPrefix}AbilityC`)?.value;
-  const selected=pattern==='111'?[a,b,c]:[a,b];
-  if(selected.some(v=>!v))throw new Error(`Choose all ${label} Tortle ability increases.`);
-  if(new Set(selected).size!==selected.length)throw new Error(`Each ${label} Tortle ability increase must use a different ability score.`);
-  const abilityChoices={};
-  if(pattern==='111'){abilityChoices[a]=1;abilityChoices[b]=1;abilityChoices[c]=1;}
-  else {abilityChoices[a]=2;abilityChoices[b]=1;}
-  return {
-    abilityChoices,
-    size:document.querySelector(`#${optionPrefix}TortleSize`)?.value||'Medium',
-    skill:document.querySelector(`#${optionPrefix}TortleSkill`)?.value||'Survival',
-    language:document.querySelector(`#${optionPrefix}TortleLanguage`)?.value?.trim()||'Aquan'
-  };
-}
-
 function racialOptionsHtml(prefix,species,data){
   const heritage=primaryRaceName(species);
   const fixed=data?.racialRules?.fixedBonuses?.[heritage]||null;
   const half=String(species||'').startsWith('Half ');
-  const halfNote=half?`<p class="racial-note">Hybrid Heritage: both racial halves now contribute their base racial traits and ability-score increases. If either half has a subrace or Draconic Ancestry, that half receives its own choice below.</p>`:'';
+  const halfNote=half?`<p class="racial-note">Your ${escapeHtml(heritage)} subrace/ancestry applies to the ${escapeHtml(heritage)} half and compounds with that half's base racial traits. Your selected second heritage remains a separate merged heritage.</p>`:'';
   if(isTortleRace(species)){
-    return `${halfNote}<div class="racial-rule-card"><b>${half?'Primary Half':'Racial Heritage'}: Tortle</b>${tortleChoiceFieldsHtml(prefix,data,'')}</div>`;
+    const t=data?.racialRules?.tortle||{};
+    const abilityOptions=(data?.racialRules?.abilityNames||['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+    const skills=(t.natureSkills||['Animal Handling','Medicine','Nature','Perception','Stealth','Survival']).map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+    return `${halfNote}<div class="racial-rule-card"><b>Tortle Racial Choices</b><small>Natural Armor (base AC 17), 1d6 claws, Hold Breath, Nature's Intuition, and Shell Defense are applied automatically.</small>
+      <div class="form-grid racial-choice-grid">
+        <div><label>Ability Increase Pattern</label><select id="${prefix}TortlePattern" class="input"><option value="21">+2 / +1</option><option value="111">+1 / +1 / +1</option></select></div>
+        <div><label>Size</label><select id="${prefix}TortleSize" class="input"><option>Medium</option><option>Small</option></select></div>
+        <div><label id="${prefix}AbilityALabel">+2 Ability</label><select id="${prefix}AbilityA" class="input">${abilityOptions}</select></div>
+        <div><label>+1 Ability</label><select id="${prefix}AbilityB" class="input">${abilityOptions}</select></div>
+        <div id="${prefix}AbilityCBox" hidden><label>+1 Ability</label><select id="${prefix}AbilityC" class="input">${abilityOptions}</select></div>
+        <div><label>Nature's Intuition</label><select id="${prefix}TortleSkill" class="input">${skills}</select></div>
+        <div><label>Additional Language</label><input id="${prefix}TortleLanguage" class="input" value="${escapeHtml(t.defaultLanguage||'Aquan')}"></div>
+      </div></div>`;
   }
 
-  const parts=[halfNote,`<div class="racial-rule-card"><b>${half?'Primary Half':'Racial Heritage'}: ${escapeHtml(heritage)}</b>`];
+  const parts=[halfNote,'<div class="racial-rule-card"><b>Racial Heritage</b>'];
   if(fixed){
     const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
     parts.push(`<small>Base ${escapeHtml(heritage)} Ability Increase: ${escapeHtml(text)}</small>`);
@@ -599,12 +504,12 @@ function racialOptionsHtml(prefix,species,data){
 
   const subraces=subraceRulesFor(species,data);
   if(subraces.length){
-    parts.push(`<div class="racial-choice-section"><label>${half?'Primary ':''}Subrace</label><select id="${prefix}Subrace" class="input">${subraces.map(r=>`<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('')}</select><div id="${prefix}SubraceDetails"></div></div>`);
+    parts.push(`<div class="racial-choice-section"><label>Subrace</label><select id="${prefix}Subrace" class="input">${subraces.map(r=>`<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('')}</select><div id="${prefix}SubraceDetails"></div></div>`);
   }
 
   if(heritage.toLowerCase()==='dragonborn'){
     const ancestries=data?.racialRules?.dragonbornAncestries||[];
-    parts.push(`<div class="racial-choice-section"><label>${half?'Primary ':''}Draconic Ancestry</label><select id="${prefix}DragonbornAncestry" class="input">${ancestries.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)} — ${escapeHtml(a.damageType)}</option>`).join('')}</select><div id="${prefix}DragonbornAncestryDetails"></div></div>`);
+    parts.push(`<div class="racial-choice-section"><label>Draconic Ancestry</label><select id="${prefix}DragonbornAncestry" class="input">${ancestries.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)} — ${escapeHtml(a.damageType)}</option>`).join('')}</select><div id="${prefix}DragonbornAncestryDetails"></div></div>`);
   }
 
   if(heritage.toLowerCase()==='dwarf'){
@@ -616,151 +521,73 @@ function racialOptionsHtml(prefix,species,data){
   return parts.join('');
 }
 
-function secondaryHeritageOptionsHtml(prefix,species,data){
-  if(!String(species||'').startsWith('Half '))return '';
-  const secondary=document.querySelector(`#${prefix}Half`)?.value||'';
-  if(!secondary)return '';
-  const fixed=data?.racialRules?.fixedBonuses?.[secondary]||null;
-  const baseTraits=Array.isArray(data?.racialRules?.traitSummaries?.[secondary])?data.racialRules.traitSummaries[secondary]:[];
-  const parts=[`<div class="racial-rule-card secondary-heritage-card"><b>Other Half: ${escapeHtml(secondary)}</b>`];
-  if(fixed){
-    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
-    parts.push(`<small>Base ${escapeHtml(secondary)} Ability Increase: ${escapeHtml(text)} — compounds with the primary half.</small>`);
-  } else {
-    parts.push(`<small>The ${escapeHtml(secondary)} half's base racial traits are inherited.</small>`);
-  }
-  if(baseTraits.length)parts.push(`<div class="subrace-traits">${baseTraits.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div>`);
-
-  if(secondary.toLowerCase()==='tortle'){
-    parts.push(tortleChoiceFieldsHtml(`${prefix}Secondary`,data,'Secondary Tortle: '));
-  }
-
-  const subraces=subraceRulesForHeritage(secondary,data);
-  if(subraces.length){
-    parts.push(`<div class="racial-choice-section"><label>${escapeHtml(secondary)} Subrace</label><select id="${prefix}SecondarySubrace" class="input">${subraces.map(r=>`<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('')}</select><div id="${prefix}SecondarySubraceDetails"></div></div>`);
-  }
-  if(secondary.toLowerCase()==='dragonborn'){
-    const ancestries=data?.racialRules?.dragonbornAncestries||[];
-    parts.push(`<div class="racial-choice-section"><label>Secondary Draconic Ancestry</label><select id="${prefix}SecondaryDragonbornAncestry" class="input">${ancestries.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)} — ${escapeHtml(a.damageType)}</option>`).join('')}</select><div id="${prefix}SecondaryDragonbornAncestryDetails"></div></div>`);
-  }
-  if(secondary.toLowerCase()==='dwarf'){
-    const tools=data?.racialRules?.dwarfTools||["Smith's Tools","Brewer's Supplies","Mason's Tools"];
-    parts.push(`<div class="racial-choice-section"><label>Secondary Dwarf Tool Proficiency</label><select id="${prefix}SecondaryDwarfTool" class="input">${tools.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}</select></div>`);
-  }
-  parts.push('</div>');
-  return parts.join('');
-}
-
 function wireRacialOptions(prefix,species,data){
   const host=document.querySelector(`#${prefix}RacialOptions`); if(!host)return;
-  // Preserve the primary half's current choices when the player changes only the Other Half selector.
-  const savedPrimary={
-    subrace:document.querySelector(`#${prefix}Subrace`)?.value||'',
-    ancestry:document.querySelector(`#${prefix}DragonbornAncestry`)?.value||'',
-    dwarfTool:document.querySelector(`#${prefix}DwarfTool`)?.value||'',
-    highElfCantrip:document.querySelector(`#${prefix}HighElfCantrip`)?.value||'',
-    highElfLanguage:document.querySelector(`#${prefix}HighElfLanguage`)?.value||'',
-    tortlePattern:document.querySelector(`#${prefix}TortlePattern`)?.value||'',
-    abilityA:document.querySelector(`#${prefix}AbilityA`)?.value||'',
-    abilityB:document.querySelector(`#${prefix}AbilityB`)?.value||'',
-    abilityC:document.querySelector(`#${prefix}AbilityC`)?.value||'',
-    tortleSize:document.querySelector(`#${prefix}TortleSize`)?.value||'',
-    tortleSkill:document.querySelector(`#${prefix}TortleSkill`)?.value||'',
-    tortleLanguage:document.querySelector(`#${prefix}TortleLanguage`)?.value||''
-  };
-  host.innerHTML=racialOptionsHtml(prefix,species,data)+secondaryHeritageOptionsHtml(prefix,species,data);
-
-  if(isTortleRace(species))wireTortleChoiceFields(prefix,savedPrimary);
+  host.innerHTML=racialOptionsHtml(prefix,species,data);
+  if(isTortleRace(species)){
+    const pattern=document.querySelector(`#${prefix}TortlePattern`);
+    const updatePattern=()=>{
+      const three=pattern.value==='111';
+      document.querySelector(`#${prefix}AbilityCBox`).hidden=!three;
+      document.querySelector(`#${prefix}AbilityALabel`).textContent=three?'+1 Ability':'+2 Ability';
+    };
+    pattern.onchange=updatePattern; updatePattern();
+    const a=document.querySelector(`#${prefix}AbilityA`),b=document.querySelector(`#${prefix}AbilityB`),c=document.querySelector(`#${prefix}AbilityC`);
+    a.value='Strength'; b.value='Wisdom'; c.value='Constitution';
+    return;
+  }
 
   const subrace=document.querySelector(`#${prefix}Subrace`);
   if(subrace){
-    if(savedPrimary.subrace&&Array.from(subrace.options).some(o=>o.value===savedPrimary.subrace))subrace.value=savedPrimary.subrace;
     const updateSubrace=()=>{
       const detail=document.querySelector(`#${prefix}SubraceDetails`);
       if(detail)detail.innerHTML=subraceDetailHtml(prefix,species,subrace.value,data);
     };
-    subrace.onchange=updateSubrace; updateSubrace();
-    const cantrip=document.querySelector(`#${prefix}HighElfCantrip`),language=document.querySelector(`#${prefix}HighElfLanguage`);
-    if(cantrip&&savedPrimary.highElfCantrip&&Array.from(cantrip.options).some(o=>o.value===savedPrimary.highElfCantrip))cantrip.value=savedPrimary.highElfCantrip;
-    if(language&&savedPrimary.highElfLanguage)language.value=savedPrimary.highElfLanguage;
+    subrace.onchange=updateSubrace;
+    updateSubrace();
   }
 
   const ancestry=document.querySelector(`#${prefix}DragonbornAncestry`);
   if(ancestry){
-    if(savedPrimary.ancestry&&Array.from(ancestry.options).some(o=>o.value===savedPrimary.ancestry))ancestry.value=savedPrimary.ancestry;
     const updateAncestry=()=>{
       const details=document.querySelector(`#${prefix}DragonbornAncestryDetails`);
       const rule=(data?.racialRules?.dragonbornAncestries||[]).find(a=>String(a?.name||'').toLowerCase()===String(ancestry.value||'').toLowerCase());
       if(details)details.innerHTML=dragonbornAncestryDetailHtml(rule);
     };
-    ancestry.onchange=updateAncestry; updateAncestry();
-  }
-
-  const primaryDwarfTool=document.querySelector(`#${prefix}DwarfTool`);
-  if(primaryDwarfTool&&savedPrimary.dwarfTool&&Array.from(primaryDwarfTool.options).some(o=>o.value===savedPrimary.dwarfTool))primaryDwarfTool.value=savedPrimary.dwarfTool;
-
-  const secondary=document.querySelector(`#${prefix}Half`)?.value||'';
-  if(secondary.toLowerCase()==='tortle')wireTortleChoiceFields(`${prefix}Secondary`);
-  const secondarySubrace=document.querySelector(`#${prefix}SecondarySubrace`);
-  if(secondarySubrace){
-    const updateSecondarySubrace=()=>{
-      const detail=document.querySelector(`#${prefix}SecondarySubraceDetails`);
-      if(detail)detail.innerHTML=subraceDetailHtml(`${prefix}Secondary`,secondary,secondarySubrace.value,data);
-    };
-    secondarySubrace.onchange=updateSecondarySubrace; updateSecondarySubrace();
-  }
-
-  const secondaryAncestry=document.querySelector(`#${prefix}SecondaryDragonbornAncestry`);
-  if(secondaryAncestry){
-    const updateSecondaryAncestry=()=>{
-      const details=document.querySelector(`#${prefix}SecondaryDragonbornAncestryDetails`);
-      const rule=(data?.racialRules?.dragonbornAncestries||[]).find(a=>String(a?.name||'').toLowerCase()===String(secondaryAncestry.value||'').toLowerCase());
-      if(details)details.innerHTML=dragonbornAncestryDetailHtml(rule);
-    };
-    secondaryAncestry.onchange=updateSecondaryAncestry; updateSecondaryAncestry();
+    ancestry.onchange=updateAncestry;
+    updateAncestry();
   }
 }
 
 function collectRacialOptions(prefix,species){
   const heritage=primaryRaceName(species);
-  const half=String(species||'').startsWith('Half ');
-  const secondary=half?(document.querySelector(`#${prefix}Half`)?.value||''):'';
   const result={
     racialAbilityChoices:null,
-    secondaryRacialAbilityChoices:null,
     subrace:document.querySelector(`#${prefix}Subrace`)?.value||null,
-    secondarySubrace:document.querySelector(`#${prefix}SecondarySubrace`)?.value||null,
     dragonbornAncestry:document.querySelector(`#${prefix}DragonbornAncestry`)?.value||null,
-    secondaryDragonbornAncestry:document.querySelector(`#${prefix}SecondaryDragonbornAncestry`)?.value||null,
     highElfCantrip:document.querySelector(`#${prefix}HighElfCantrip`)?.value||null,
     highElfLanguage:document.querySelector(`#${prefix}HighElfLanguage`)?.value?.trim()||null,
-    secondaryHighElfCantrip:document.querySelector(`#${prefix}SecondaryHighElfCantrip`)?.value||null,
-    secondaryHighElfLanguage:document.querySelector(`#${prefix}SecondaryHighElfLanguage`)?.value?.trim()||null,
     dwarfTool:document.querySelector(`#${prefix}DwarfTool`)?.value||null,
-    secondaryDwarfTool:document.querySelector(`#${prefix}SecondaryDwarfTool`)?.value||null,
-    tortleSize:null,tortleNatureSkill:null,tortleLanguage:null,
-    secondaryTortleSize:null,secondaryTortleNatureSkill:null,secondaryTortleLanguage:null
+    tortleSize:null,tortleNatureSkill:null,tortleLanguage:null
   };
 
-  if(isTortleRace(species)){
-    const tortle=collectTortleChoiceFields(prefix,'primary');
-    result.racialAbilityChoices=tortle.abilityChoices;
-    result.tortleSize=tortle.size;
-    result.tortleNatureSkill=tortle.skill;
-    result.tortleLanguage=tortle.language;
-  }
-  if(secondary.toLowerCase()==='tortle'){
-    const tortle=collectTortleChoiceFields(`${prefix}Secondary`,'secondary');
-    result.secondaryRacialAbilityChoices=tortle.abilityChoices;
-    result.secondaryTortleSize=tortle.size;
-    result.secondaryTortleNatureSkill=tortle.skill;
-    result.secondaryTortleLanguage=tortle.language;
+  if(!isTortleRace(species)){
+    if(heritage.toLowerCase()==='elf'&&String(result.subrace||'').toLowerCase()==='high elf'&&!result.highElfLanguage)
+      throw new Error('Choose the High Elf extra language.');
+    return result;
   }
 
-  if(heritage.toLowerCase()==='elf'&&String(result.subrace||'').toLowerCase()==='high elf'&&!result.highElfLanguage)
-    throw new Error('Choose the High Elf extra language.');
-  if(secondary.toLowerCase()==='elf'&&String(result.secondarySubrace||'').toLowerCase()==='high elf'&&!result.secondaryHighElfLanguage)
-    throw new Error('Choose the High Elf extra language for the Elf half.');
+  const pattern=document.querySelector(`#${prefix}TortlePattern`).value;
+  const a=document.querySelector(`#${prefix}AbilityA`).value,b=document.querySelector(`#${prefix}AbilityB`).value,c=document.querySelector(`#${prefix}AbilityC`).value;
+  const selected=pattern==='111'?[a,b,c]:[a,b];
+  if(new Set(selected).size!==selected.length)throw new Error('Each Tortle ability increase must use a different ability score.');
+  const racialAbilityChoices={};
+  if(pattern==='111'){racialAbilityChoices[a]=1;racialAbilityChoices[b]=1;racialAbilityChoices[c]=1;}
+  else {racialAbilityChoices[a]=2;racialAbilityChoices[b]=1;}
+  result.racialAbilityChoices=racialAbilityChoices;
+  result.tortleSize=document.querySelector(`#${prefix}TortleSize`).value;
+  result.tortleNatureSkill=document.querySelector(`#${prefix}TortleSkill`).value;
+  result.tortleLanguage=document.querySelector(`#${prefix}TortleLanguage`).value.trim();
   return result;
 }
 
@@ -768,23 +595,17 @@ function configureHalfRace(prefix,species,data){
   const box=document.querySelector(`#${prefix}HalfBox`),select=document.querySelector(`#${prefix}Half`);
   if(String(species||'').startsWith('Half ')){
     const primary=primaryRaceName(species);
-    const prior=select.value;
     const choices=(data.baseSpecies||[]).filter(v=>String(v).toLowerCase()!==primary.toLowerCase());
     select.innerHTML=choices.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-    if(choices.includes(prior))select.value=prior;
     box.hidden=false;
-    select.onchange=()=>wireRacialOptions(prefix,document.querySelector(`#${prefix}Species`)?.value||species,data);
-  } else {
-    box.hidden=true;select.innerHTML='';select.onchange=null;
-  }
+  } else {box.hidden=true;select.innerHTML='';}
 }
 
-async function showCharacterCreator(campaignId, options={}) {
-  const soloPartyMember=options?.soloPartyMember===true;
+async function showCharacterCreator(campaignId) {
   const main = document.querySelector('#mainContent');
   main.innerHTML = `
     <div class="creator">
-      <div class="section-title"><div><h2>${soloPartyMember?'Add Party Member':'Create Your Character'}</h2><p>${soloPartyMember?'Create a full additional player-controlled character for your Solo party.':'One character per player in Friends campaigns. Racial bonuses are applied after the base ability scores you enter.'}</p></div><button id="creatorBack" class="button">Back</button></div>
+      <div class="section-title"><div><h2>Create Your Character</h2><p>One character per player in this campaign. Racial bonuses are applied after the base ability scores you enter.</p></div><button id="creatorBack" class="button">Back</button></div>
       <div class="tabs"><button id="randomTab" class="tab active">Random Build</button><button id="manualTab" class="tab">Manual Sheet</button></div>
       <section class="panel creator-panel">
         <div id="creatorLoading" class="loading">Loading character options...</div>
@@ -825,7 +646,7 @@ async function showCharacterCreator(campaignId, options={}) {
       </section>
     </div>`;
 
-  document.querySelector('#creatorBack').onclick = () => soloPartyMember ? enterCampaign(campaignId,'character') : showCampaignLauncher();
+  document.querySelector('#creatorBack').onclick = showCampaignLauncher;
   try {
     const data = await api('/game-api/character-options');
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
@@ -855,7 +676,7 @@ async function showCharacterCreator(campaignId, options={}) {
       try {
         const species=document.querySelector('#randomSpecies').value;
         const racial=collectRacialOptions('random',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/characters/random`,{method:'POST',body:JSON.stringify({
           characterName:document.querySelector('#randomName').value.trim(),species,
           secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
           className:document.querySelector('#randomClass').value,...racial})});
@@ -870,7 +691,7 @@ async function showCharacterCreator(campaignId, options={}) {
       try {
         const species=document.querySelector('#manualSpecies').value;
         const racial=collectRacialOptions('manual',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/characters/manual`,{method:'POST',body:JSON.stringify({
           characterName:name,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
@@ -994,7 +815,6 @@ async function showStartingEquipment(campaignId, character) {
   }catch(error){document.querySelector('#equipLoading').textContent='Unable to load starting equipment.';showNotice(error.message,true);}
 }
 
-// RULES BUILD 6.14 - SPELL & CANTRIP SELECTION COUNTERS
 async function showSpellSelection(campaignId, character, fromLevelUp=false) {
   const main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Spells & Cantrips</h2><p>${escapeHtml(character.characterName)} • Level ${character.level} ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="spellLoading" class="loading">Loading spell rules...</div><div id="spellForm" hidden></div><div id="spellError" class="error"></div></section></div>`;
@@ -1004,20 +824,13 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
     const p=data.progression,form=document.querySelector('#spellForm');
     const spellCard=(s,kind)=>`<label class="spell-option"><input type="checkbox" class="${kind}" value="${escapeHtml(s.name)}"><span><b>${escapeHtml(s.name)}</b><small>${s.level===0?'Cantrip':`Level ${s.level}`} • ${escapeHtml(s.school||'')}</small><em>${escapeHtml(s.description||'')}</em></span></label>`;
     const wizard=data.className.toLowerCase()==='wizard';
-    const cantripLimit=Math.max(0,Number(p.cantripsKnown)||0);
-    const spellLimit=Math.max(0,Number(wizard?p.wizardSpellbookCount:p.preparedSpells)||0);
-    const preparedLimit=Math.max(0,Number(wizard?p.preparedSpells:0)||0);
     form.innerHTML=`
       <div class="selection-summary">Choose <b>${p.cantripsKnown}</b> cantrip(s). ${wizard?`Add <b>${p.wizardSpellbookCount}</b> spells to your spellbook and prepare <b>${p.preparedSpells}</b>.`:`Choose <b>${p.preparedSpells}</b> class spell(s).`} ${data.alwaysPrepared?.length?`Always prepared: ${data.alwaysPrepared.map(escapeHtml).join(', ')}`:''}</div>
-      <div id="spellSelectionCounters" class="selection-summary">
-        ${cantripLimit>0?`<span><b id="cantripRemaining">${cantripLimit}</b> cantrip(s) remaining</span>`:''}
-        ${spellLimit>0?`<span>${cantripLimit>0?' • ':''}<b id="spellRemaining">${spellLimit}</b> ${wizard?'spellbook spell(s)':'spell(s)'} remaining</span>`:''}
-        ${wizard&&preparedLimit>0?`<span> • <b id="preparedRemaining">${preparedLimit}</b> prepared spell(s) remaining</span>`:''}
-      </div>
       ${p.cantripsKnown>0?`<h3>Cantrips</h3><div class="spell-grid">${data.cantrips.map(s=>spellCard(s,'cantrip-check')).join('')}</div>`:''}
       ${p.preparedSpells>0||p.wizardSpellbookCount>0?`<h3 class="subhead">Spells</h3><div class="spell-grid">${data.spells.map(s=>wizard?`<div class="wizard-spell"><label><input class="spell-check" type="checkbox" value="${escapeHtml(s.name)}"> <b>${escapeHtml(s.name)}</b> <small>L${s.level}</small></label><label class="prepare"><input class="prepare-check" type="checkbox" value="${escapeHtml(s.name)}" disabled> Prepare</label><p>${escapeHtml(s.description||'')}</p></div>`:spellCard(s,'spell-check')).join('')}</div>`:''}
       <div id="arcanumArea"></div><button id="saveSpells" class="button primary wide">Save Spell Selection</button>`;
     document.querySelector('#spellLoading').hidden=true;form.hidden=false;
+    if(wizard){document.querySelectorAll('.spell-check').forEach(ch=>ch.onchange=()=>{const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===ch.value);prep.disabled=!ch.checked;if(!ch.checked)prep.checked=false;});}
     if(p.warlockArcanumLevels?.length){const ar=document.querySelector('#arcanumArea');ar.innerHTML='<h3 class="subhead">Mystic Arcanum</h3>'+p.warlockArcanumLevels.map(level=>`<label>Level ${level}<select class="input arcanum" data-level="${level}">${data.spells.filter(s=>s.level===level).map(s=>`<option>${escapeHtml(s.name)}</option>`).join('')}</select></label>`).join('');}
 
     // During a post-rest level up, keep the character's existing spell choices checked
@@ -1044,71 +857,11 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
       }
     });
 
-    const setCounter=(id,limit,selected,label)=>{
-      const el=document.querySelector(`#${id}`);if(!el)return selected===limit;
-      const remaining=limit-selected;
-      if(remaining<0){el.textContent=`Over by ${Math.abs(remaining)}`;el.parentElement?.classList.add('error');return false;}
-      el.textContent=String(remaining);
-      el.parentElement?.classList.remove('error');
-      return remaining===0;
-    };
-
-    const updateSpellSelectionCounters=()=>{
-      const cantripBoxes=[...document.querySelectorAll('.cantrip-check')];
-      const spellBoxes=[...document.querySelectorAll('.spell-check')];
-      const prepBoxes=[...document.querySelectorAll('.prepare-check')];
-      const cantripSelected=cantripBoxes.filter(x=>x.checked).length;
-      const spellSelected=spellBoxes.filter(x=>x.checked).length;
-
-      cantripBoxes.forEach(box=>{box.disabled=!box.checked&&cantripSelected>=cantripLimit;});
-      spellBoxes.forEach(box=>{box.disabled=!box.checked&&spellSelected>=spellLimit;});
-
-      let preparedSelected=0;
-      if(wizard){
-        prepBoxes.forEach(prep=>{
-          const spell=spellBoxes.find(x=>x.value===prep.value);
-          if(!spell?.checked)prep.checked=false;
-        });
-        preparedSelected=prepBoxes.filter(x=>x.checked).length;
-        prepBoxes.forEach(prep=>{
-          const spell=spellBoxes.find(x=>x.value===prep.value);
-          prep.disabled=!spell?.checked||(!prep.checked&&preparedSelected>=preparedLimit);
-        });
-      }
-
-      const cantripsComplete=cantripLimit===0||setCounter('cantripRemaining',cantripLimit,cantripSelected,'cantrip');
-      const spellsComplete=spellLimit===0||setCounter('spellRemaining',spellLimit,spellSelected,'spell');
-      const preparedComplete=!wizard||preparedLimit===0||setCounter('preparedRemaining',preparedLimit,preparedSelected,'prepared spell');
-      const complete=cantripsComplete&&spellsComplete&&preparedComplete;
-      const save=document.querySelector('#saveSpells');
-      if(save&&!String(save.textContent||'').startsWith('Saving')){
-        save.disabled=!complete;
-        if(complete)save.textContent='Save Spell Selection';
-        else {
-          const remaining=[];
-          if(cantripLimit>cantripSelected)remaining.push(`${cantripLimit-cantripSelected} cantrip`);
-          if(spellLimit>spellSelected)remaining.push(`${spellLimit-spellSelected} ${wizard?'spellbook spell':'spell'}`);
-          if(wizard&&preparedLimit>preparedSelected)remaining.push(`${preparedLimit-preparedSelected} prepared spell`);
-          save.textContent=remaining.length?`Select ${remaining.join(', ')} more`:'Complete Required Selections';
-        }
-      }
-      return complete;
-    };
-
-    document.querySelectorAll('.cantrip-check').forEach(ch=>ch.addEventListener('change',updateSpellSelectionCounters));
-    document.querySelectorAll('.spell-check').forEach(ch=>ch.addEventListener('change',()=>{
-      if(wizard&&!ch.checked){const prep=[...document.querySelectorAll('.prepare-check')].find(x=>x.value===ch.value);if(prep)prep.checked=false;}
-      updateSpellSelectionCounters();
-    }));
-    document.querySelectorAll('.prepare-check').forEach(ch=>ch.addEventListener('change',updateSpellSelectionCounters));
-    updateSpellSelectionCounters();
-
     document.querySelector('#saveSpells').onclick=async()=>{
-      if(!updateSpellSelectionCounters()){document.querySelector('#spellError').textContent='Complete all required cantrip and spell selections before saving.';return;}
       const cantrips=[...document.querySelectorAll('.cantrip-check:checked')].map(x=>x.value),spells=[...document.querySelectorAll('.spell-check:checked')].map(x=>x.value),preparedWizardSpells=[...document.querySelectorAll('.prepare-check:checked')].map(x=>x.value),mysticArcanum={};
       document.querySelectorAll('.arcanum').forEach(x=>mysticArcanum[x.dataset.level]=x.value);
-      const btn=document.querySelector('#saveSpells');btn.disabled=true;btn.textContent='Saving Spells...';document.querySelector('#spellError').textContent='';
-      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});levelUpSpellRecoveryBusy=false;showNotice(fromLevelUp?'Level-up spell choices saved.':'Spell selection saved.');await enterCampaign(campaignId,fromLevelUp?'character':'gm');}catch(error){document.querySelector('#spellError').textContent=error.message;btn.textContent='Save Spell Selection';updateSpellSelectionCounters();}
+      const btn=document.querySelector('#saveSpells');btn.disabled=true;btn.textContent='Saving Spells...';
+      try{await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips,spells,preparedWizardSpells,mysticArcanum})});levelUpSpellRecoveryBusy=false;showNotice(fromLevelUp?'Level-up spell choices saved.':'Spell selection saved.');await enterCampaign(campaignId,fromLevelUp?'character':'gm');}catch(error){document.querySelector('#spellError').textContent=error.message;btn.disabled=false;btn.textContent='Save Spell Selection';}
     };
   }catch(error){document.querySelector('#spellLoading').textContent='Unable to load spell selection.';document.querySelector('#spellError').textContent=error.message;}
 }
@@ -1132,8 +885,6 @@ async function enterCampaign(campaignId, initialTab='gm') {
     startProgressionPolling();
     startRestStatePolling();
     startSurvivalPolling();
-    startWorldTimePolling();
-    startSleepStatePolling();
     if(initialTab&&initialTab!=='gm'){
       const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
       if(target)switchGameTab(initialTab,target);
@@ -1141,44 +892,10 @@ async function enterCampaign(campaignId, initialTab='gm') {
   } catch(error){showNotice(error.message,true);}
 }
 
-function isSoloCampaign(){return String(currentGameData?.campaign?.campaignMode||'').toLowerCase()==='solo'||currentGameData?.soloParty?.isSolo===true;}
-function soloPartyCharacters(){return Array.isArray(currentGameData?.soloParty?.characters)?currentGameData.soloParty.characters:(currentGameData?.party||[]).map(p=>({characterId:p.characterId,characterName:p.characterName,level:p.level}));}
-function soloCharacterSwitchMarkup(compact=false){
-  if(!isSoloCampaign()||soloPartyCharacters().length<2)return '';
-  const active=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
-  return `<label class="solo-active-character ${compact?'compact':''}"><span>Active Character</span><select class="input" data-solo-character-switch>${soloPartyCharacters().map(c=>`<option value="${escapeHtml(c.characterId)}" ${String(c.characterId)===active?'selected':''}>${escapeHtml(c.characterName)}</option>`).join('')}</select></label>`;
-}
-async function switchSoloActiveCharacter(characterId,{preserveTab=true,quiet=false}={}){
-  if(!characterId||soloSwitchBusy||!currentCampaignId)return false;
-  const current=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
-  if(String(characterId)===current)return false;
-  soloSwitchBusy=true;
-  try{
-    await api(`/game-api/campaigns/${currentCampaignId}/solo-party/active`,{method:'POST',body:JSON.stringify({characterId})});
-    document.querySelector('#sleepOverlay')?.remove();document.querySelector('#deathOverlay')?.remove();document.body.classList.remove('death-modal-open');
-    lastSleepState=null;sleepOverlaySignature='';lastDeathState=null;
-    const tab=preserveTab?activeGameTab:'gm';
-    await enterCampaign(currentCampaignId,tab);
-    if(!quiet)showNotice(`Now playing as ${currentGameData?.character?.characterName||'selected character'}.`);
-    return true;
-  }catch(error){if(!quiet)showNotice(error.message,true);return false;}
-  finally{soloSwitchBusy=false;}
-}
-function wireSoloCharacterSwitches(scope=document){
-  scope.querySelectorAll('[data-solo-character-switch]').forEach(select=>{select.onchange=async()=>{const prior=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');const ok=await switchSoloActiveCharacter(select.value);if(!ok)select.value=prior;};});
-}
-async function autoSwitchSoloInitiativeCharacter(combat){
-  if(!isSoloCampaign()||soloSwitchBusy||!combat?.active||String(combat.currentTurnType||'').toLowerCase()!=='character'||!combat.currentTurnCharacterId)return false;
-  const target=String(combat.currentTurnCharacterId),active=String(currentGameData?.character?.characterId||'');
-  if(target===active)return false;
-  const ours=soloPartyCharacters().some(c=>String(c.characterId)===target);if(!ours)return false;
-  return await switchSoloActiveCharacter(target,{preserveTab:true,quiet:true});
-}
-
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div id="worldClockHost">${worldClockHtml(d.worldTime)}</div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -1423,171 +1140,6 @@ async function saveLevelUpChoices(progression) {
   }
 }
 
-
-// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
-function worldClockHtml(world) {
-  if(!world)return '<div class="world-clock-chip"><span>WORLD TIME</span><b>Loading...</b></div>';
-  const day=Math.max(1,Number(world.dayNumber)||1);
-  const time=String(world.displayTime||'--:--');
-  const weather=String(world.weatherLabel||'Clear');
-  const part=String(world.dayPart||'');
-  return `<div class="world-clock-chip"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span><b>${escapeHtml(time)}</b><small>${escapeHtml(weather)}</small></div>`;
-}
-
-function updateWorldClockUi(world) {
-  if(currentGameData)currentGameData.worldTime=world||currentGameData.worldTime;
-  const host=document.querySelector('#worldClockHost');
-  if(host)host.innerHTML=worldClockHtml(world||currentGameData?.worldTime);
-}
-
-function stopWorldTimePolling() {
-  if(worldTimePollTimer)clearInterval(worldTimePollTimer);
-  worldTimePollTimer=null;
-  worldTimePollBusy=false;
-}
-
-function startWorldTimePolling() {
-  stopWorldTimePolling();
-  if(!currentCampaignId)return;
-  void refreshWorldTime(true);
-  worldTimePollTimer=setInterval(()=>void refreshWorldTime(false),5000);
-}
-
-async function refreshWorldTime(force=false) {
-  if(!currentCampaignId||!currentGameData||worldTimePollBusy)return;
-  worldTimePollBusy=true;
-  try{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/world-time`);
-    const world=data.world||null;
-    if(world)updateWorldClockUi(world);
-  }catch(error){
-    if(force)console.warn('World time refresh failed:',error);
-  }finally{worldTimePollBusy=false;}
-}
-
-function stopSleepStatePolling() {
-  if(sleepStatePollTimer)clearInterval(sleepStatePollTimer);
-  sleepStatePollTimer=null;
-  sleepStatePollBusy=false;
-}
-
-function startSleepStatePolling() {
-  stopSleepStatePolling();
-  if(!currentCampaignId)return;
-  void refreshSleepState(true);
-  sleepStatePollTimer=setInterval(()=>void refreshSleepState(false),1000);
-}
-
-function sleepDurationText(minutes) {
-  const value=Math.max(0,Math.trunc(Number(minutes)||0));
-  const hours=Math.floor(value/60),mins=value%60;
-  return `${hours}h ${String(mins).padStart(2,'0')}m`;
-}
-
-async function refreshSleepState(force=false) {
-  if(!currentCampaignId||!currentGameData||sleepStatePollBusy||sleepWakeBusy)return;
-  sleepStatePollBusy=true;
-  try{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/sleep-state`);
-    const sleep=data.sleep||null;
-    lastSleepState=sleep;
-    if(sleep?.world)updateWorldClockUi(sleep.world);
-
-    if(!sleep?.sleeping){
-      document.querySelector('#sleepOverlay')?.remove();
-      sleepOverlaySignature='';
-      return;
-    }
-
-    syncAuthoritativeCharacterHp(sleep.currentHp,sleep.maxHp);
-    const signature=[
-      sleep.sleepSessionId,sleep.currentHp,sleep.elapsedMinutes,
-      sleep.remainingMinutes,sleep.world?.worldMinute,sleep.safeLocation,sleep.paidLodging
-    ].join(':');
-    if(force||signature!==sleepOverlaySignature||!document.querySelector('#sleepOverlay')){
-      sleepOverlaySignature=signature;
-      renderSleepingLongRestOverlay(sleep);
-    }
-  }catch(error){
-    if(force)console.warn('Sleep state refresh failed:',error);
-  }finally{sleepStatePollBusy=false;}
-}
-
-function renderSleepingLongRestOverlay(sleep) {
-  let overlay=document.querySelector('#sleepOverlay');
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='sleepOverlay';
-    overlay.className='sleep-overlay';
-    document.body.appendChild(overlay);
-  }
-
-  const current=Math.max(0,Number(sleep.currentHp)||0);
-  const max=Math.max(1,Number(sleep.maxHp)||1);
-  const elapsed=Math.max(0,Number(sleep.elapsedMinutes)||0);
-  const remaining=Math.max(0,Number(sleep.remainingMinutes)||0);
-  const exact=Math.max(0,Number(sleep.hpRecoveryExact)||0);
-  const perHour=Math.max(0,Number(sleep.hpPerHour)||0);
-  const progress=Math.min(100,Math.max(0,elapsed/480*100));
-  const world=sleep.world||{};
-  const lodging=sleep.paidLodging
-    ? `<span class="sleep-safe good">Paid ${escapeHtml(sleep.lifestyle||'')} room • ${escapeHtml(sleep.innName||'Inn')}</span>`
-    : sleep.safeLocation
-      ? '<span class="sleep-safe good">Safe Long Rest location</span>'
-      : '<span class="sleep-safe warn">Unsecured rest location</span>';
-
-  overlay.innerHTML=`<section class="sleep-card">
-    <div class="sleep-moon">☾</div>
-    <p class="eyebrow">LONG REST IN PROGRESS</p>
-    <h2>${escapeHtml(sleep.characterName||'Your character')} is sleeping</h2>
-    ${soloCharacterSwitchMarkup(true)}
-    <div class="sleep-world-clock">
-      <span>World Time</span>
-      <b>Day ${Math.max(1,Number(world.dayNumber)||1)} • ${escapeHtml(world.displayTime||'--:--')}</b>
-      <small>${escapeHtml(world.dayPart||'')} • ${escapeHtml(world.weatherLabel||'Clear')}</small>
-    </div>
-    <div class="sleep-hp-block">
-      <div><span>HP</span><b>${current}/${max}</b></div>
-      <div><span>Recovery Rate</span><b>${perHour.toFixed(2)} HP/hour</b></div>
-      <div><span>Recovered</span><b>${exact.toFixed(2)} HP progress</b></div>
-    </div>
-    <div class="sleep-progress"><i style="width:${progress.toFixed(2)}%"></i></div>
-    <div class="sleep-time-grid">
-      <div><span>Time Rested</span><b>${sleepDurationText(elapsed)}</b></div>
-      <div><span>Remaining</span><b>${sleepDurationText(remaining)}</b></div>
-      <div><span>Required</span><b>8h 00m</b></div>
-    </div>
-    ${lodging}
-    <p class="sleep-note">World time continues for everyone. Your HP recovers gradually as time passes. Waking before 8 hours keeps recovered HP but does not grant full Long Rest recovery.</p>
-    <button id="wakeFromLongRest" class="button danger-button">Wake</button>
-    <div id="sleepWakeError" class="error"></div>
-  </section>`;
-
-  wireSoloCharacterSwitches(overlay);
-  const wake=overlay.querySelector('#wakeFromLongRest');
-  if(wake)wake.onclick=async()=>{
-    if(sleepWakeBusy)return;
-    sleepWakeBusy=true;
-    wake.disabled=true;wake.textContent='Waking...';
-    const error=overlay.querySelector('#sleepWakeError');if(error)error.textContent='';
-    try{
-      const data=await api(`/game-api/campaigns/${currentCampaignId}/rest/long/wake`,{method:'POST'});
-      const result=data.result||{};
-      if(result.world)updateWorldClockUi(result.world);
-      if(result.currentHp!==undefined)syncAuthoritativeCharacterHp(result.currentHp,result.maxHp);
-      overlay.remove();sleepOverlaySignature='';lastSleepState=null;
-      showNotice(result.message||'You wake before completing the Long Rest.');
-      await refreshRestState(true);
-    }catch(ex){
-      const target=document.querySelector('#sleepWakeError');if(target)target.textContent=ex.message;
-      showNotice(ex.message,true);
-    }finally{
-      sleepWakeBusy=false;
-      void refreshSleepState(true);
-    }
-  };
-}
-
 function stopRestStatePolling() {
   if(restStatePollTimer)clearInterval(restStatePollTimer);
   restStatePollTimer=null;
@@ -1768,54 +1320,12 @@ async function reloadCampaignAfterDeathResolution() {
   renderGameMasterTab();
 }
 
-// RULES BUILD 6.14.2 v5 - Normalize Supabase/ASP.NET respawn DTO field names.
-// DeathStateRow and DeathActionResult carry JsonPropertyName(snake_case) for Supabase,
-// while older client code reads camelCase. Accept both so Discord and browser clients
-// render the same authoritative respawn state.
-function normalizeRespawnPayload(value) {
-  if(!value||typeof value!=='object')return value;
-  const pick=(camel,snake,fallback)=>{
-    const camelValue=value[camel];
-    if(camelValue!==undefined&&camelValue!==null)return camelValue;
-    const snakeValue=value[snake];
-    if(snakeValue!==undefined&&snakeValue!==null)return snakeValue;
-    return fallback;
-  };
-  return {
-    ...value,
-    deathId:pick('deathId','death_id',null),
-    deadPlayerId:pick('deadPlayerId','dead_player_id',null),
-    deadCharacterName:pick('deadCharacterName','dead_character_name',''),
-    requiredGp:pick('requiredGp','required_gp',10),
-    donatedGp:pick('donatedGp','donated_gp',0),
-    remainingGp:pick('remainingGp','remaining_gp',10),
-    viewerIsDeadPlayer:pick('viewerIsDeadPlayer','viewer_is_dead_player',false),
-    viewerIsEligibleDonor:pick('viewerIsEligibleDonor','viewer_is_eligible_donor',false),
-    viewerDecision:pick('viewerDecision','viewer_decision',''),
-    viewerDonatedGp:pick('viewerDonatedGp','viewer_donated_gp',0),
-    viewerGold:pick('viewerGold','viewer_gold',0),
-    deadCharacterGold:pick('deadCharacterGold','dead_character_gold',0),
-    eligibleDonorCount:pick('eligibleDonorCount','eligible_donor_count',0),
-    answeredDonorCount:pick('answeredDonorCount','answered_donor_count',0),
-    canFinalize:pick('canFinalize','can_finalize',false),
-    characterName:pick('characterName','character_name',''),
-    requiresNewCharacter:pick('requiresNewCharacter','requires_new_character',false),
-    paidGp:pick('paidGp','paid_gp',0),
-    currentHp:pick('currentHp','current_hp',0),
-    maxHp:pick('maxHp','max_hp',0),
-    remainingGold:pick('remainingGold','remaining_gold',undefined),
-    donorCharacterName:pick('donorCharacterName','donor_character_name',''),
-    donatedNow:pick('donatedNow','donated_now',0),
-    refundedGp:pick('refundedGp','refunded_gp',0)
-  };
-}
-
 async function refreshDeathState(force=false) {
   if(!currentCampaignId||deathStatePollBusy||deathActionBusy)return;
   deathStatePollBusy=true;
   try {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death-state`);
-    const death=normalizeRespawnPayload(data.death||null);
+    const death=data.death||null;
     const previous=lastDeathState;
     if(!death) {
       document.querySelector('#deathOverlay')?.remove();
@@ -1876,16 +1386,16 @@ function renderDeathOverlay(death) {
       <div class="death-icon">☠</div><h2>${name} Has Died</h2>${cause}
       <p>Normal D&amp;D revival magic or a valid revival item can still return this character. You may also use the campaign Respawn system.</p>
       <div class="death-price"><span>Respawn Price</span><b>10 GP</b><small>You currently have ${currencyPurseText(gold)}.</small></div>
-      <p>If you choose Respawn and cannot pay 10 GP yourself, the other active players will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
+      <p>If you choose Respawn and cannot pay 10 GP yourself, the living party will be asked to donate. If you choose No, this character remains dead and you will create a replacement character for this campaign.</p>
       <div class="death-actions"><button id="deathRespawnYes" class="button primary">Yes — Respawn</button><button id="deathRespawnNo" class="button danger">No — Create New Character</button></div>
       <div id="deathActionError" class="error"></div>
     </div>`;
   } else if(status==='awaiting_donations') {
     const progress=respawnProgressHtml(death);
-    const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Respawn ${name}</button>`:'';
+    const finalize=death.canFinalize?`<button id="deathFinalizeRespawn" class="button primary wide">Revive ${name}</button>`:'';
     if(viewerIsDeadPlayer) {
       body=`<div class="death-card dead-player-card"><div class="death-icon">✦</div><h2>Waiting for Party Revival</h2>${cause}
-        <p>${name} did not have enough GP for Respawn. The other active players have been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
+        <p>${name} did not have enough GP for Respawn. The living party has been asked to contribute toward the 10 GP price.</p>${progress}${finalize}
         <p class="muted">A valid D&amp;D revival spell or revival item can still revive you while this fund is open.</p><div id="deathActionError" class="error"></div></div>`;
     } else if(death.viewerIsEligibleDonor) {
       const decision=String(death.viewerDecision||'').toLowerCase();
@@ -1893,21 +1403,19 @@ function renderDeathOverlay(death) {
       const viewerGold=Math.max(0,Number(death.viewerGold)||0);
       const viewerWholeGp=Math.floor(viewerGold);
       const remaining=Math.max(0,Number(death.remainingGp)||0);
-      const canDonateOne=viewerWholeGp>=1&&remaining>0;
+      const maxDonation=Math.max(0,Math.min(viewerWholeGp,remaining));
       let controls='';
-      if(death.canFinalize) {
-        controls='<div class="death-decision-note">The full 10 GP has been collected. Respawn is ready.</div>';
-      } else if(decision==='decline') {
-        controls='<div class="death-decision-note">You declined this donation request. Other active players may still contribute.</div>';
+      if(decision==='decline') {
+        controls='<div class="death-decision-note">You declined this donation request.</div>';
       } else if(decision==='donate'||deathDonationMode) {
-        controls=`<div class="donation-controls"><label>Donate 1 GP at a time (purse: ${currencyPurseText(viewerGold)})</label><div class="row gap"><button id="deathDonateGp" class="button primary" ${canDonateOne?'':'disabled'}>Donate 1 GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div><small>Each click contributes exactly 1 GP. ${Math.max(0,remaining)} GP remains before ${name} can Respawn.</small>${donatedByViewer?`<small>You have donated ${donatedByViewer} GP to this Respawn fund.</small>`:''}${!canDonateOne&&remaining>0?'<small class="muted">You do not currently have 1 full GP available to donate.</small>':''}</div>`;
+        controls=`<div class="donation-controls"><label>Donation amount (purse: ${currencyPurseText(viewerGold)}; donations use whole GP)</label><div class="row gap"><input id="deathDonationAmount" class="input" type="number" min="1" max="${Math.max(1,maxDonation)}" value="${Math.max(1,Math.min(maxDonation||1,remaining||1))}" ${maxDonation<1?'disabled':''}><button id="deathDonateGp" class="button primary" ${maxDonation<1?'disabled':''}>Donate GP</button>${decision?'':'<button id="deathDonationCancel" class="button">Cancel</button>'}</div>${donatedByViewer?`<small>You have already donated ${donatedByViewer} GP.</small>`:''}</div>`;
       } else {
-        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerWholeGp<1?'disabled':''}>Yes — Donate</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerWholeGp<1?'<small class="muted">You do not currently have 1 full GP available to donate.</small>':''}`;
+        controls=`<div class="death-actions"><button id="deathDonationYes" class="button primary" ${viewerWholeGp<1?'disabled':''}>Yes — Donate GP</button><button id="deathDonationNo" class="button danger">No</button></div>${viewerWholeGp<1?'<small class="muted">Your purse does not contain a full 1 GP worth of currency available for this whole-GP donation.</small>':''}`;
       }
       body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Party Member Needs Revival</h2>
-        <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to Respawn them? <b>10 GP is required.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
+        <p><b>${name}</b> has died and does not have enough gold to respawn. Do you want to donate GP to revive them? <b>10 GP needed for revival.</b></p>${progress}${controls}${finalize}<div id="deathActionError" class="error"></div></div>`;
     } else {
-      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to Respawn <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
+      body=`<div class="death-card donation-card"><div class="death-icon">⚕</div><h2>Respawn Fund in Progress</h2><p>The party is raising GP to revive <b>${name}</b>.</p>${progress}${finalize}<div id="deathActionError" class="error"></div></div>`;
     }
   }
 
@@ -1921,9 +1429,7 @@ function renderDeathOverlay(death) {
     </div>`;
   }
 
-  if(isSoloCampaign()&&soloPartyCharacters().length>1) body=body.replace(/<div class="death-card ([^"]+)">/,match=>`${match}${soloCharacterSwitchMarkup(true)}`);
   overlay.innerHTML=body;
-  wireSoloCharacterSwitches(overlay);
   wireDeathOverlayActions(death);
 }
 
@@ -1949,7 +1455,6 @@ function wireDeathOverlayActions(death) {
   const yes=document.querySelector('#deathRespawnYes');
   if(yes)yes.onclick=()=>runDeathAction(async()=>{
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:true})});
-    data.result=normalizeRespawnPayload(data.result);
     if(data.result?.outcome==='self_paid_respawn'||data.result?.outcome==='rag_respawn') {
       lastDeathState=null; document.querySelector('#deathOverlay')?.remove();
       document.body.classList.remove('death-modal-open');
@@ -1960,7 +1465,6 @@ function wireDeathOverlayActions(death) {
   const no=document.querySelector('#deathRespawnNo');
   if(no)no.onclick=()=>runDeathAction(async()=>{
     const data=await api(`/game-api/campaigns/${currentCampaignId}/death/choice`,{method:'POST',body:JSON.stringify({respawn:false})});
-    data.result=normalizeRespawnPayload(data.result);
     if(data.result?.requiresNewCharacter||data.result?.outcome==='new_character') {
       stopDeathStatePolling();
       lastDeathState=null;
@@ -1972,23 +1476,19 @@ function wireDeathOverlayActions(death) {
   });
 
   const donateYes=document.querySelector('#deathDonationYes');
-  if(donateYes)donateYes.onclick=()=>runDeathAction(async()=>{
-    await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/accept-donation`,{method:'POST'});
-    deathDonationMode=false;
-  });
+  if(donateYes)donateYes.onclick=()=>{deathDonationMode=true;renderDeathOverlay(death);};
   const cancel=document.querySelector('#deathDonationCancel');
   if(cancel)cancel.onclick=()=>{deathDonationMode=false;renderDeathOverlay(death);};
 
   const donate=document.querySelector('#deathDonateGp');
   if(donate)donate.onclick=()=>runDeathAction(async()=>{
-    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:1})});
-    data.result=normalizeRespawnPayload(data.result);
+    const amount=Math.floor(Number(document.querySelector('#deathDonationAmount')?.value)||0);
+    if(amount<1)throw new Error('Enter at least 1 GP to donate.');
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/donate`,{method:'POST',body:JSON.stringify({amountGp:amount})});
     deathDonationMode=false;
     if(currentGameData?.character&&data.result?.remainingGold!==undefined)currentGameData.character.gold=data.result.remainingGold;
     updateLiveGoldDisplay();
-    if(data.result?.outcome==='rag_respawn')showNotice('Party Respawn could not be funded.');
-    else if(data.result?.canFinalize)showNotice(`The Respawn fund has reached 10 GP. ${death.deadCharacterName||'The fallen player'} can now be Respawned.`);
-    else showNotice(`1 GP donated. ${Math.max(0,Number(data.result?.remainingGp)||0)} GP still needed.`);
+    showNotice(data.result?.outcome==='rag_respawn'?'Party Respawn could not be funded.':'Donation added to the Respawn fund.');
   });
 
   const decline=document.querySelector('#deathDonationNo');
@@ -2000,7 +1500,7 @@ function wireDeathOverlayActions(death) {
   const revive=document.querySelector('#deathFinalizeRespawn');
   if(revive)revive.onclick=()=>runDeathAction(async()=>{
     await api(`/game-api/campaigns/${currentCampaignId}/death/${death.deathId}/revive`,{method:'POST'});
-    showNotice(`${death.deadCharacterName} has been Respawned at half health.`);
+    showNotice(`${death.deadCharacterName} has been revived at half health.`);
   });
 }
 
@@ -2543,7 +2043,6 @@ async function refreshGmLive(force=false) {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/gm`);
     currentGameData.gmMessages=data.messages||[];
     gmCombatTurnState=data.combatTurn||null;
-    if(await autoSwitchSoloInitiativeCharacter(gmCombatTurnState))return;
     updateLiveTimeline('gmTimeline',currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.','gm',force);
     setGmTurnState(data.turnState);
     updateCombatInitiativeUi();
@@ -2691,7 +2190,7 @@ function requestWorldMapTravel(index) {
 
   showModal(
     `Travel to ${location.name}`,
-    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve travel time, weather, and any encounter, obstacle, or event before arrival. The shared world clock advances during the journey.</p>`,
+    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve the journey and any encounter, obstacle, weather, or event that happens before arrival.</p>`,
     'Begin Travel',
     async()=>{
       document.querySelector('#modalOverlay')?.remove();
@@ -2927,8 +2426,6 @@ function renderSettlementShop(shop,initialMode='buy') {
   const overlay=document.createElement('div');
   overlay.id='settlementShopOverlay';
   overlay.className='modal-overlay settlement-shop-overlay';
-  // RULES BUILD 6.15 - HOSPITALITY UI
-  const hospitality=['inn','tavern','inn-tavern'].includes(String(shop.shopKind||'').toLowerCase());
 
   const groups=new Map();
   (shop.items||[]).forEach(item=>{
@@ -2956,15 +2453,6 @@ function renderSettlementShop(shop,initialMode='buy') {
     <div id="shopSellPane" class="settlement-shop-catalog shop-mode-pane" hidden>${sellCatalog}</div>
   </div>`;
   document.body.appendChild(overlay);
-  if(hospitality) {
-    const eyebrow=overlay.querySelector('.settlement-shop-header .eyebrow');
-    if(eyebrow) eyebrow.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'?'TAVERN':'INN';
-    overlay.querySelector('.shop-mode-tabs')?.remove();
-    const note=overlay.querySelector('.settlement-shop-actions .muted');
-    if(note) note.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'
-      ? 'Drinks are served immediately and do not enter inventory.'
-      : 'Meals are served immediately; room quantity is the number of lodging days.';
-  }
   if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
     updateLiveGoldDisplay();
@@ -3399,11 +2887,10 @@ function renderGameMasterTab() {
   if(existingInput)gmTurnDraft=existingInput.value;
 
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><div><h3>AI Game Master</h3>${soloCharacterSwitchMarkup(true)}</div><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
 
   const input=document.querySelector('#gmInput');
   input.value=gmTurnDraft;
-  wireSoloCharacterSwitches(view);
 
   const gmRefreshButton=document.querySelector('#refreshGm');
   if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
@@ -3646,14 +3133,7 @@ async function removeCharacterPortrait() {
   } catch(error) { showNotice(error.message,true); }
 }
 
-const partyXpThresholds=[0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
-function partyExperienceGaugeMarkup(detail){
-  const level=Math.max(1,Math.min(20,Number(detail?.level)||1)),xp=Math.max(0,Number(detail?.experience)||0);
-  const floor=partyXpThresholds[level-1]||0,ceil=level>=20?floor:(partyXpThresholds[level]||floor),span=Math.max(1,ceil-floor),pct=level>=20?100:Math.max(0,Math.min(100,((xp-floor)/span)*100));
-  return `<div class="experience-card party-xp-card"><div class="experience-heading"><div><span>Experience</span><b>Level ${level}</b></div><strong>${xp.toLocaleString()} XP</strong></div><div class="experience-track"><i style="width:${pct}%"></i></div><div class="experience-meta"><strong>${level>=20?'Maximum Level':`${Math.max(0,xp-floor).toLocaleString()} / ${span.toLocaleString()} toward Level ${level+1}`}</strong><small>${level>=20?'Level 20':`${Math.max(0,ceil-xp).toLocaleString()} XP remaining`}</small></div></div>`;
-}
-
-async function showPartyMemberDetails(member) {
+function showPartyMemberDetails(member) {
   document.querySelector('#partyMemberOverlay')?.remove();
   const overlay=document.createElement('div');
   overlay.id='partyMemberOverlay';overlay.className='modal-overlay';
@@ -3666,7 +3146,6 @@ async function showPartyMemberDetails(member) {
         <p>${escapeHtml(member.displayName)} • @${escapeHtml(member.discordUsername)}</p>
         <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} • ${escapeHtml(member.backgroundName||'')} ${member.alignment?`• ${escapeHtml(member.alignment)}`:''}</p>
         <div class="vitals party-detail-vitals"><div>HP <b ${member.characterId===currentGameData?.character?.characterId?'data-live-self-hp':''}>${member.currentHp}/${member.maxHp}</b></div><div>AC <b>${member.armorClass}</b></div><div>Initiative <b>${formatSigned(member.initiative)}</b></div><div>Speed <b>${member.speed} ft.</b></div><div>Passive Perception <b>${member.passivePerception}</b></div><div>Proficiency <b>${formatSigned(member.proficiencyBonus)}</b></div></div>
-        <div id="partyProgressionDetail"><div class="loading mini">Loading Experience and Alignment...</div></div>
         <div class="stats">${statBox('STR',member.strength)}${statBox('DEX',member.dexterity)}${statBox('CON',member.constitution)}${statBox('INT',member.intelligence)}${statBox('WIS',member.wisdom)}${statBox('CHA',member.charisma)}</div>
       </div>
     </div>
@@ -3675,12 +3154,6 @@ async function showPartyMemberDetails(member) {
   document.querySelector('#closePartyMember').onclick=()=>overlay.remove();
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   hydratePortraits(overlay);
-  try {
-    const detail=await api(`/game-api/campaigns/${currentCampaignId}/party/${member.characterId}/details`);
-    const host=overlay.querySelector('#partyProgressionDetail');
-    if(host)host.innerHTML=`${partyExperienceGaugeMarkup(detail)}${alignmentGaugeMarkup(detail)}${isSoloCampaign()&&!detail.activeSoloCharacter?'<button id="partyPlayAs" class="button primary wide solo-play-as">Play As This Character</button>':''}`;
-    const playAs=overlay.querySelector('#partyPlayAs');if(playAs)playAs.onclick=async()=>{overlay.remove();await switchSoloActiveCharacter(member.characterId,{preserveTab:true});};
-  } catch(error) { const host=overlay.querySelector('#partyProgressionDetail');if(host)host.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`; }
 }
 
 function statBox(name,score){return `<div class="stat"><span>${name}</span><b>${score}</b><small>${formatSigned(abilityMod(score))}</small></div>`;}
@@ -3710,22 +3183,15 @@ function racialTraitsMarkup(featureState){
   const extras=[];
   if(featureState?.secondaryHeritage)extras.push(`Other half: ${featureState.secondaryHeritage}`);
   if(data.subrace)extras.push(`Subrace: ${data.subrace}`);
-  if(data.secondarySubrace)extras.push(`Other-half Subrace: ${data.secondarySubrace}`);
   if(data.dragonbornAncestry)extras.push(`Draconic Ancestry: ${data.dragonbornAncestry}`);
-  if(data.secondaryDragonbornAncestry)extras.push(`Other-half Draconic Ancestry: ${data.secondaryDragonbornAncestry}`);
   if(data.highElfCantrip)extras.push(`High Elf Cantrip: ${data.highElfCantrip}`);
-  if(data.secondaryHighElfCantrip)extras.push(`Other-half High Elf Cantrip: ${data.secondaryHighElfCantrip}`);
   if(data.dwarfToolProficiency)extras.push(`Dwarven Tool: ${data.dwarfToolProficiency}`);
-  if(data.secondaryDwarfToolProficiency)extras.push(`Other-half Dwarven Tool: ${data.secondaryDwarfToolProficiency}`);
   if(data.damageResistance)extras.push(`Damage Resistance: ${data.damageResistance}`);
   if(data.speedOverride)extras.push(`Racial Speed: ${data.speedOverride} ft.`);
   if(data.hitPointBonusPerLevel)extras.push(`Racial HP: +${data.hitPointBonusPerLevel} per level`);
   if(data.size)extras.push(`Size: ${data.size}`);
-  if(data.secondarySize)extras.push(`Other-half Tortle Size Choice: ${data.secondarySize}`);
   if(data.natureIntuitionSkill)extras.push(`Nature's Intuition: ${data.natureIntuitionSkill}`);
-  if(data.secondaryNatureIntuitionSkill)extras.push(`Other-half Nature's Intuition: ${data.secondaryNatureIntuitionSkill}`);
   if(data.extraLanguage)extras.push(`Language: ${data.extraLanguage}`);
-  if(data.secondaryExtraLanguage)extras.push(`Other-half Additional Language: ${data.secondaryExtraLanguage}`);
   if(bonuses.length)extras.push(`Ability increases: ${bonuses.join(', ')}`);
   if(!traits.length&&!extras.length)return '<p class="muted">No stored racial trait metadata for this character yet.</p>';
   return `<div class="racial-detail-list">${extras.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}${traits.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div>`;
@@ -3808,7 +3274,7 @@ function renderCharacterTab(){
           </div>
         </div>
       </section>
-      <section class="panel party-panel"><div class="party-panel-heading"><div><h3>Campaign Party</h3><p class="muted">Select a character to view combat stats, Experience, and Alignment.</p></div>${isSoloCampaign()?`<button id="addSoloPartyMember" class="button primary small" ${currentGameData.soloParty?.canAdd?'':'disabled'}>Add Party Member</button>`:''}</div>${isSoloCampaign()?`<small class="solo-party-count">${Number(currentGameData.soloParty?.characterCount)||party.length} / ${Number(currentGameData.soloParty?.maxCharacters)||5} player-controlled characters</small>`:''}
+      <section class="panel party-panel"><h3>Campaign Party</h3><p class="muted">Select a character to view their portrait and current public combat stats.</p>
         <div class="party-list visual-party-list">${party.length?party.map((p,index)=>`<button class="party-card visual-party-card" data-party-index="${index}">
           ${portraitFrameHtml(p.characterId,p.characterName,p.hasPortrait,'party-thumbnail')}
           <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP <b ${p.characterId===c.characterId?'data-live-self-hp':''}>${p.currentHp}/${p.maxHp}</b> • AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
@@ -3816,7 +3282,6 @@ function renderCharacterTab(){
       </section>
     </div>`;
   document.querySelector('#refreshParty').onclick=refreshPartyData;
-  const addSolo=document.querySelector('#addSoloPartyMember');if(addSolo)addSolo.onclick=()=>showCharacterCreator(currentCampaignId,{soloPartyMember:true});
   document.querySelector('#characterDetails').onclick=showCharacterDetails;
   document.querySelector('#uploadPortrait').onclick=()=>document.querySelector('#portraitFile').click();
   document.querySelector('#portraitFile').onchange=e=>uploadCharacterPortrait(e.target.files?.[0]);
