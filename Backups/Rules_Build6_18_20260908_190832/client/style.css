@@ -348,17 +348,3 @@ body.death-modal-open{overflow:hidden!important}
 .solo-active-character{display:flex;align-items:center;gap:9px;margin:7px 0 0}.solo-active-character>span{text-transform:uppercase;letter-spacing:.08em;font-size:9px;color:#9b8c70;white-space:nowrap}.solo-active-character select{min-width:190px;margin:0;padding:6px 28px 6px 9px}.solo-active-character.compact{max-width:360px}.view-heading .solo-active-character{margin-top:6px}.sleep-card>.solo-active-character,.death-card>.solo-active-character{justify-content:center;margin:12px auto 16px}.sleep-card>.solo-active-character select,.death-card>.solo-active-character select{max-width:260px}
 .party-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.party-panel-heading h3{margin-top:0}.solo-party-count{display:block;margin:-5px 0 13px;color:#9a8c70}.solo-play-as{margin-top:14px}.party-xp-card{margin:15px 0}.party-member-modal .alignment-gauge-card{margin-top:13px}
 @media(max-width:650px){.campaign-mode-picker{grid-template-columns:1fr}.solo-active-character{align-items:stretch;flex-direction:column}.solo-active-character select{min-width:0;width:100%}.party-panel-heading{flex-direction:column}.party-panel-heading .button{width:100%}}
-
-/* RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / WEATHER / DAY-NIGHT */
-.world-clock-chip{position:relative;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}
-.world-clock-chip.daylight{border-color:rgba(235,198,105,.28);box-shadow:0 0 18px rgba(235,198,105,.06)}
-.world-clock-chip.nighttime{border-color:rgba(128,158,221,.28);box-shadow:0 0 18px rgba(92,125,198,.08)}
-.world-clock-chip.paused{border-color:rgba(225,142,95,.38)}
-.world-clock-top{display:flex;align-items:center;justify-content:flex-end;gap:7px;width:100%}
-.world-clock-top>span{flex:1;text-align:right}
-.world-clock-toggle{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#d8e1ec;border-radius:6px;padding:2px 6px;font:inherit;font-size:9px;cursor:pointer;white-space:nowrap}
-.world-clock-toggle:hover:not(:disabled){background:rgba(255,255,255,.12);color:#fff}
-.world-clock-toggle:disabled{opacity:.55;cursor:wait}
-.world-clock-chip em{font-size:9px;font-style:normal;letter-spacing:.04em;color:#8493a6;margin-top:2px}
-.world-clock-chip.paused em{color:#d9a076;font-weight:700}
-@media(max-width:620px){.world-clock-top{justify-content:flex-start}.world-clock-top>span{text-align:left}}

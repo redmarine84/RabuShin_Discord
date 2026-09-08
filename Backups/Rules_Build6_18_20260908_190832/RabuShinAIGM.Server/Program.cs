@@ -284,21 +284,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/world-time", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-// RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / OWNER PAUSE
-app.MapPost("/game-api/campaigns/{campaignId:guid}/world-time/pause", async (
-    Guid campaignId, WorldClockPauseRequest body, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.TouchCampaignPresenceAsync(playerId, campaignId);
-        var world = await service.SetWorldClockPausedAsync(playerId, campaignId, body.Paused);
-        return Results.Ok(new { success = true, world });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
-
 app.MapGet("/game-api/campaigns/{campaignId:guid}/sleep-state", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -2879,7 +2864,6 @@ public sealed record RespawnDonationRequest(int AmountGp);
 public sealed record LevelUpChoicesRequest(JsonElement Choices);
 public sealed record RestSpellReviewRequest(bool ReviewSpells);
 public sealed record SurvivalSettingsRequest(bool Enabled);
-public sealed record WorldClockPauseRequest(bool Paused);
 public sealed record SoloActiveCharacterRequest(Guid CharacterId);
 public sealed record SettlementMoveRequest(string PoiKey);
 public sealed record SettlementShopPurchaseRequest(string ItemKey, int Quantity);

@@ -69,8 +69,6 @@ let survivalPollBusy = false;
 // RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
 let worldTimePollTimer = null;
 let worldTimePollBusy = false;
-let worldClockUiTimer = null;
-let worldClockPauseBusy = false;
 let sleepStatePollTimer = null;
 let sleepStatePollBusy = false;
 let sleepWakeBusy = false;
@@ -1184,7 +1182,6 @@ function renderGameShell() {
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
-  wireWorldClockControls();
   document.querySelector('#backLauncher').onclick=showCampaignLauncher;
   document.querySelectorAll('.game-tab').forEach(btn=>btn.onclick=()=>switchGameTab(btn.dataset.tab,btn));
   const settingsGameTab=document.querySelector('.game-tab[data-tab="settings"]');
@@ -1428,122 +1425,30 @@ async function saveLevelUpChoices(progression) {
 
 
 // RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
-// RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / WEATHER / DAY-NIGHT
-function worldClockDayPart(hour24) {
-  const hour=Math.max(0,Math.min(23,Math.trunc(Number(hour24)||0)));
-  if(hour>=5&&hour<=7)return 'Dawn';
-  if(hour>=8&&hour<=11)return 'Morning';
-  if(hour>=12&&hour<=16)return 'Afternoon';
-  if(hour>=17&&hour<=19)return 'Evening';
-  if(hour>=20)return 'Night';
-  return 'Late Night';
-}
-
-function estimatedWorldClockState(world) {
-  if(!world)return null;
-  let worldMinute=Math.max(0,Math.trunc(Number(world.worldMinute)||0));
-  const running=world.autoClockRunning===true&&!world.autoClockPaused;
-  const received=Number(world._clientReceivedAt)||0;
-  if(running&&received>0){
-    const elapsed=Math.max(0,(Date.now()-received)/1000);
-    const remainder=Math.max(0,Number(world.autoClockRemainderSeconds)||0);
-    const secondsPerMinute=Math.max(.1,Number(world.realSecondsPerGameMinute)||2.5);
-    worldMinute+=Math.floor((remainder+elapsed)/secondsPerMinute);
-  }
-  const minuteOfDay=((worldMinute%1440)+1440)%1440;
-  const hour24=Math.floor(minuteOfDay/60),minute=minuteOfDay%60;
-  const hour12=(hour24%12)||12,period=hour24<12?'AM':'PM';
-  return {...world,
-    worldMinute,
-    dayNumber:Math.floor(worldMinute/1440)+1,
-    minuteOfDay,hour24,minute,hour12,period,
-    displayTime:`${String(hour12).padStart(2,'0')}:${String(minute).padStart(2,'0')} ${period}`,
-    dayPart:worldClockDayPart(hour24),
-    isDaylight:hour24>=6&&hour24<20
-  };
-}
-
-function worldClockHtml(rawWorld) {
-  const world=estimatedWorldClockState(rawWorld);
+function worldClockHtml(world) {
   if(!world)return '<div class="world-clock-chip"><span>WORLD TIME</span><b>Loading...</b></div>';
   const day=Math.max(1,Number(world.dayNumber)||1);
   const time=String(world.displayTime||'--:--');
   const weather=String(world.weatherLabel||'Clear');
   const part=String(world.dayPart||'');
-  const paused=world.autoClockPaused===true;
-  const active=Math.max(0,Number(world.activeLivingPlayers)||0);
-  const awake=Math.max(0,Number(world.awakeActivePlayers)||0);
-  const running=world.autoClockRunning===true&&!paused;
-  const phase=world.isDaylight?'daylight':'nighttime';
-  const hot=world.hotWeather?' • Hot':'';
-  let clockStatus='';
-  if(paused)clockStatus='PAUSED';
-  else if(active<=0)clockStatus='Clock waits while party is offline';
-  else if(awake<=0)clockStatus='Party sleeping';
-  else if(running)clockStatus='24× Real-Time';
-  const owner=currentGameData?.campaign?.isOwner===true;
-  const control=owner?`<button type="button" class="world-clock-toggle" data-world-clock-toggle ${worldClockPauseBusy?'disabled':''}>${paused?'▶ Resume':'⏸ Pause'}</button>`:'';
-  return `<div class="world-clock-chip ${phase}${paused?' paused':''}">
-    <div class="world-clock-top"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span>${control}</div>
-    <b>${escapeHtml(time)}</b>
-    <small>${escapeHtml(weather)}${hot}</small>
-    ${clockStatus?`<em>${escapeHtml(clockStatus)}</em>`:''}
-  </div>`;
-}
-
-function renderWorldClockUi() {
-  const host=document.querySelector('#worldClockHost');
-  if(host)host.innerHTML=worldClockHtml(currentGameData?.worldTime);
+  return `<div class="world-clock-chip"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span><b>${escapeHtml(time)}</b><small>${escapeHtml(weather)}</small></div>`;
 }
 
 function updateWorldClockUi(world) {
-  if(world){
-    world._clientReceivedAt=Date.now();
-    if(currentGameData)currentGameData.worldTime=world;
-  }
-  renderWorldClockUi();
-}
-
-function wireWorldClockControls() {
+  if(currentGameData)currentGameData.worldTime=world||currentGameData.worldTime;
   const host=document.querySelector('#worldClockHost');
-  if(!host)return;
-  host.onclick=async event=>{
-    const button=event.target.closest?.('[data-world-clock-toggle]');
-    if(!button)return;
-    event.preventDefault();event.stopPropagation();
-    await toggleWorldClockPause();
-  };
-}
-
-async function toggleWorldClockPause() {
-  if(!currentCampaignId||!currentGameData?.campaign?.isOwner||worldClockPauseBusy)return;
-  const paused=currentGameData?.worldTime?.autoClockPaused===true;
-  worldClockPauseBusy=true;renderWorldClockUi();
-  try{
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/world-time/pause`,{
-      method:'POST',body:JSON.stringify({paused:!paused})
-    });
-    if(result.world)updateWorldClockUi(result.world);
-    showNotice(!paused?'World clock paused.':'World clock resumed.');
-  }catch(error){showNotice(error.message,true);}
-  finally{worldClockPauseBusy=false;renderWorldClockUi();}
+  if(host)host.innerHTML=worldClockHtml(world||currentGameData?.worldTime);
 }
 
 function stopWorldTimePolling() {
   if(worldTimePollTimer)clearInterval(worldTimePollTimer);
-  if(worldClockUiTimer)clearInterval(worldClockUiTimer);
   worldTimePollTimer=null;
-  worldClockUiTimer=null;
   worldTimePollBusy=false;
 }
 
 function startWorldTimePolling() {
   stopWorldTimePolling();
   if(!currentCampaignId)return;
-  if(currentGameData?.worldTime&&!currentGameData.worldTime._clientReceivedAt)
-    currentGameData.worldTime._clientReceivedAt=Date.now();
-  renderWorldClockUi();
-  worldClockUiTimer=setInterval(renderWorldClockUi,250);
   void refreshWorldTime(true);
   worldTimePollTimer=setInterval(()=>void refreshWorldTime(false),5000);
 }

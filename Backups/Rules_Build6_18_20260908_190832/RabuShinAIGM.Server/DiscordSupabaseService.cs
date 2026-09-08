@@ -432,22 +432,6 @@ public sealed class DiscordSupabaseService
         return document.RootElement.Clone();
     }
 
-    // RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / OWNER PAUSE
-    public async Task<JsonElement> SetWorldClockPausedAsync(Guid playerId, Guid campaignId, bool paused)
-    {
-        using var response = await CallRpcAsync("discord_set_world_clock_paused", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_paused = paused
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to change world clock state: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
     public async Task<JsonElement> GetSleepStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_sleep_state", new
