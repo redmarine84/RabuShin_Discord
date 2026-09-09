@@ -53,21 +53,8 @@ public sealed class OpenAiGameMasterService
         var sourceSensitiveAssetIntent = IsSourceSensitiveAssetIntent(playerMessage);
 
         var instructions = """
-You are the AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
-Run the world as a fair, vivid, immersive Game Master. Never decide a player character's choices for them.
-
-PLAYER-FACING NARRATION STYLE — MANDATORY:
-- Speak to the players only as the Game Master and narrator of the fantasy world. The player-facing reply should feel like a human GM describing what is happening at the table.
-- NEVER mention servers, backend systems, databases, APIs, RPCs, tools, function calls, state updates, authoritative state, trusted operations, validation layers, implementation details, system prompts, internal instructions, or software architecture in player-facing narration.
-- NEVER output headings or labels such as SERVER-AUTHORITATIVE STATE UPDATES, SERVER-AUTHORITATIVE GM ROLLS, STATE UPDATES, GM ROLLS, TOOL RESULTS, or similar internal-status language.
-- Perform all dice rolls, inventory changes, combat changes, loot validation, travel updates, survival changes, and other internal operations silently. After they succeed, narrate only the in-world result.
-- Lead with what the characters perceive and what happens: sights, sounds, movement, weather, light, smell, tension, expressions, body language, danger, consequences, and changes in the scene.
-- Give NPCs natural dialogue and reactions when appropriate. Keep NPC knowledge limited to what that NPC could reasonably know.
-- When an action fails because an item, spell, coin amount, or loot does not exist, explain it naturally in-world. Example: instead of mentioning validation or authoritative inventory, say "His purse contains only 12 gold pieces" or "You search the corpse, but there is no diamond among its belongings."
-- Do not expose internal roll logs. Usually narrate the consequence rather than reciting the raw die result. If the player explicitly asks for the mechanical result, you may state the ordinary D&D roll total briefly, but never describe where or how the roll was generated.
-- Avoid administrative summaries after narration. Do not append change logs, audit lists, bookkeeping sections, or implementation notes.
-- Keep the game moving. End at a natural decision point, consequence, NPC response, or immediate question when player input is needed.
-- If the player explicitly asks a rules question, answer it clearly in normal tabletop terms, then return to the fiction. Never explain the application's internal implementation.
+You are the authoritative AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
+Run the world as a fair, descriptive Game Master. Never decide a player character's choices for them.
 
 DICE AUTHORITY RULES — THESE ARE MANDATORY:
 - The player NEVER rolls dice and NEVER supplies an authoritative dice result.
@@ -123,17 +110,10 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - A basic Waterskin filled from questionable water becomes Waterskin(Tainted). Its water causes nausea, removes 30 percentage points of Hunger, and restores only 1 percentage point of Thirst per drink.
 - A Magic Waterskin automatically purifies every source, including questionable water. Never mark its final contents tainted.
 - When a character with suitable heat and a container actually boils the tainted contents and pours the water back, call boil_waterskin. This keeps the remaining drink count and restores the basic item to Waterskin with clean water.
-- RULES BUILD 6.16: WORLD TIME is now shared and server-authoritative. Do not use advance_survival_time directly. Whenever meaningful in-game time passes for travel, waiting, exploration, watches, downtime, or a completed Short Rest, use advance_world_time. That single tool advances the shared campaign clock, survival needs, weather progression, and sleeping-character HP recovery together.
-- A completed Short Rest still uses complete_short_rest; after it succeeds, the server advances the shared world clock by exactly 1 hour. Do not add another hour separately.
-- A Long Rest is no longer completed instantly. When a character actually begins sleeping, use start_long_rest. The sleep engine tracks the full 8 hours, gradual HP recovery, paid Inn lodging, and early waking. Never use complete_long_rest directly in Build 6.16.
-- If every currently active living player is sleeping, the server may fast-forward the shared world clock to complete their sleep. If even one active living player remains awake, the clock does not fast-forward; continue play normally and advance_world_time only when story time actually passes.
+- Short Rest and Long Rest tools automatically advance survival time by 1 hour and 8 hours respectively. NEVER call advance_survival_time again for those same rest hours.
+- For travel, waiting, downtime, watches, imprisonment, or other fiction that definitively advances meaningful in-game time, call advance_survival_time with the characters affected and the actual hours elapsed.
 - When the environment becomes hot enough to require double water, call set_survival_hot_weather with hotWeather=true. Set it false when the party leaves the hot environment. Do not toggle it merely for ordinary warm weather.
-- RULES BUILD 6.18.4 EXHAUSTION: starvation has a safe period of 3 + Constitution modifier days without food, minimum 1 day. After that, each additional completed foodless day adds 1 Exhaustion.
-- WATER EXHAUSTION: each completed hydration day is checked by the server. Drinking at least 2/3 but less than the full daily requirement requires a DC 15 Constitution save or +1 Exhaustion. Drinking less than 2/3 automatically adds +1 Exhaustion. Hot weather doubles the gallon requirement.
-- Exhaustion is cumulative and all reached effects stack: Level 1 disadvantage on ability checks including initiative/skills; Level 2 speed halved; Level 3 disadvantage on attack rolls and saving throws; Level 4 maximum HP halved; Level 5 speed 0; Level 6 death.
-- A completed Long Rest reduces Exhaustion by exactly 1 only if the character has ingested some food AND some drink since the previous Long Rest. Greater Restoration reduces Exhaustion by exactly 1; when that spell successfully resolves, call adjust_exhaustion with delta -1.
-- For any OTHER explicit rules effect that adds or removes Exhaustion, call adjust_exhaustion. Never change Exhaustion only in narration. The server enforces initiative, movement, HP cap, and death; roll_dice also enforces Level 1/3 disadvantage when actorName and rollType identify the affected character and d20 roll.
-- For every roll_dice call, actorName MUST be the exact party character name when a party character is rolling, or an empty string for monsters/NPCs/random tables. rollType MUST accurately identify ability_check, initiative, attack, saving_throw, death_save, damage, or other.
+- Survival Exhaustion returned by the server is authoritative. Apply it in adjudication and narration; never invent or erase survival Exhaustion by narration alone.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
 WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
@@ -199,25 +179,13 @@ EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
 - When update_combat_monster first marks a monster defeated, RabuShin automatically reads that monster's trusted Challenge Rating / XP value from the Monster Codex and awards the encounter XP to the player characters who received initiative in that fight. Do not call a separate monster-XP tool and do not award the same monster twice.
 - Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
 - Earning enough XP does NOT immediately change a character's level. It only makes that character Level Up Ready.
-- A character levels only after actually completing an in-game LONG REST. Build 6.16 tracks this as an 8-hour sleep session on the shared world clock.
-- A first-person request such as "I take a Short Rest" or "I go to sleep / take a Long Rest" applies only to the speaking player's character unless the players explicitly establish that the party is resting together. Never silently rest absent or nonparticipating party members.
-- When a character starts sleeping, call start_long_rest with the exact character name(s), whether the story location is otherwise safe, the location description, and a short reason. Paid lodging at the character's current Inn is verified by the server and automatically qualifies as safe lodging.
-- Do not call complete_long_rest yourself. The server automatically finalizes a Long Rest only after 8 authoritative world-time hours have elapsed. At that point it restores full HP, Hit Dice, tracked spell slots/resources, and applies any XP-earned level.
-- Sleeping characters have a Resting window with current world time, HP, gradual recovery, elapsed/remaining rest time, and a Wake button. If a player wakes early, keep the HP already recovered but do not grant full Long Rest resources.
-- If the completed Long Rest produces a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
+- A character levels only after actually completing an in-game LONG REST. Do not call complete_long_rest merely because the player says they intend to sleep; resolve whether the Long Rest successfully completes first.
+- A first-person request such as "I take a Short Rest" or "I take a Long Rest" applies only to the speaking player's character unless the players explicitly establish that the party is resting together. Never silently rest absent or nonparticipating party members.
+- When one or more characters actually wake from a completed Long Rest, call complete_long_rest and pass only the characters who completed it. The server restores HP to full, restores all spent Hit Dice, restores tracked spell slots/resources, and, if XP qualifies, advances them to the earned level.
+- If complete_long_rest reports a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
 - A spellcasting character who completes a Long Rest without leveling can optionally review/change their spells after waking. The client presents that choice; do not choose spells for the player.
 - A Short Rest never triggers an XP level increase. A Short Rest must actually complete before you call complete_short_rest. The server then presents each named player with their own Hit Dice screen. Do NOT roll or spend their Hit Dice for them.
 - On that Short Rest screen, the player may spend zero or more of their AVAILABLE Hit Dice. Each spent die is rolled by the server and adds the character's Constitution modifier; healing is at least 1 HP per die and cannot exceed max HP. A character cannot spend more Hit Dice in one Short Rest than their total character level, and previously spent Hit Dice stay unavailable until a completed Long Rest restores them.
-
-WORLD TIME / WEATHER / TRAVEL / SLEEP — SERVER-AUTHORITATIVE / MANDATORY:
-- The WORLD TIME STATE below is the single shared campaign clock. Narration must match its Day, time of day, daylight, current weather, and current location.
-- Keep all implementation language invisible. Never say "world-time RPC", "state update", "server clock", "sleep session", or similar backend terms to players. Simply narrate dawn, dusk, rain, heat, darkness, travel duration, sleep, waking, and changing conditions naturally.
-- Use advance_world_time whenever a resolved action consumes meaningful time. Use realistic elapsed durations rather than advancing time for trivial speech.
-- World-map travel must consume time. Resolve any encounter/interruption first; whenever the journey actually advances, call advance_world_time for the hours that passed. Only call travel_to_world_location after the party truly arrives.
-- Weather may evolve automatically as time passes. Use set_world_weather when story canon or an immediate event requires a specific condition. Hot-weather state must match the actual narrated weather.
-- If a player says they sleep, do not immediately narrate eight completed hours. Call start_long_rest. If another active player stays awake, continue their story while sleeping characters remain unavailable for ordinary actions until they Wake or complete the rest.
-- A paid Inn room is verified by the server at the character's current Inn. Do not accept a player's claim that they paid unless the sleep tool reports paid lodging.
-- A character who wakes before 8 hours is not entitled to full Long Rest spell slots, Hit Dice, or level-up benefits; only the gradually recovered HP already earned remains.
 
 ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
 - The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
@@ -234,11 +202,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var inputBuilder = new StringBuilder();
         inputBuilder.AppendLine($"CAMPAIGN: {campaign.CampaignName}");
         inputBuilder.AppendLine($"CHAPTER: {campaign.CurrentChapter}; CURRENT LOCATION: {campaign.CurrentLocation}");
-        var worldTimeState = await GetWorldTimeStateForGmAsync(campaign.CampaignId);
-        if (worldTimeState is not null)
-        {
-            inputBuilder.AppendLine($"WORLD TIME STATE: Day {worldTimeState.DayNumber}, {worldTimeState.DisplayTime} ({worldTimeState.DayPart}); Weather: {worldTimeState.WeatherLabel}; Daylight: {(worldTimeState.IsDaylight ? "Yes" : "No")}; Hot Weather: {(worldTimeState.HotWeather ? "Yes" : "No")}");
-        }
 
         var canon = _canon.GetCanon(campaign.CurrentChapter, campaign.CurrentLocation);
         if (!string.IsNullOrWhiteSpace(canon))
@@ -321,9 +284,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             inputBuilder.AppendLine($"Hunger {survivalState.HungerPercent:0}% ({survivalState.FoodCreditLb:0.##}/{survivalState.FoodRequirementLb:0.##} lb daily food); " +
                 $"Thirst {survivalState.ThirstPercent:0}% ({survivalState.WaterCreditGal:0.##}/{survivalState.WaterRequirementGal:0.##} gal daily water); " +
-                $"Hot Weather {(survivalState.HotWeather ? "YES" : "NO")}; Survival Exhaustion {survivalState.ExhaustionLevel}; " +
-                $"Starvation {survivalState.StarvationDaysWithoutFood}/{survivalState.StarvationLimitDays} safe days; " +
-                $"Effective Speed {survivalState.EffectiveSpeed} ft.; Effective Max HP {survivalState.EffectiveMaxHp}.");
+                $"Hot Weather {(survivalState.HotWeather ? "YES" : "NO")}; Survival Exhaustion {survivalState.ExhaustionLevel}.");
         }
 
         inputBuilder.AppendLine();
@@ -479,7 +440,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var tools = new[]
         {
             BuildDiceTool(),
-            BuildAdjustExhaustionTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
@@ -490,13 +450,13 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildConsumeSurvivalItemTool(),
             BuildFillWaterskinTool(),
             BuildBoilWaterskinTool(),
-            BuildAdvanceWorldTimeTool(),
-            BuildSetWorldWeatherTool(),
-            BuildStartLongRestTool(),
+            BuildAdvanceSurvivalTimeTool(),
+            BuildSetSurvivalHotWeatherTool(),
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
             BuildCompleteQuestTool(),
             BuildCompleteShortRestTool(),
+            BuildCompleteLongRestTool(),
             BuildSetEncounterMapTool(),
             BuildStartCombatTool(),
             BuildAddCombatMonsterTool(),
@@ -564,9 +524,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "roll_dice":
                     {
                         var args = DeserializeArguments<DiceToolArguments>(call.ArgumentsJson, "dice");
-                        var exhaustion = await GetCharacterExhaustionAsync(campaign.CampaignId, args.ActorName);
-                        var effectiveArgs = ApplyExhaustionToRoll(args, exhaustion);
-                        var audit = ExecuteAuthoritativeRoll(effectiveArgs);
+                        var audit = ExecuteAuthoritativeRoll(args);
                         rollAudits.Add(audit);
                         toolResult = new
                         {
@@ -582,15 +540,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             dc = audit.Dc,
                             success = audit.Dc > 0 ? (bool?)audit.Success : null
                         };
-                        break;
-                    }
-                    case "adjust_exhaustion":
-                    {
-                        var args = DeserializeArguments<AdjustExhaustionToolArguments>(call.ArgumentsJson, "exhaustion adjustment");
-                        if (args.Delta == 0) throw new InvalidOperationException("Exhaustion adjustment cannot be zero.");
-                        var result = await AdjustExhaustionAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Exhaustion", $"{args.CharacterName}: {args.Delta:+#;-#;0} level ({args.Reason})"));
-                        toolResult = result;
                         break;
                     }
                     case "adjust_gold":
@@ -729,30 +678,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = result;
                         break;
                     }
-                    case "advance_world_time":
-                    {
-                        var args = DeserializeArguments<AdvanceWorldTimeToolArguments>(call.ArgumentsJson, "world time");
-                        var result = await AdvanceWorldTimeAsync(campaign.CampaignId, args.Hours, args.Reason);
-                        stateAudits.Add(new GameMasterStateAudit("WorldTime", $"World time advanced {args.Hours:0.##} hour(s)."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "set_world_weather":
-                    {
-                        var args = DeserializeArguments<SetWorldWeatherToolArguments>(call.ArgumentsJson, "world weather");
-                        var result = await SetWorldWeatherAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("WorldTime", $"Weather set to {args.WeatherLabel}."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "start_long_rest":
-                    {
-                        var args = DeserializeArguments<StartLongRestToolArguments>(call.ArgumentsJson, "Long Rest sleep");
-                        var result = await StartLongRestAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Rest", $"Long Rest sleep started for: {string.Join(", ", args.CharacterNames ?? Array.Empty<string>())}."));
-                        toolResult = new { authoritative = true, action = "start_long_rest", characters = result };
-                        break;
-                    }
                     case "advance_survival_time":
                     {
                         var args = DeserializeArguments<AdvanceSurvivalTimeToolArguments>(call.ArgumentsJson, "survival time");
@@ -802,24 +727,25 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<CompleteShortRestToolArguments>(call.ArgumentsJson, "short rest completion");
                         var result = await CompleteShortRestAsync(campaign.CampaignId, args);
-                        var worldTime = await AdvanceWorldTimeAsync(campaign.CampaignId, 1m, $"Short Rest: {args.Reason}");
+                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 1m, $"Short Rest: {args.Reason}");
                         var waiting = result.Where(r => r.Status.Equals("awaiting_hit_dice", StringComparison.OrdinalIgnoreCase))
                             .Select(r => r.CharacterName).ToArray();
                         stateAudits.Add(new GameMasterStateAudit("Rest", waiting.Length > 0
                             ? $"Short Rest completed; Hit Dice choices waiting for: {string.Join(", ", waiting)}"
                             : "Short Rest completed."));
-                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result, worldTime };
+                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result, survival };
                         break;
                     }
                     case "complete_long_rest":
                     {
-                        toolResult = new
-                        {
-                            authoritative = true,
-                            action = "complete_long_rest",
-                            rejected = true,
-                            reason = "Build 6.16 Long Rests must be started with start_long_rest and completed by elapsed world time."
-                        };
+                        var args = DeserializeArguments<CompleteLongRestToolArguments>(call.ArgumentsJson, "long rest completion");
+                        var result = await CompleteLongRestAsync(campaign.CampaignId, args);
+                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 8m, $"Long Rest: {args.Reason}");
+                        var leveled = result.Where(r => r.LeveledUp).Select(r => $"{r.CharacterName} {r.FromLevel}→{r.ToLevel}").ToArray();
+                        stateAudits.Add(new GameMasterStateAudit("Rest", leveled.Length > 0
+                            ? $"Long Rest completed; level up: {string.Join(", ", leveled)}"
+                            : "Long Rest completed; no XP level increase."));
+                        toolResult = new { authoritative = true, action = "complete_long_rest", characters = result, survival };
                         break;
                     }
                     case "set_encounter_map":
@@ -869,9 +795,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                                 : candidate.InitiativeModifier;
                             var audit = ExecuteAuthoritativeRoll(new DiceToolArguments
                             {
-                                Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=candidate.ExhaustionLevel>=1,
-                                ActorName=candidate.EntityType.Equals("character", StringComparison.OrdinalIgnoreCase)?candidate.DisplayName:string.Empty,
-                                RollType="initiative",Reason=$"{candidate.DisplayName} initiative",Dc=0
+                                Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=false,
+                                Reason=$"{candidate.DisplayName} initiative",Dc=0
                             });
                             rollAudits.Add(audit);
                             entries.Add(new InitiativePersistEntry(candidate.EntityType,candidate.CharacterId,candidate.CombatMonsterId,audit.Rolls[0],modifier,audit.Total));
@@ -1099,18 +1024,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     disadvantage = new
                     {
                         type = "boolean",
-                        description = "True only for a d20 roll made with disadvantage before Exhaustion is applied by the server."
-                    },
-                    actorName = new
-                    {
-                        type = "string",
-                        description = "Exact party character name when a party character is making this roll. Use an empty string for monsters, NPCs, random tables, or rolls with no party-character actor."
-                    },
-                    rollType = new
-                    {
-                        type = "string",
-                        @enum = new[] { "ability_check", "initiative", "attack", "saving_throw", "death_save", "damage", "other" },
-                        description = "Mechanical roll category. The server uses this to enforce cumulative Exhaustion disadvantage."
+                        description = "True only for a d20 roll made with disadvantage."
                     },
                     reason = new
                     {
@@ -1127,31 +1041,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 },
                 required = new[]
                 {
-                    "count", "sides", "modifier", "advantage", "disadvantage", "actorName", "rollType", "reason", "dc"
+                    "count", "sides", "modifier", "advantage", "disadvantage", "reason", "dc"
                 },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildAdjustExhaustionTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "adjust_exhaustion",
-            description = "Apply or relieve cumulative Exhaustion for an explicit rules effect. Greater Restoration must use delta -1. Survival starvation/dehydration and Long Rest recovery are automatic and must not be duplicated with this tool.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterName = new { type = "string", description = "Exact party character name." },
-                    delta = new { type = "integer", minimum = -6, maximum = 6, description = "Levels to add/remove. Cannot be 0. Greater Restoration is exactly -1." },
-                    reason = new { type = "string", description = "Exact spell, hazard, rule, or effect causing this adjustment." }
-                },
-                required = new[] { "characterName", "delta", "reason" },
                 additionalProperties = false
             }
         };
@@ -1372,7 +1263,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             type = "function",
             name = "travel_to_world_location",
-            description = "Commit the campaign's current location only after the party actually arrives at a discovered World Map destination. Before arrival, use advance_world_time for the real journey hours that elapsed, including partial travel before interruptions. Never teleport time or location simply because travel was requested.",
+            description = "Commit the campaign's current location after the party actually arrives at a discovered World Map destination. Never call merely when travel begins or while a journey is interrupted.",
             strict = true,
             parameters = new
             {
@@ -1473,83 +1364,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short narrative reason confirming how the water was boiled." }
                 },
                 required = new[] { "inventoryItemId", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildAdvanceWorldTimeTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "advance_world_time",
-            description = "Advance the single shared campaign clock when meaningful in-game time actually passes. This also advances Hunger/Thirst, weather progression, and HP recovery for sleeping characters. Use for travel, waiting, exploration, watches, downtime, and other elapsed time. Do not use for trivial dialogue.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    hours = new { type = "number", minimum = 0.02, maximum = 168, description = "Actual elapsed in-game hours. Fractions are allowed, e.g. 0.25 for 15 minutes." },
-                    reason = new { type = "string", description = "Short story reason for the time passage." }
-                },
-                required = new[] { "hours", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildSetWorldWeatherTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "set_world_weather",
-            description = "Set a specific current weather condition when campaign canon, magic, or a resolved story event requires it. Ordinary weather also evolves automatically as the shared world clock advances.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    weatherKey = new { type = "string", description = "Short machine-safe key such as clear, rain, fog, storm, snow, hot-clear, sandstorm." },
-                    weatherLabel = new { type = "string", description = "Natural player-facing weather label such as Heavy Rain or Hot and Clear." },
-                    hotWeather = new { type = "boolean", description = "True only when conditions are hot enough to require the 2-gallon daily water rule." },
-                    reason = new { type = "string", description = "Short in-world reason or cause." }
-                },
-                required = new[] { "weatherKey", "weatherLabel", "hotWeather", "reason" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildStartLongRestTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "start_long_rest",
-            description = "Begin an 8-hour sleeping Long Rest for the exact named player characters who actually go to sleep. Paid lodging at the character's current Inn is verified and consumed by the server. The rest is not completed immediately; HP recovers with elapsed world time and the player can Wake early.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterNames = new
-                    {
-                        type = "array",
-                        minItems = 1,
-                        maxItems = 20,
-                        items = new { type = "string" },
-                        description = "Exact character names that actually begin sleeping now."
-                    },
-                    safeLocation = new { type = "boolean", description = "True only if the story location is legitimately safe even without paid Inn lodging, e.g. secured home, protected temple, guarded barracks, secure magical shelter." },
-                    locationDescription = new { type = "string", description = "Short in-world sleeping location, e.g. Modest room at the Mudhaven Inn or guarded temple quarters." },
-                    reason = new { type = "string", description = "Short narrative reason for beginning the Long Rest." }
-                },
-                required = new[] { "characterNames", "safeLocation", "locationDescription", "reason" },
                 additionalProperties = false
             }
         };
@@ -1904,52 +1718,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             additionalProperties=false
         }
     };
-    private async Task<CharacterExhaustionForGm?> GetCharacterExhaustionAsync(Guid campaignId, string actorName)
-    {
-        if (string.IsNullOrWhiteSpace(actorName)) return null;
-        try
-        {
-            var raw = await CallSupabaseRpcAsync("discord_gm_get_character_exhaustion", new
-            {
-                p_campaign_id = campaignId,
-                p_character_name = actorName.Trim()
-            }, "Unable to load character Exhaustion");
-            var rows = JsonSerializer.Deserialize<List<CharacterExhaustionForGm>>(raw, JsonOptions) ?? new();
-            return rows.FirstOrDefault();
-        }
-        catch { return null; }
-    }
-
-    private static DiceToolArguments ApplyExhaustionToRoll(DiceToolArguments args, CharacterExhaustionForGm? exhaustion)
-    {
-        if (args.Sides != 20 || exhaustion is null || exhaustion.ExhaustionLevel <= 0) return args;
-        var type = (args.RollType ?? string.Empty).Trim().ToLowerInvariant();
-        var forced = (exhaustion.ExhaustionLevel >= 1 && (type is "ability_check" or "initiative")) ||
-                     (exhaustion.ExhaustionLevel >= 3 && (type is "attack" or "saving_throw" or "death_save"));
-        if (!forced) return args;
-        // D&D advantage and disadvantage cancel rather than stacking.
-        if (args.Advantage)
-        {
-            args.Advantage = false;
-            args.Disadvantage = false;
-        }
-        else args.Disadvantage = true;
-        return args;
-    }
-
-    private async Task<JsonElement> AdjustExhaustionAsync(Guid campaignId, AdjustExhaustionToolArguments args)
-    {
-        var raw = await CallSupabaseRpcAsync("discord_gm_adjust_exhaustion", new
-        {
-            p_campaign_id = campaignId,
-            p_character_name = (args.CharacterName ?? string.Empty).Trim(),
-            p_delta = Math.Clamp(args.Delta, -6, 6),
-            p_reason = CleanReason(args.Reason, "Exhaustion adjustment")
-        }, "Unable to adjust Exhaustion");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -2419,84 +2187,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             "Unable to boil waterskin water");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
-    }
-
-    private async Task<WorldTimeStateForGm?> GetWorldTimeStateForGmAsync(Guid campaignId)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_get_world_time_state",
-            new { p_campaign_id = campaignId },
-            "Unable to load world time");
-        return JsonSerializer.Deserialize<WorldTimeStateForGm>(raw, JsonOptions);
-    }
-
-    private async Task<JsonElement> AdvanceWorldTimeAsync(Guid campaignId, decimal hours, string? reason)
-    {
-        if (hours <= 0m || hours > 168m)
-            throw new InvalidOperationException("World time must advance between 0 and 168 hours.");
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_advance_world_time",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_hours = Math.Round(hours, 2),
-                p_reason = CleanReason(reason, "In-game time passed")
-            },
-            "Unable to advance world time");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> SetWorldWeatherAsync(Guid campaignId, SetWorldWeatherToolArguments args)
-    {
-        var key = (args.WeatherKey ?? string.Empty).Trim().ToLowerInvariant();
-        var label = (args.WeatherLabel ?? string.Empty).Trim();
-        if (key.Length == 0) key = "clear";
-        if (label.Length == 0) label = "Clear";
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_set_world_weather",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_weather_key = key,
-                p_weather_label = label,
-                p_hot_weather = args.HotWeather,
-                p_reason = CleanReason(args.Reason, label)
-            },
-            "Unable to update world weather");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<List<JsonElement>> StartLongRestAsync(Guid campaignId, StartLongRestToolArguments args)
-    {
-        var names = (args.CharacterNames ?? Array.Empty<string>())
-            .Select(name => (name ?? string.Empty).Trim())
-            .Where(name => name.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToArray();
-        if (names.Length == 0)
-            throw new InvalidOperationException("Long Rest sleep requires at least one character name.");
-
-        var results = new List<JsonElement>();
-        foreach (var name in names)
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_start_long_rest",
-                new
-                {
-                    p_campaign_id = campaignId,
-                    p_character_name = name,
-                    p_safe_location = args.SafeLocation,
-                    p_location_description = CleanReason(args.LocationDescription, "Safe shelter"),
-                    p_reason = CleanReason(args.Reason, "Begins Long Rest")
-                },
-                $"Unable to start Long Rest for {name}");
-            using var document = JsonDocument.Parse(raw);
-            results.Add(document.RootElement.Clone());
-        }
-        return results;
     }
 
     private async Task<JsonElement> AdvanceSurvivalTimeAsync(
@@ -3131,85 +2821,66 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             : string.Empty;
     }
 
-    // RULES BUILD 6.14.4 - IMMERSIVE GM NARRATION
-    // Roll/state audits remain available to application code, but are never appended
-    // to the player-facing Game Master message. Internal mechanics stay behind the curtain.
     private static string BuildVisibleGmMessage(
         string finalText,
         IReadOnlyList<GameMasterDiceAudit> rolls,
         IReadOnlyList<GameMasterStateAudit> stateChanges)
     {
-        _ = rolls;
-        _ = stateChanges;
-        return SanitizePlayerFacingNarration(finalText);
-    }
+        if (rolls.Count == 0 && stateChanges.Count == 0)
+            return finalText;
 
-    private static string SanitizePlayerFacingNarration(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var sb = new StringBuilder();
 
-        var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
-        var lines = normalized.Split('\n');
-        var kept = new List<string>(lines.Length);
-        var suppressAuditBullets = false;
-
-        foreach (var rawLine in lines)
+        if (rolls.Count > 0)
         {
-            var line = rawLine.TrimEnd();
-            var trimmed = line.Trim();
-            if (trimmed.Length == 0)
+            sb.AppendLine("SERVER-AUTHORITATIVE GM ROLLS");
+            foreach (var roll in rolls)
             {
-                suppressAuditBullets = false;
-                kept.Add(string.Empty);
-                continue;
-            }
+                sb.Append("• ").Append(roll.Reason).Append(": ");
+                if (roll.KeptRoll.HasValue)
+                {
+                    sb.Append(roll.Mode)
+                        .Append(" [")
+                        .Append(string.Join(", ", roll.Rolls))
+                        .Append("] → kept ")
+                        .Append(roll.KeptRoll.Value)
+                        .Append(' ')
+                        .Append(FormatModifier(roll.Modifier))
+                        .Append(" = ")
+                        .Append(roll.Total);
+                }
+                else
+                {
+                    sb.Append(roll.Expression)
+                        .Append(" [")
+                        .Append(string.Join(", ", roll.Rolls))
+                        .Append("] ")
+                        .Append(FormatModifier(roll.Modifier))
+                        .Append(" = ")
+                        .Append(roll.Total);
+                }
 
-            if (IsInternalNarrationHeading(trimmed))
-            {
-                suppressAuditBullets = true;
-                continue;
+                if (roll.Dc > 0)
+                {
+                    sb.Append(" vs ")
+                        .Append(roll.Dc)
+                        .Append(roll.Success ? " — SUCCESS" : " — FAILURE");
+                }
+                sb.AppendLine();
             }
-
-            if (suppressAuditBullets &&
-                (trimmed.StartsWith("•", StringComparison.Ordinal) ||
-                 trimmed.StartsWith("-", StringComparison.Ordinal) ||
-                 trimmed.StartsWith("*", StringComparison.Ordinal)))
-            {
-                continue;
-            }
-
-            suppressAuditBullets = false;
-            kept.Add(RemoveInternalNarrationPhrases(line));
+            sb.AppendLine();
         }
 
-        var result = string.Join("\n", kept);
-        result = Regex.Replace(result, @"\n{3,}", "\n\n").Trim();
-        return result;
-    }
+        if (stateChanges.Count > 0)
+        {
+            sb.AppendLine("SERVER-AUTHORITATIVE STATE UPDATES");
+            foreach (var change in stateChanges)
+                sb.Append("• ").Append(change.Summary).AppendLine();
+            sb.AppendLine();
+        }
 
-    private static bool IsInternalNarrationHeading(string line)
-    {
-        var upper = line.ToUpperInvariant();
-        return upper.Contains("SERVER-AUTHORITATIVE GM ROLLS", StringComparison.Ordinal) ||
-               upper.Contains("SERVER-AUTHORITATIVE STATE UPDATES", StringComparison.Ordinal) ||
-               upper == "GM ROLLS" ||
-               upper == "STATE UPDATES" ||
-               upper == "TOOL RESULTS" ||
-               upper == "TRUSTED OPERATIONS" ||
-               upper == "SERVER STATE";
-    }
-
-    private static string RemoveInternalNarrationPhrases(string line)
-    {
-        var cleaned = line;
-        cleaned = Regex.Replace(cleaned, @"(?i)\bserver[- ]authoritative\b", "current");
-        cleaned = Regex.Replace(cleaned, @"(?i)\bauthoritative server\b", "game");
-        cleaned = Regex.Replace(cleaned, @"(?i)\btrusted server\b", "game");
-        cleaned = Regex.Replace(cleaned, @"(?i)\bserver state\b", "current state");
-        cleaned = Regex.Replace(cleaned, @"(?i)\bstate update(s)?\b", "change$1");
-        cleaned = Regex.Replace(cleaned, @"(?i)\btool result(s)?\b", "outcome$1");
-        cleaned = Regex.Replace(cleaned, @"[ \t]{2,}", " ");
-        return cleaned.TrimEnd();
+        sb.Append(finalText);
+        return sb.ToString();
     }
 
     private static int AbilityModifier(int score)
@@ -3279,26 +2950,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public int Modifier { get; set; }
         public bool Advantage { get; set; }
         public bool Disadvantage { get; set; }
-        public string ActorName { get; set; } = string.Empty;
-        public string RollType { get; set; } = "other";
         public string Reason { get; set; } = "GM roll";
         public int Dc { get; set; }
-    }
-
-    private sealed class AdjustExhaustionToolArguments
-    {
-        public string CharacterName { get; set; } = string.Empty;
-        public int Delta { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class CharacterExhaustionForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
     }
 
     private sealed class AdjustGoldToolArguments
@@ -3499,7 +3152,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("initiative_modifier")] public int InitiativeModifier { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
     }
     private sealed class CombatInitiativeForGm
     {
@@ -3621,46 +3273,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("hunger_percent")] public decimal HungerPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("thirst_percent")] public decimal ThirstPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("starvation_limit_days")] public int StarvationLimitDays { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("starvation_days_without_food")] public int StarvationDaysWithoutFood { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hydration_consumed_gal")] public decimal HydrationConsumedGal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
-    }
-
-    private sealed class WorldTimeStateForGm
-    {
-        public long WorldMinute { get; set; }
-        public int DayNumber { get; set; }
-        public string DisplayTime { get; set; } = string.Empty;
-        public string DayPart { get; set; } = string.Empty;
-        public bool IsDaylight { get; set; }
-        public string WeatherKey { get; set; } = string.Empty;
-        public string WeatherLabel { get; set; } = string.Empty;
-        public bool HotWeather { get; set; }
-        public string CurrentLocation { get; set; } = string.Empty;
-    }
-
-    private sealed class AdvanceWorldTimeToolArguments
-    {
-        public decimal Hours { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class SetWorldWeatherToolArguments
-    {
-        public string WeatherKey { get; set; } = string.Empty;
-        public string WeatherLabel { get; set; } = string.Empty;
-        public bool HotWeather { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class StartLongRestToolArguments
-    {
-        public string[] CharacterNames { get; set; } = Array.Empty<string>();
-        public bool SafeLocation { get; set; }
-        public string LocationDescription { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
     }
 
     private sealed class CompleteShortRestToolArguments
@@ -3697,9 +3309,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("experience")] public int Experience { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("hpGain")] public int HpGain { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("maxHp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effectiveMaxHp")] public int EffectiveMaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustionReduced")] public bool ExhaustionReduced { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustionLevel")] public int ExhaustionLevel { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("proficiencyBonus")] public int ProficiencyBonus { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("spellSelectionRequired")] public bool SpellSelectionRequired { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("spellReviewAvailable")] public bool SpellReviewAvailable { get; set; }

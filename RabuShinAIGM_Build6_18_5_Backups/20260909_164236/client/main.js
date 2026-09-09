@@ -93,7 +93,7 @@ let gmVoiceCurrentMessageKey = '';
 let gmVoiceVoicesChangedBound = false;
 
 const app = document.querySelector('#app');
-const publicSiteBase = 'https://redmarine84.github.io/Quests-of-Rabu-Shin';
+const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
 const legalUrls = {
   terms: `${publicSiteBase}/terms.html`,
   privacy: `${publicSiteBase}/privacy.html`,
@@ -4251,8 +4251,6 @@ function bindGmVoiceSettings() {
 }
 
 function renderSettingsTab(){
-  // RULES BUILD 6.18.5 - FRIENDS TO SOLO PERMANENT CONVERSION
-  const canConvertToSolo=currentGameData?.campaign?.isOwner===true && currentGameData?.campaign?.canConvertToSolo===true && !isSoloCampaign();
   document.querySelector('#gameView').innerHTML=`
     <div class="view-heading"><h3>Settings</h3></div>
     <section class="panel settings">
@@ -4271,14 +4269,7 @@ function renderSettingsTab(){
       ${currentGameData?.campaign?.isOwner?'':'<small class="muted settings-owner-note">Only the campaign owner can change this setting.</small>'}
       <div id="survivalSettingsError" class="error"></div>
     </section>
-    ${canConvertToSolo?`
-    <section class="panel settings campaign-mode-settings">
-      <h4>Campaign Play Mode</h4>
-      <p><span class="warn">This campaign is currently Play with Friends.</span></p>
-      <p class="muted">No other real player has joined this campaign, so the owner may permanently convert it to Solo Play. After conversion, the campaign cannot be changed back to Play with Friends and its old join code will no longer work.</p>
-      <button id="convertToSoloPlay" class="button danger-button">Convert to Solo Play</button>
-      <div id="soloConversionError" class="error"></div>
-    </section>`:''}    <section class="panel settings gm-voice-settings">
+    <section class="panel settings gm-voice-settings">
       <h4>AI Game Master Voice</h4>
       ${gmVoiceSupported()?'':'<p class="warn">This browser does not expose a speech-synthesis voice. Text responses will continue to work normally.</p>'}
       <label class="gm-voice-toggle"><input id="gmVoiceEnabled" type="checkbox"> <span>Speak new AI Game Master responses automatically</span></label>
@@ -4333,28 +4324,6 @@ function renderSettingsTab(){
       const error=document.querySelector('#survivalSettingsError');if(error)error.textContent=e.message;
       survivalToggle.disabled=false;
     }
-  };
-  const convertToSoloButton=document.querySelector('#convertToSoloPlay');
-  if(convertToSoloButton)convertToSoloButton.onclick=()=>{
-    showModal(
-      'Convert to Solo Play?',
-      `<div class="destructive-warning">
-        <p><strong>This change is permanent and cannot be undone.</strong></p>
-        <p>This Play with Friends campaign will become a Solo Play campaign. The existing campaign join code will be disabled, no other Discord players will be able to join, and your existing character will become the first character in your Solo party.</p>
-        <p><strong>Are you sure you want to permanently convert this campaign to Solo Play?</strong></p>
-      </div>`,
-      'Yes â€” Convert Permanently',
-      async()=>{
-        const confirmButton=document.querySelector('#modalConfirm');
-        if(confirmButton){confirmButton.disabled=true;confirmButton.textContent='Converting...';}
-        const result=await api(`/game-api/campaigns/${currentCampaignId}/settings/convert-to-solo`,{method:'POST'});
-        document.querySelector('#modalOverlay')?.remove();
-        await enterCampaign(currentCampaignId,'settings');
-        showNotice(result.message||'Campaign permanently converted to Solo Play.');
-      }
-    );
-    const confirmButton=document.querySelector('#modalConfirm');
-    if(confirmButton)confirmButton.className='button danger';
   };
   bindGmVoiceSettings();
   document.querySelector('#openOpenAiKeys').onclick=()=>openExternal('https://platform.openai.com/api-keys');

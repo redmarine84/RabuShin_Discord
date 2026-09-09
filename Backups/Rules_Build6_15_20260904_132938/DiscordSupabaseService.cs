@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using QuestsOfRabuShinAIGM;
 
@@ -76,80 +75,6 @@ public sealed class DiscordSupabaseService
             p_campaign_name = campaignName.Trim()
         });
         return await ReadGuidResultAsync(response, "Unable to create campaign");
-    }
-
-    // RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
-    public async Task<Guid> CreateSoloCampaignAsync(Guid playerId, string campaignName)
-    {
-        if (string.IsNullOrWhiteSpace(campaignName)) throw new ArgumentException("Campaign name is required.");
-        using var response = await CallRpcAsync("discord_create_solo_campaign", new
-        {
-            p_player_id = playerId,
-            p_campaign_name = campaignName.Trim()
-        });
-        return await ReadGuidResultAsync(response, "Unable to create Solo Play campaign");
-    }
-
-    // RULES BUILD 6.18.5 - PERMANENT FRIENDS -> SOLO CONVERSION
-    public async Task<SoloConversionStateInfo> GetSoloConversionStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_solo_conversion_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var states = await ReadListAsync<SoloConversionStateInfo>(response, "Unable to check Solo conversion availability");
-        return states.FirstOrDefault() ?? new SoloConversionStateInfo
-        {
-            Eligible = false,
-            Reason = "Solo conversion availability could not be determined."
-        };
-    }
-
-    public async Task<Guid> ConvertCampaignToSoloAsync(Guid ownerPlayerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_convert_campaign_to_solo", new
-        {
-            p_player_id = ownerPlayerId,
-            p_campaign_id = campaignId
-        });
-        var convertedId = await ReadGuidResultAsync(response, "Unable to convert campaign to Solo Play");
-        _soloEffectivePlayerCache.Remove(SoloCacheKey(ownerPlayerId, campaignId));
-        return convertedId;
-    }
-    public async Task<SoloPartyStateInfo> GetSoloPartyStateAsync(Guid ownerPlayerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_solo_party_state", new
-        {
-            p_owner_player_id = ownerPlayerId,
-            p_campaign_id = campaignId
-        });
-        var states = await ReadListAsync<SoloPartyStateInfo>(response, "Unable to load Solo party state");
-        return states.FirstOrDefault() ?? new SoloPartyStateInfo();
-    }
-
-    public async Task SetActiveSoloCharacterAsync(Guid ownerPlayerId, Guid campaignId, Guid characterId)
-    {
-        using var response = await CallRpcAsync("discord_set_solo_active_character", new
-        {
-            p_owner_player_id = ownerPlayerId,
-            p_campaign_id = campaignId,
-            p_character_id = characterId
-        });
-        await ReadGuidResultAsync(response, "Unable to switch active Solo character");
-        _soloEffectivePlayerCache.Remove(SoloCacheKey(ownerPlayerId, campaignId));
-    }
-
-    public async Task<PartyCharacterDetailsInfo?> GetPartyCharacterDetailsAsync(Guid viewerPlayerId, Guid campaignId, Guid characterId)
-    {
-        using var response = await CallRpcAsync("discord_get_party_character_details", new
-        {
-            p_player_id = viewerPlayerId,
-            p_campaign_id = campaignId,
-            p_character_id = characterId
-        });
-        var rows = await ReadListAsync<PartyCharacterDetailsInfo>(response, "Unable to load party character progression");
-        return rows.FirstOrDefault();
     }
 
     public async Task<Guid> JoinCampaignAsync(Guid playerId, string joinCode)
@@ -349,68 +274,6 @@ public sealed class DiscordSupabaseService
         return id;
     }
 
-    public async Task<Guid> CreateSoloPartyCharacterWithFeaturesAsync(
-        Guid ownerPlayerId,
-        Guid campaignId,
-        PlayerCharacter character,
-        string requestedSpecies,
-        AppliedRacialScores scores,
-        CharacterFeatureProfile features,
-        string appearance,
-        string personality,
-        string backstory,
-        string notes)
-    {
-        Guid controlPlayerId = Guid.Empty;
-        try
-        {
-            using (var allocationResponse = await CallRpcAsync("discord_solo_allocate_control_player", new
-            {
-                p_owner_player_id = ownerPlayerId,
-                p_campaign_id = campaignId
-            }))
-            {
-                controlPlayerId = await ReadGuidResultAsync(allocationResponse, "Unable to allocate Solo party slot");
-            }
-
-            var characterId = await CreateCharacterWithFeaturesAsync(
-                controlPlayerId, campaignId, character, requestedSpecies, scores, features,
-                appearance, personality, backstory, notes);
-
-            using (var registerResponse = await CallRpcAsync("discord_solo_register_character", new
-            {
-                p_owner_player_id = ownerPlayerId,
-                p_campaign_id = campaignId,
-                p_control_player_id = controlPlayerId,
-                p_character_id = characterId
-            }))
-            {
-                await EnsureSuccessAsync(registerResponse, "Unable to register Solo party character");
-            }
-
-            await SetActiveSoloCharacterAsync(ownerPlayerId, campaignId, characterId);
-            return characterId;
-        }
-        catch
-        {
-            if (controlPlayerId != Guid.Empty)
-            {
-                try
-                {
-                    using var cleanupResponse = await CallRpcAsync("discord_solo_cleanup_control_player", new
-                    {
-                        p_owner_player_id = ownerPlayerId,
-                        p_campaign_id = campaignId,
-                        p_control_player_id = controlPlayerId
-                    });
-                    await EnsureSuccessAsync(cleanupResponse, "Unable to clean up incomplete Solo party slot");
-                }
-                catch { /* Preserve the original creation failure. */ }
-            }
-            throw;
-        }
-    }
-
     public async Task<DiscordCharacterFeatureState?> GetCharacterFeatureStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_character_features", new
@@ -442,65 +305,6 @@ public sealed class DiscordSupabaseService
         });
         var rows = await ReadListAsync<DiscordRestState>(response, "Unable to load rest state");
         return rows.FirstOrDefault();
-    }
-
-    // RULES BUILD 6.16 - WORLD TIME / SLEEP STATE
-    public async Task<JsonElement> GetWorldTimeStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_world_time_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to load world time: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
-    // RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / OWNER PAUSE
-    public async Task<JsonElement> SetWorldClockPausedAsync(Guid playerId, Guid campaignId, bool paused)
-    {
-        using var response = await CallRpcAsync("discord_set_world_clock_paused", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_paused = paused
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to change world clock state: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
-    public async Task<JsonElement> GetSleepStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_sleep_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to load sleeping state: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
-    public async Task<JsonElement> WakeFromLongRestAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_wake_from_long_rest", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to wake character: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
     }
 
     public async Task<DiscordSurvivalState?> GetSurvivalStateAsync(Guid playerId, Guid campaignId)
@@ -1123,25 +927,6 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException("Supabase returned an invalid shop purchase result.");
     }
 
-    // RULES BUILD 6.15 - HOSPITALITY PURCHASE RPC
-    public async Task<JsonElement> BuyHospitalityServiceAsync(
-        Guid playerId, Guid campaignId, string settlementKey, string poiKey,
-        SettlementShopItemDefinition item, int quantity, string venueName)
-    {
-        using var response = await CallRpcAsync("discord_buy_hospitality_service", new
-        {
-            p_player_id = playerId, p_campaign_id = campaignId, p_settlement_key = settlementKey,
-            p_poi_key = poiKey, p_service_key = item.ItemKey, p_service_name = item.ItemName,
-            p_service_category = item.Category, p_quantity = quantity, p_unit_price_gp = item.PriceGp,
-            p_venue_name = venueName
-        });
-        var text = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Unable to purchase Inn/Tavern service: " + text);
-        using var document = JsonDocument.Parse(text);
-        return document.RootElement.Clone();
-    }
-
     public async Task<DiscordSettlementShopSaleResult> SellSettlementShopItemAsync(
         Guid playerId, Guid campaignId, string settlementKey, string poiKey,
         Guid inventoryItemId, string itemName, int quantity, decimal unitPriceGp, string shopName)
@@ -1436,59 +1221,9 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException($"{prefix}: Supabase returned an invalid turn state.");
     }
 
-    // RULES BUILD 6.17 - SOLO ACTIVE CHARACTER ROUTING
-    private readonly Dictionary<string, Guid> _soloEffectivePlayerCache = new(StringComparer.Ordinal);
-    private static string SoloCacheKey(Guid playerId, Guid campaignId) => $"{playerId:D}:{campaignId:D}";
-
-    private static readonly HashSet<string> SoloCharacterScopedRpcs = new(StringComparer.Ordinal)
-    {
-        "discord_get_character","discord_create_character","discord_set_character_features","discord_get_character_features",
-        "discord_get_level_up_state","discord_get_rest_state","discord_get_sleep_state","discord_wake_from_long_rest",
-        "discord_get_survival_state","discord_spend_short_rest_hit_die","discord_finish_short_rest","discord_finish_long_rest_review",
-        "discord_save_level_up_choices","discord_update_character_details","discord_get_character_setup_state",
-        "discord_set_character_portrait","discord_set_starting_equipment","discord_get_inventory","discord_get_ration_states",
-        "discord_eat_ration_portion","discord_get_waterskin_states","discord_drink_waterskin","discord_apply_inventory_valuations",
-        "discord_set_inventory_equipped","discord_remove_inventory_quantity","discord_set_spells","discord_get_spells",
-        "discord_get_spell_slots","discord_get_player_settlement_location","discord_set_player_settlement_location",
-        "discord_buy_settlement_item","discord_buy_hospitality_service","discord_sell_settlement_item",
-        "discord_get_combat_state","discord_get_tactical_combat_state","discord_move_own_combat_token",
-        "discord_get_tactical_door_states","discord_move_own_combat_token_costed","discord_get_combat_initiative",
-        "discord_end_player_combat_turn","discord_get_death_state","discord_choose_respawn","discord_accept_respawn_donation",
-        "discord_donate_to_respawn","discord_decline_respawn_donation","discord_finalize_party_respawn"
-    };
-
-    private async Task<Guid> ResolveEffectivePlayerIdAsync(Guid playerId, Guid campaignId)
-    {
-        var key = SoloCacheKey(playerId, campaignId);
-        if (_soloEffectivePlayerCache.TryGetValue(key, out var cached)) return cached;
-
-        using var response = await CallRpcRawAsync("discord_resolve_active_player", JsonSerializer.Serialize(new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        }));
-        var resolved = await ReadGuidResultAsync(response, "Unable to resolve active Solo character");
-        _soloEffectivePlayerCache[key] = resolved;
-        return resolved;
-    }
-
     private async Task<HttpResponseMessage> CallRpcAsync(string functionName, object body)
     {
-        var node = JsonSerializer.SerializeToNode(body) as JsonObject ?? new JsonObject();
-        if (SoloCharacterScopedRpcs.Contains(functionName)
-            && node["p_player_id"] is JsonNode playerNode
-            && node["p_campaign_id"] is JsonNode campaignNode
-            && Guid.TryParse(playerNode.ToString().Trim('"'), out var playerId)
-            && Guid.TryParse(campaignNode.ToString().Trim('"'), out var campaignId))
-        {
-            var effectivePlayerId = await ResolveEffectivePlayerIdAsync(playerId, campaignId);
-            node["p_player_id"] = effectivePlayerId.ToString();
-        }
-        return await CallRpcRawAsync(functionName, node.ToJsonString());
-    }
-
-    private async Task<HttpResponseMessage> CallRpcRawAsync(string functionName, string json)
-    {
+        var json = JsonSerializer.Serialize(body);
         var url = $"{_supabaseUrl.TrimEnd('/')}/rest/v1/rpc/{functionName}";
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.TryAddWithoutValidation("apikey", _supabaseSecretKey);
@@ -1654,35 +1389,6 @@ public sealed class DiscordCampaignInfo
     [JsonPropertyName("current_location")] public string CurrentLocation { get; set; } = string.Empty;
     [JsonPropertyName("is_owner")] public bool IsOwner { get; set; }
     [JsonPropertyName("member_count")] public long MemberCount { get; set; }
-    [JsonPropertyName("campaign_mode")] public string CampaignMode { get; set; } = "friends";
-}
-
-public sealed class SoloConversionStateInfo
-{
-    [JsonPropertyName("eligible")] public bool Eligible { get; set; }
-    [JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    [JsonPropertyName("other_real_players")] public long OtherRealPlayers { get; set; }
-}
-public sealed class SoloPartyStateInfo
-{
-    [JsonPropertyName("is_solo")] public bool IsSolo { get; set; }
-    [JsonPropertyName("character_count")] public int CharacterCount { get; set; }
-    [JsonPropertyName("max_characters")] public int MaxCharacters { get; set; } = 5;
-    [JsonPropertyName("active_character_id")] public Guid? ActiveCharacterId { get; set; }
-    [JsonPropertyName("active_character_name")] public string ActiveCharacterName { get; set; } = string.Empty;
-    [JsonPropertyName("can_add")] public bool CanAdd { get; set; }
-}
-
-public sealed class PartyCharacterDetailsInfo
-{
-    [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-    [JsonPropertyName("level")] public int Level { get; set; }
-    [JsonPropertyName("experience")] public int Experience { get; set; }
-    [JsonPropertyName("alignment")] public string Alignment { get; set; } = string.Empty;
-    [JsonPropertyName("alignment_deed_balance")] public int AlignmentDeedBalance { get; set; }
-    [JsonPropertyName("alignment_good_deeds")] public int AlignmentGoodDeeds { get; set; }
-    [JsonPropertyName("alignment_evil_deeds")] public int AlignmentEvilDeeds { get; set; }
-    [JsonPropertyName("active_solo_character")] public bool ActiveSoloCharacter { get; set; }
 }
 
 public sealed class DiscordCharacterInfo
@@ -1785,15 +1491,7 @@ public sealed class DiscordSurvivalState
     [JsonPropertyName("food_deficit_hours")] public decimal FoodDeficitHours { get; set; }
     [JsonPropertyName("water_deficit_hours")] public decimal WaterDeficitHours { get; set; }
     [JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-    [JsonPropertyName("starvation_limit_days")] public int StarvationLimitDays { get; set; }
-    [JsonPropertyName("starvation_days_without_food")] public int StarvationDaysWithoutFood { get; set; }
-    [JsonPropertyName("hydration_window_hours")] public decimal HydrationWindowHours { get; set; }
-    [JsonPropertyName("hydration_consumed_gal")] public decimal HydrationConsumedGal { get; set; }
-    [JsonPropertyName("hydration_requirement_gal")] public decimal HydrationRequirementGal { get; set; }
-    [JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-    [JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
 
-    // RULES BUILD 6.18.4 - EXHAUSTION RULES OVERHAUL
     // JsonPropertyName attributes above match the snake_case Supabase RPC
     // response. Never return this database DTO directly to the browser because
     // those attributes also control ASP.NET output serialization.
@@ -1812,14 +1510,7 @@ public sealed class DiscordSurvivalState
         thirstPercent = ThirstPercent,
         foodDeficitHours = FoodDeficitHours,
         waterDeficitHours = WaterDeficitHours,
-        exhaustionLevel = ExhaustionLevel,
-        starvationLimitDays = StarvationLimitDays,
-        starvationDaysWithoutFood = StarvationDaysWithoutFood,
-        hydrationWindowHours = HydrationWindowHours,
-        hydrationConsumedGal = HydrationConsumedGal,
-        hydrationRequirementGal = HydrationRequirementGal,
-        effectiveSpeed = EffectiveSpeed,
-        effectiveMaxHp = EffectiveMaxHp
+        exhaustionLevel = ExhaustionLevel
     };
 }
 

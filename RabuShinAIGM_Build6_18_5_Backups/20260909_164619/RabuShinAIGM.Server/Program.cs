@@ -518,32 +518,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
 
 
 // RULES BUILD 6.17 - FULL SOLO PARTY CHARACTER CREATION
-// RULES BUILD 6.18.5 - PERMANENT FRIENDS -> SOLO CONVERSION
-app.MapPost("/game-api/campaigns/{campaignId:guid}/settings/convert-to-solo", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        await service.ConvertCampaignToSoloAsync(playerId, campaignId);
-        return Results.Ok(new
-        {
-            success = true,
-            campaignId,
-            campaignMode = "solo",
-            message = "Campaign permanently converted to Solo Play."
-        });
-    }
-    catch (UnauthorizedAccessException ex)
-    {
-        return Results.Json(new { success = false, error = ex.Message }, statusCode: 401);
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { success = false, error = ex.Message });
-    }
-});
 app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random", async (
     Guid campaignId, EnhancedRandomCharacterRequest body, HttpRequest request, DiscordSupabaseService service) =>
 {
@@ -1039,7 +1013,6 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
 
         var party = await service.GetPartyAsync(playerId, campaignId);
         var soloPartyState = await service.GetSoloPartyStateAsync(playerId, campaignId);
-        var soloConversionState = await service.GetSoloConversionStateAsync(playerId, campaignId);
         var inventory = await service.GetInventoryAsync(playerId, campaignId);
         var spells = await service.GetSpellsAsync(playerId, campaignId);
         var slots = await service.GetSpellSlotsAsync(playerId, campaignId);
@@ -1054,8 +1027,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/bootstrap", async (
         {
             success = true,
             campaign = new { campaignId = campaign.CampaignId, campaignName = campaign.CampaignName, joinCode = campaign.JoinCode,
-                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount, campaignMode = campaign.CampaignMode,
-                canConvertToSolo = soloConversionState.Eligible, soloConversionReason = soloConversionState.Reason },
+                currentChapter = campaign.CurrentChapter, currentLocation = campaign.CurrentLocation, isOwner = campaign.IsOwner, memberCount = campaign.MemberCount, campaignMode = campaign.CampaignMode },
             character = ProgramHelpers.ToClientCharacter(character, party.Any(p => p.CharacterId == character.CharacterId && !string.IsNullOrWhiteSpace(p.PortraitPath))),
             party = party.Select(ProgramHelpers.ToClientPartyMember),
             soloParty = new

@@ -90,33 +90,6 @@ public sealed class DiscordSupabaseService
         return await ReadGuidResultAsync(response, "Unable to create Solo Play campaign");
     }
 
-    // RULES BUILD 6.18.5 - PERMANENT FRIENDS -> SOLO CONVERSION
-    public async Task<SoloConversionStateInfo> GetSoloConversionStateAsync(Guid playerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_get_solo_conversion_state", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId
-        });
-        var states = await ReadListAsync<SoloConversionStateInfo>(response, "Unable to check Solo conversion availability");
-        return states.FirstOrDefault() ?? new SoloConversionStateInfo
-        {
-            Eligible = false,
-            Reason = "Solo conversion availability could not be determined."
-        };
-    }
-
-    public async Task<Guid> ConvertCampaignToSoloAsync(Guid ownerPlayerId, Guid campaignId)
-    {
-        using var response = await CallRpcAsync("discord_convert_campaign_to_solo", new
-        {
-            p_player_id = ownerPlayerId,
-            p_campaign_id = campaignId
-        });
-        var convertedId = await ReadGuidResultAsync(response, "Unable to convert campaign to Solo Play");
-        _soloEffectivePlayerCache.Remove(SoloCacheKey(ownerPlayerId, campaignId));
-        return convertedId;
-    }
     public async Task<SoloPartyStateInfo> GetSoloPartyStateAsync(Guid ownerPlayerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_solo_party_state", new
@@ -1657,12 +1630,6 @@ public sealed class DiscordCampaignInfo
     [JsonPropertyName("campaign_mode")] public string CampaignMode { get; set; } = "friends";
 }
 
-public sealed class SoloConversionStateInfo
-{
-    [JsonPropertyName("eligible")] public bool Eligible { get; set; }
-    [JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
-    [JsonPropertyName("other_real_players")] public long OtherRealPlayers { get; set; }
-}
 public sealed class SoloPartyStateInfo
 {
     [JsonPropertyName("is_solo")] public bool IsSolo { get; set; }
@@ -1785,15 +1752,7 @@ public sealed class DiscordSurvivalState
     [JsonPropertyName("food_deficit_hours")] public decimal FoodDeficitHours { get; set; }
     [JsonPropertyName("water_deficit_hours")] public decimal WaterDeficitHours { get; set; }
     [JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-    [JsonPropertyName("starvation_limit_days")] public int StarvationLimitDays { get; set; }
-    [JsonPropertyName("starvation_days_without_food")] public int StarvationDaysWithoutFood { get; set; }
-    [JsonPropertyName("hydration_window_hours")] public decimal HydrationWindowHours { get; set; }
-    [JsonPropertyName("hydration_consumed_gal")] public decimal HydrationConsumedGal { get; set; }
-    [JsonPropertyName("hydration_requirement_gal")] public decimal HydrationRequirementGal { get; set; }
-    [JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-    [JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
 
-    // RULES BUILD 6.18.4 - EXHAUSTION RULES OVERHAUL
     // JsonPropertyName attributes above match the snake_case Supabase RPC
     // response. Never return this database DTO directly to the browser because
     // those attributes also control ASP.NET output serialization.
@@ -1812,14 +1771,7 @@ public sealed class DiscordSurvivalState
         thirstPercent = ThirstPercent,
         foodDeficitHours = FoodDeficitHours,
         waterDeficitHours = WaterDeficitHours,
-        exhaustionLevel = ExhaustionLevel,
-        starvationLimitDays = StarvationLimitDays,
-        starvationDaysWithoutFood = StarvationDaysWithoutFood,
-        hydrationWindowHours = HydrationWindowHours,
-        hydrationConsumedGal = HydrationConsumedGal,
-        hydrationRequirementGal = HydrationRequirementGal,
-        effectiveSpeed = EffectiveSpeed,
-        effectiveMaxHp = EffectiveMaxHp
+        exhaustionLevel = ExhaustionLevel
     };
 }
 

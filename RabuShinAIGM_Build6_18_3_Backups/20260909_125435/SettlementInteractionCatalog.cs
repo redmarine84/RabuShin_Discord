@@ -289,21 +289,20 @@ public static class SettlementInteractionCatalog
     };
 
     // RULES BUILD 6.15 - HOSPITALITY CATALOG
-    // RULES BUILD 6.18.3 - CARRIED HOSPITALITY GOODS
-    // Prepared food and drinks are physical purchases added to inventory.
-    // Rooms remain hospitality services/reservations and never become backpack items.
+    // Prepared food is consumed immediately for +33 Hunger. Drinks and rooms are
+    // hospitality services and never become backpack inventory items.
     private static SettlementShopItemDefinition Hospitality(
         string key,string name,string category,decimal price,string description,string valueClass)
         => new(key,name,category,price,description,"Common",valueClass);
 
     private static readonly IReadOnlyList<SettlementShopItemDefinition> InnPreparedFood = new List<SettlementShopItemDefinition>
     {
-        Hospitality("bread","Fresh Bread","Prepared Food",0.02m,"A simple serving of fresh bread. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal"),
-        Hospitality("vegetable-soup","Vegetable Soup","Prepared Food",0.05m,"A hot bowl of vegetables and broth. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal"),
-        Hospitality("hearth-soup","Hearth Soup","Prepared Food",0.08m,"A thick house soup prepared over the common-room hearth. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal"),
-        Hospitality("meat-loaf","Meat Loaf","Prepared Food",0.10m,"A hearty slice of seasoned meat loaf with simple sides. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal"),
-        Hospitality("beef-stew","Beef Stew","Prepared Food",0.15m,"A filling bowl of slow-cooked beef, root vegetables, and gravy. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal"),
-        Hospitality("roast-meat","Roast Meat Plate","Prepared Food",0.20m,"A hot plate of roasted meat and local vegetables. Purchase adds one prepared serving to inventory; consuming it restores 33 Hunger.","Prepared Meal")
+        Hospitality("bread","Fresh Bread","Prepared Food",0.02m,"A simple serving of fresh bread. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("vegetable-soup","Vegetable Soup","Prepared Food",0.05m,"A hot bowl of vegetables and broth. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("hearth-soup","Hearth Soup","Prepared Food",0.08m,"A thick house soup prepared over the common-room hearth. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("meat-loaf","Meat Loaf","Prepared Food",0.10m,"A hearty slice of seasoned meat loaf with simple sides. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("beef-stew","Beef Stew","Prepared Food",0.15m,"A filling bowl of slow-cooked beef, root vegetables, and gravy. Served and eaten immediately; restores 33 Hunger.","Prepared Meal"),
+        Hospitality("roast-meat","Roast Meat Plate","Prepared Food",0.20m,"A hot plate of roasted meat and local vegetables. Served and eaten immediately; restores 33 Hunger.","Prepared Meal")
     };
 
     private static readonly IReadOnlyList<SettlementShopItemDefinition> LifestyleRooms = new List<SettlementShopItemDefinition>
@@ -318,15 +317,15 @@ public static class SettlementInteractionCatalog
 
     private static readonly IReadOnlyList<SettlementShopItemDefinition> TavernDrinks = new List<SettlementShopItemDefinition>
     {
-        Hospitality("water","Clean Water","Drink",0.01m,"A carried serving of clean water. Purchase adds it to inventory; consuming it restores Thirst.","Drink"),
-        Hospitality("ale","House Ale","Drink",0.04m,"A carried serving of the tavern's everyday ale.","Alcoholic Drink"),
-        Hospitality("light-ale","Light Ale","Drink",0.03m,"A carried serving of lighter local ale.","Alcoholic Drink"),
-        Hospitality("dark-ale","Dark Ale","Drink",0.05m,"A carried serving of dark, malty ale.","Alcoholic Drink"),
-        Hospitality("cider","Hard Cider","Drink",0.05m,"A carried serving of fermented local cider.","Alcoholic Drink"),
-        Hospitality("stout","Stout","Drink",0.06m,"A carried serving of heavy dark stout with a roasted finish.","Alcoholic Drink"),
-        Hospitality("mead","Mead","Drink",0.10m,"A carried serving of honey mead.","Alcoholic Drink"),
-        Hospitality("common-wine","Common Wine","Drink",0.20m,"A carried serving of ordinary table wine.","Alcoholic Drink"),
-        Hospitality("fine-wine","Fine Wine","Drink",1.00m,"A carried serving of the establishment's better vintage.","Fine Drink")
+        Hospitality("water","Clean Water","Drink",0.01m,"A clean mug of water. The strongest tavern option for restoring Thirst.","Drink"),
+        Hospitality("ale","House Ale","Drink",0.04m,"A mug of the tavern's everyday ale.","Alcoholic Drink"),
+        Hospitality("light-ale","Light Ale","Drink",0.03m,"A lighter local ale served by the mug.","Alcoholic Drink"),
+        Hospitality("dark-ale","Dark Ale","Drink",0.05m,"A dark, malty ale served by the mug.","Alcoholic Drink"),
+        Hospitality("cider","Hard Cider","Drink",0.05m,"A mug of fermented local cider.","Alcoholic Drink"),
+        Hospitality("stout","Stout","Drink",0.06m,"A heavy dark stout with a roasted finish.","Alcoholic Drink"),
+        Hospitality("mead","Mead","Drink",0.10m,"A mug of honey mead.","Alcoholic Drink"),
+        Hospitality("common-wine","Common Wine","Drink",0.20m,"A cup of ordinary table wine.","Alcoholic Drink"),
+        Hospitality("fine-wine","Fine Wine","Drink",1.00m,"A glass of the establishment's better vintage.","Fine Drink")
     };
 
     private static IReadOnlyList<SettlementShopItemDefinition> GetInnItems(SettlementPoiDefinition poi)
