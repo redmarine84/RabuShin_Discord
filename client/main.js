@@ -5,6 +5,8 @@ const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
 let discordAccessToken = null;
 let currentDiscordUser = null;
+// RULES BUILD 6.17.1 - DISCORD OAUTH RATE LIMIT / DUPLICATE EXCHANGE GUARD
+let discordSetupPromise = null;
 let currentCampaignId = null;
 let currentGameData = null;
 let selectedInventoryId = null;
@@ -63,6 +65,21 @@ let restOverlaySignature = '';
 // RULES BUILD 6.8 - SURVIVAL / ENCUMBRANCE
 let survivalPollTimer = null;
 let survivalPollBusy = false;
+
+// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
+let worldTimePollTimer = null;
+let worldTimePollBusy = false;
+let worldClockUiTimer = null;
+let worldClockPauseBusy = false;
+let sleepStatePollTimer = null;
+let sleepStatePollBusy = false;
+let sleepWakeBusy = false;
+let lastSleepState = null;
+let sleepOverlaySignature = '';
+
+// RULES BUILD 6.17 - SOLO PARTY / CHARACTER SWITCHING
+let soloSwitchBusy = false;
+
 
 // RULES BUILD 6.12 - AI GAME MASTER VOICE
 // Voice preferences are intentionally local to each Discord player/device.
@@ -188,7 +205,16 @@ async function checkServer() {
   }
 }
 
-async function setupDiscord() {
+function setupDiscord() {
+  // Startup can be triggered more than once by Activity lifecycle/render behavior.
+  // Share one promise so a one-use Discord authorization code is never exchanged
+  // concurrently by duplicate initialization paths.
+  if (discordSetupPromise) return discordSetupPromise;
+  discordSetupPromise = setupDiscordCore();
+  return discordSetupPromise;
+}
+
+async function setupDiscordCore() {
   const userBox = document.querySelector('#discordUser');
   try {
     if (!import.meta.env.VITE_DISCORD_CLIENT_ID) throw new Error('VITE_DISCORD_CLIENT_ID is missing from .env.');
@@ -209,7 +235,16 @@ async function setupDiscord() {
       body: JSON.stringify({ code }),
     });
     const tokenData = await readResponse(tokenResponse);
-    if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      if (tokenResponse.status === 429 || tokenData.error === 'discord_rate_limited') {
+        const retryAfter = Number(tokenData.retry_after);
+        const delayText = Number.isFinite(retryAfter) && retryAfter > 0
+          ? ` Try again in about ${Math.max(1, Math.ceil(retryAfter))} seconds.`
+          : ' Try again shortly.';
+        throw new Error(`Discord is temporarily rate limiting login requests.${delayText}`);
+      }
+      throw new Error(tokenData.error_description || tokenData.error || 'Discord token exchange failed.');
+    }
 
     discordAccessToken = tokenData.access_token;
     discordAuth = await discordSdk.commands.authenticate({ access_token: discordAccessToken });
@@ -243,6 +278,8 @@ async function showCampaignLauncher() {
   stopProgressionPolling();
   stopRestStatePolling();
   stopSurvivalPolling();
+  stopWorldTimePolling();
+  stopSleepStatePolling();
   document.querySelector('#deathOverlay')?.remove();
   document.body.classList.remove('death-modal-open');
   document.querySelector('#levelUpOverlay')?.remove();
@@ -253,6 +290,9 @@ async function showCampaignLauncher() {
   lastDeathState=null;
   lastRestState=null;
   restOverlaySignature='';
+  lastSleepState=null;
+  sleepOverlaySignature='';
+  document.querySelector('#sleepOverlay')?.remove();
   activeGameTab = 'gm';
   gmTurnState = null;
   gmTurnToken = null;
@@ -274,7 +314,7 @@ async function showCampaignLauncher() {
         <div id="campaignList" class="campaign-list"><div class="loading">Loading campaigns...</div></div>
       </section>
       <div class="launcher-actions">
-        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Create a new multiplayer adventure</span></button>
+        <button id="newCampaign" class="action primary"><b>＋ Start New Campaign</b><span>Choose Solo Play or Play with Friends</span></button>
         <button id="joinCampaign" class="action"><b># Join With Campaign Code</b><span>Enter a code from another player</span></button>
       </div>
       <div class="public-legal-note">By using RabuShinAIGM, you agree to the <button class="link-button" data-legal="terms">Terms of Service</button> and acknowledge the <button class="link-button" data-legal="privacy">Privacy Policy</button>. <button class="link-button" data-legal="support">Support</button></div>
@@ -301,8 +341,10 @@ async function loadCampaigns() {
       <div class="campaign-card">
         <div>
           <h4>${escapeHtml(c.campaignName)}</h4>
-          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}</p>
-          <small>Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong></small>
+          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${String(c.campaignMode||'friends').toLowerCase()==='solo'?'Solo Campaign':`${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}`}</p>
+          <small>${String(c.campaignMode||'friends').toLowerCase()==='solo'
+            ? `Solo Play: <strong>${escapeHtml(currentDiscordUser?.global_name||currentDiscordUser?.username||'Player')}</strong>`
+            : `Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong>`}</small>
         </div>
         <div class="row gap campaign-actions">
           ${c.isOwner ? '<span class="badge">OWNER</span>' : ''}
@@ -376,12 +418,18 @@ function showLeaveCampaignDialog(campaignId, campaignName) {
 }
 
 function showNewCampaignDialog() {
-  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">`, 'Create Campaign', async () => {
+  showModal('Start New Campaign', `<label>Campaign Name</label><input id="campaignName" class="input" maxlength="80" placeholder="My Rabu Shin Campaign">
+    <div class="campaign-mode-picker">
+      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="solo" checked><span><b>Play Solo</b><small>Control your hero plus up to 4 additional party characters.</small></span></label>
+      <label class="campaign-mode-option"><input type="radio" name="campaignMode" value="friends"><span><b>Play with Friends</b><small>Use the existing Discord multiplayer campaign and join-code system.</small></span></label>
+    </div>`, 'Create Campaign', async () => {
     const name = document.querySelector('#campaignName').value.trim();
     if (!name) throw new Error('Campaign name is required.');
-    await api('/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
+    const mode=document.querySelector('input[name="campaignMode"]:checked')?.value||'solo';
+    const result=await api(mode==='solo'?'/game-api/campaigns/solo':'/game-api/campaigns', { method: 'POST', body: JSON.stringify({ campaignName: name }) });
     document.querySelector('#modalOverlay').remove();
-    showNotice('Campaign created.');
+    showNotice(mode==='solo'?'Solo Play campaign created.':'Friends campaign created.');
+    if(result.campaignId) return openCampaign(result.campaignId);
     await loadCampaigns();
   });
 }
@@ -733,11 +781,12 @@ function configureHalfRace(prefix,species,data){
   }
 }
 
-async function showCharacterCreator(campaignId) {
+async function showCharacterCreator(campaignId, options={}) {
+  const soloPartyMember=options?.soloPartyMember===true;
   const main = document.querySelector('#mainContent');
   main.innerHTML = `
     <div class="creator">
-      <div class="section-title"><div><h2>Create Your Character</h2><p>One character per player in this campaign. Racial bonuses are applied after the base ability scores you enter.</p></div><button id="creatorBack" class="button">Back</button></div>
+      <div class="section-title"><div><h2>${soloPartyMember?'Add Party Member':'Create Your Character'}</h2><p>${soloPartyMember?'Create a full additional player-controlled character for your Solo party.':'One character per player in Friends campaigns. Racial bonuses are applied after the base ability scores you enter.'}</p></div><button id="creatorBack" class="button">Back</button></div>
       <div class="tabs"><button id="randomTab" class="tab active">Random Build</button><button id="manualTab" class="tab">Manual Sheet</button></div>
       <section class="panel creator-panel">
         <div id="creatorLoading" class="loading">Loading character options...</div>
@@ -778,7 +827,7 @@ async function showCharacterCreator(campaignId) {
       </section>
     </div>`;
 
-  document.querySelector('#creatorBack').onclick = showCampaignLauncher;
+  document.querySelector('#creatorBack').onclick = () => soloPartyMember ? enterCampaign(campaignId,'character') : showCampaignLauncher();
   try {
     const data = await api('/game-api/character-options');
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
@@ -808,7 +857,7 @@ async function showCharacterCreator(campaignId) {
       try {
         const species=document.querySelector('#randomSpecies').value;
         const racial=collectRacialOptions('random',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/characters/random`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`,{method:'POST',body:JSON.stringify({
           characterName:document.querySelector('#randomName').value.trim(),species,
           secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
           className:document.querySelector('#randomClass').value,...racial})});
@@ -823,7 +872,7 @@ async function showCharacterCreator(campaignId) {
       try {
         const species=document.querySelector('#manualSpecies').value;
         const racial=collectRacialOptions('manual',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/characters/manual`,{method:'POST',body:JSON.stringify({
+        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`,{method:'POST',body:JSON.stringify({
           characterName:name,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
@@ -1085,6 +1134,8 @@ async function enterCampaign(campaignId, initialTab='gm') {
     startProgressionPolling();
     startRestStatePolling();
     startSurvivalPolling();
+    startWorldTimePolling();
+    startSleepStatePolling();
     if(initialTab&&initialTab!=='gm'){
       const target=document.querySelector(`.game-tab[data-tab="${initialTab}"]`);
       if(target)switchGameTab(initialTab,target);
@@ -1092,13 +1143,48 @@ async function enterCampaign(campaignId, initialTab='gm') {
   } catch(error){showNotice(error.message,true);}
 }
 
+function isSoloCampaign(){return String(currentGameData?.campaign?.campaignMode||'').toLowerCase()==='solo'||currentGameData?.soloParty?.isSolo===true;}
+function soloPartyCharacters(){return Array.isArray(currentGameData?.soloParty?.characters)?currentGameData.soloParty.characters:(currentGameData?.party||[]).map(p=>({characterId:p.characterId,characterName:p.characterName,level:p.level}));}
+function soloCharacterSwitchMarkup(compact=false){
+  if(!isSoloCampaign()||soloPartyCharacters().length<2)return '';
+  const active=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
+  return `<label class="solo-active-character ${compact?'compact':''}"><span>Active Character</span><select class="input" data-solo-character-switch>${soloPartyCharacters().map(c=>`<option value="${escapeHtml(c.characterId)}" ${String(c.characterId)===active?'selected':''}>${escapeHtml(c.characterName)}</option>`).join('')}</select></label>`;
+}
+async function switchSoloActiveCharacter(characterId,{preserveTab=true,quiet=false}={}){
+  if(!characterId||soloSwitchBusy||!currentCampaignId)return false;
+  const current=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
+  if(String(characterId)===current)return false;
+  soloSwitchBusy=true;
+  try{
+    await api(`/game-api/campaigns/${currentCampaignId}/solo-party/active`,{method:'POST',body:JSON.stringify({characterId})});
+    document.querySelector('#sleepOverlay')?.remove();document.querySelector('#deathOverlay')?.remove();document.body.classList.remove('death-modal-open');
+    lastSleepState=null;sleepOverlaySignature='';lastDeathState=null;
+    const tab=preserveTab?activeGameTab:'gm';
+    await enterCampaign(currentCampaignId,tab);
+    if(!quiet)showNotice(`Now playing as ${currentGameData?.character?.characterName||'selected character'}.`);
+    return true;
+  }catch(error){if(!quiet)showNotice(error.message,true);return false;}
+  finally{soloSwitchBusy=false;}
+}
+function wireSoloCharacterSwitches(scope=document){
+  scope.querySelectorAll('[data-solo-character-switch]').forEach(select=>{select.onchange=async()=>{const prior=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');const ok=await switchSoloActiveCharacter(select.value);if(!ok)select.value=prior;};});
+}
+async function autoSwitchSoloInitiativeCharacter(combat){
+  if(!isSoloCampaign()||soloSwitchBusy||!combat?.active||String(combat.currentTurnType||'').toLowerCase()!=='character'||!combat.currentTurnCharacterId)return false;
+  const target=String(combat.currentTurnCharacterId),active=String(currentGameData?.character?.characterId||'');
+  if(target===active)return false;
+  const ours=soloPartyCharacters().some(c=>String(c.characterId)===target);if(!ours)return false;
+  return await switchSoloActiveCharacter(target,{preserveTab:true,quiet:true});
+}
+
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div id="worldClockHost">${worldClockHtml(d.worldTime)}</div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
+  wireWorldClockControls();
   document.querySelector('#backLauncher').onclick=showCampaignLauncher;
   document.querySelectorAll('.game-tab').forEach(btn=>btn.onclick=()=>switchGameTab(btn.dataset.tab,btn));
   const settingsGameTab=document.querySelector('.game-tab[data-tab="settings"]');
@@ -1338,6 +1424,263 @@ async function saveLevelUpChoices(progression) {
   } finally {
     levelUpActionBusy=false;
   }
+}
+
+
+// RULES BUILD 6.16 - WORLD TIME / SLEEPING LONG REST
+// RULES BUILD 6.18 - REAL-TIME WORLD CLOCK / WEATHER / DAY-NIGHT
+function worldClockDayPart(hour24) {
+  const hour=Math.max(0,Math.min(23,Math.trunc(Number(hour24)||0)));
+  if(hour>=5&&hour<=7)return 'Dawn';
+  if(hour>=8&&hour<=11)return 'Morning';
+  if(hour>=12&&hour<=16)return 'Afternoon';
+  if(hour>=17&&hour<=19)return 'Evening';
+  if(hour>=20)return 'Night';
+  return 'Late Night';
+}
+
+function estimatedWorldClockState(world) {
+  if(!world)return null;
+  let worldMinute=Math.max(0,Math.trunc(Number(world.worldMinute)||0));
+  const running=world.autoClockRunning===true&&!world.autoClockPaused;
+  const received=Number(world._clientReceivedAt)||0;
+  if(running&&received>0){
+    const elapsed=Math.max(0,(Date.now()-received)/1000);
+    const remainder=Math.max(0,Number(world.autoClockRemainderSeconds)||0);
+    const secondsPerMinute=Math.max(.1,Number(world.realSecondsPerGameMinute)||2.5);
+    worldMinute+=Math.floor((remainder+elapsed)/secondsPerMinute);
+  }
+  const minuteOfDay=((worldMinute%1440)+1440)%1440;
+  const hour24=Math.floor(minuteOfDay/60),minute=minuteOfDay%60;
+  const hour12=(hour24%12)||12,period=hour24<12?'AM':'PM';
+  return {...world,
+    worldMinute,
+    dayNumber:Math.floor(worldMinute/1440)+1,
+    minuteOfDay,hour24,minute,hour12,period,
+    displayTime:`${String(hour12).padStart(2,'0')}:${String(minute).padStart(2,'0')} ${period}`,
+    dayPart:worldClockDayPart(hour24),
+    isDaylight:hour24>=6&&hour24<20
+  };
+}
+
+function worldClockHtml(rawWorld) {
+  const world=estimatedWorldClockState(rawWorld);
+  if(!world)return '<div class="world-clock-chip"><span>WORLD TIME</span><b>Loading...</b></div>';
+  const day=Math.max(1,Number(world.dayNumber)||1);
+  const time=String(world.displayTime||'--:--');
+  const weather=String(world.weatherLabel||'Clear');
+  const part=String(world.dayPart||'');
+  const paused=world.autoClockPaused===true;
+  const active=Math.max(0,Number(world.activeLivingPlayers)||0);
+  const awake=Math.max(0,Number(world.awakeActivePlayers)||0);
+  const running=world.autoClockRunning===true&&!paused;
+  const phase=world.isDaylight?'daylight':'nighttime';
+  const hot=world.hotWeather?' • Hot':'';
+  let clockStatus='';
+  if(paused)clockStatus='PAUSED';
+  else if(active<=0)clockStatus='Clock waits while party is offline';
+  else if(awake<=0)clockStatus='Party sleeping';
+  else if(running)clockStatus='24× Real-Time';
+  const owner=currentGameData?.campaign?.isOwner===true;
+  const control=owner?`<button type="button" class="world-clock-toggle" data-world-clock-toggle ${worldClockPauseBusy?'disabled':''}>${paused?'▶ Resume':'⏸ Pause'}</button>`:'';
+  return `<div class="world-clock-chip ${phase}${paused?' paused':''}">
+    <div class="world-clock-top"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span>${control}</div>
+    <b>${escapeHtml(time)}</b>
+    <small>${escapeHtml(weather)}${hot}</small>
+    ${clockStatus?`<em>${escapeHtml(clockStatus)}</em>`:''}
+  </div>`;
+}
+
+function renderWorldClockUi() {
+  const host=document.querySelector('#worldClockHost');
+  if(host)host.innerHTML=worldClockHtml(currentGameData?.worldTime);
+}
+
+function updateWorldClockUi(world) {
+  if(world){
+    world._clientReceivedAt=Date.now();
+    if(currentGameData)currentGameData.worldTime=world;
+  }
+  renderWorldClockUi();
+}
+
+function wireWorldClockControls() {
+  const host=document.querySelector('#worldClockHost');
+  if(!host)return;
+  host.onclick=async event=>{
+    const button=event.target.closest?.('[data-world-clock-toggle]');
+    if(!button)return;
+    event.preventDefault();event.stopPropagation();
+    await toggleWorldClockPause();
+  };
+}
+
+async function toggleWorldClockPause() {
+  if(!currentCampaignId||!currentGameData?.campaign?.isOwner||worldClockPauseBusy)return;
+  const paused=currentGameData?.worldTime?.autoClockPaused===true;
+  worldClockPauseBusy=true;renderWorldClockUi();
+  try{
+    const result=await api(`/game-api/campaigns/${currentCampaignId}/world-time/pause`,{
+      method:'POST',body:JSON.stringify({paused:!paused})
+    });
+    if(result.world)updateWorldClockUi(result.world);
+    showNotice(!paused?'World clock paused.':'World clock resumed.');
+  }catch(error){showNotice(error.message,true);}
+  finally{worldClockPauseBusy=false;renderWorldClockUi();}
+}
+
+function stopWorldTimePolling() {
+  if(worldTimePollTimer)clearInterval(worldTimePollTimer);
+  if(worldClockUiTimer)clearInterval(worldClockUiTimer);
+  worldTimePollTimer=null;
+  worldClockUiTimer=null;
+  worldTimePollBusy=false;
+}
+
+function startWorldTimePolling() {
+  stopWorldTimePolling();
+  if(!currentCampaignId)return;
+  if(currentGameData?.worldTime&&!currentGameData.worldTime._clientReceivedAt)
+    currentGameData.worldTime._clientReceivedAt=Date.now();
+  renderWorldClockUi();
+  worldClockUiTimer=setInterval(renderWorldClockUi,250);
+  void refreshWorldTime(true);
+  worldTimePollTimer=setInterval(()=>void refreshWorldTime(false),5000);
+}
+
+async function refreshWorldTime(force=false) {
+  if(!currentCampaignId||!currentGameData||worldTimePollBusy)return;
+  worldTimePollBusy=true;
+  try{
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/world-time`);
+    const world=data.world||null;
+    if(world)updateWorldClockUi(world);
+  }catch(error){
+    if(force)console.warn('World time refresh failed:',error);
+  }finally{worldTimePollBusy=false;}
+}
+
+function stopSleepStatePolling() {
+  if(sleepStatePollTimer)clearInterval(sleepStatePollTimer);
+  sleepStatePollTimer=null;
+  sleepStatePollBusy=false;
+}
+
+function startSleepStatePolling() {
+  stopSleepStatePolling();
+  if(!currentCampaignId)return;
+  void refreshSleepState(true);
+  sleepStatePollTimer=setInterval(()=>void refreshSleepState(false),1000);
+}
+
+function sleepDurationText(minutes) {
+  const value=Math.max(0,Math.trunc(Number(minutes)||0));
+  const hours=Math.floor(value/60),mins=value%60;
+  return `${hours}h ${String(mins).padStart(2,'0')}m`;
+}
+
+async function refreshSleepState(force=false) {
+  if(!currentCampaignId||!currentGameData||sleepStatePollBusy||sleepWakeBusy)return;
+  sleepStatePollBusy=true;
+  try{
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/sleep-state`);
+    const sleep=data.sleep||null;
+    lastSleepState=sleep;
+    if(sleep?.world)updateWorldClockUi(sleep.world);
+
+    if(!sleep?.sleeping){
+      document.querySelector('#sleepOverlay')?.remove();
+      sleepOverlaySignature='';
+      return;
+    }
+
+    syncAuthoritativeCharacterHp(sleep.currentHp,sleep.maxHp);
+    const signature=[
+      sleep.sleepSessionId,sleep.currentHp,sleep.elapsedMinutes,
+      sleep.remainingMinutes,sleep.world?.worldMinute,sleep.safeLocation,sleep.paidLodging
+    ].join(':');
+    if(force||signature!==sleepOverlaySignature||!document.querySelector('#sleepOverlay')){
+      sleepOverlaySignature=signature;
+      renderSleepingLongRestOverlay(sleep);
+    }
+  }catch(error){
+    if(force)console.warn('Sleep state refresh failed:',error);
+  }finally{sleepStatePollBusy=false;}
+}
+
+function renderSleepingLongRestOverlay(sleep) {
+  let overlay=document.querySelector('#sleepOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='sleepOverlay';
+    overlay.className='sleep-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  const current=Math.max(0,Number(sleep.currentHp)||0);
+  const max=Math.max(1,Number(sleep.maxHp)||1);
+  const elapsed=Math.max(0,Number(sleep.elapsedMinutes)||0);
+  const remaining=Math.max(0,Number(sleep.remainingMinutes)||0);
+  const exact=Math.max(0,Number(sleep.hpRecoveryExact)||0);
+  const perHour=Math.max(0,Number(sleep.hpPerHour)||0);
+  const progress=Math.min(100,Math.max(0,elapsed/480*100));
+  const world=sleep.world||{};
+  const lodging=sleep.paidLodging
+    ? `<span class="sleep-safe good">Paid ${escapeHtml(sleep.lifestyle||'')} room • ${escapeHtml(sleep.innName||'Inn')}</span>`
+    : sleep.safeLocation
+      ? '<span class="sleep-safe good">Safe Long Rest location</span>'
+      : '<span class="sleep-safe warn">Unsecured rest location</span>';
+
+  overlay.innerHTML=`<section class="sleep-card">
+    <div class="sleep-moon">☾</div>
+    <p class="eyebrow">LONG REST IN PROGRESS</p>
+    <h2>${escapeHtml(sleep.characterName||'Your character')} is sleeping</h2>
+    ${soloCharacterSwitchMarkup(true)}
+    <div class="sleep-world-clock">
+      <span>World Time</span>
+      <b>Day ${Math.max(1,Number(world.dayNumber)||1)} • ${escapeHtml(world.displayTime||'--:--')}</b>
+      <small>${escapeHtml(world.dayPart||'')} • ${escapeHtml(world.weatherLabel||'Clear')}</small>
+    </div>
+    <div class="sleep-hp-block">
+      <div><span>HP</span><b>${current}/${max}</b></div>
+      <div><span>Recovery Rate</span><b>${perHour.toFixed(2)} HP/hour</b></div>
+      <div><span>Recovered</span><b>${exact.toFixed(2)} HP progress</b></div>
+    </div>
+    <div class="sleep-progress"><i style="width:${progress.toFixed(2)}%"></i></div>
+    <div class="sleep-time-grid">
+      <div><span>Time Rested</span><b>${sleepDurationText(elapsed)}</b></div>
+      <div><span>Remaining</span><b>${sleepDurationText(remaining)}</b></div>
+      <div><span>Required</span><b>8h 00m</b></div>
+    </div>
+    ${lodging}
+    <p class="sleep-note">World time continues for everyone. Your HP recovers gradually as time passes. Waking before 8 hours keeps recovered HP but does not grant full Long Rest recovery.</p>
+    <button id="wakeFromLongRest" class="button danger-button">Wake</button>
+    <div id="sleepWakeError" class="error"></div>
+  </section>`;
+
+  wireSoloCharacterSwitches(overlay);
+  const wake=overlay.querySelector('#wakeFromLongRest');
+  if(wake)wake.onclick=async()=>{
+    if(sleepWakeBusy)return;
+    sleepWakeBusy=true;
+    wake.disabled=true;wake.textContent='Waking...';
+    const error=overlay.querySelector('#sleepWakeError');if(error)error.textContent='';
+    try{
+      const data=await api(`/game-api/campaigns/${currentCampaignId}/rest/long/wake`,{method:'POST'});
+      const result=data.result||{};
+      if(result.world)updateWorldClockUi(result.world);
+      if(result.currentHp!==undefined)syncAuthoritativeCharacterHp(result.currentHp,result.maxHp);
+      overlay.remove();sleepOverlaySignature='';lastSleepState=null;
+      showNotice(result.message||'You wake before completing the Long Rest.');
+      await refreshRestState(true);
+    }catch(ex){
+      const target=document.querySelector('#sleepWakeError');if(target)target.textContent=ex.message;
+      showNotice(ex.message,true);
+    }finally{
+      sleepWakeBusy=false;
+      void refreshSleepState(true);
+    }
+  };
 }
 
 function stopRestStatePolling() {
@@ -1673,7 +2016,9 @@ function renderDeathOverlay(death) {
     </div>`;
   }
 
+  if(isSoloCampaign()&&soloPartyCharacters().length>1) body=body.replace(/<div class="death-card ([^"]+)">/,match=>`${match}${soloCharacterSwitchMarkup(true)}`);
   overlay.innerHTML=body;
+  wireSoloCharacterSwitches(overlay);
   wireDeathOverlayActions(death);
 }
 
@@ -2293,6 +2638,7 @@ async function refreshGmLive(force=false) {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/gm`);
     currentGameData.gmMessages=data.messages||[];
     gmCombatTurnState=data.combatTurn||null;
+    if(await autoSwitchSoloInitiativeCharacter(gmCombatTurnState))return;
     updateLiveTimeline('gmTimeline',currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.','gm',force);
     setGmTurnState(data.turnState);
     updateCombatInitiativeUi();
@@ -2440,7 +2786,7 @@ function requestWorldMapTravel(index) {
 
   showModal(
     `Travel to ${location.name}`,
-    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve the journey and any encounter, obstacle, weather, or event that happens before arrival.</p>`,
+    `<p>Travel to <b>${escapeHtml(location.name)}</b>?</p><p class="muted">The AI Game Master will resolve travel time, weather, and any encounter, obstacle, or event before arrival. The shared world clock advances during the journey.</p>`,
     'Begin Travel',
     async()=>{
       document.querySelector('#modalOverlay')?.remove();
@@ -2713,7 +3059,8 @@ function renderSettlementShop(shop,initialMode='buy') {
     if(note) note.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'
       ? 'Drinks are served immediately and do not enter inventory.'
       : 'Meals are served immediately; room quantity is the number of lodging days.';
-  }  if(currentGameData?.character&&shop.gold!==undefined) {
+  }
+  if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
     updateLiveGoldDisplay();
   }
@@ -3147,10 +3494,11 @@ function renderGameMasterTab() {
   if(existingInput)gmTurnDraft=existingInput.value;
 
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><h3>AI Game Master</h3><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><div><h3>AI Game Master</h3>${soloCharacterSwitchMarkup(true)}</div><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
 
   const input=document.querySelector('#gmInput');
   input.value=gmTurnDraft;
+  wireSoloCharacterSwitches(view);
 
   const gmRefreshButton=document.querySelector('#refreshGm');
   if(gmRefreshButton&&!document.querySelector('#openWorldMap')) {
@@ -3393,7 +3741,14 @@ async function removeCharacterPortrait() {
   } catch(error) { showNotice(error.message,true); }
 }
 
-function showPartyMemberDetails(member) {
+const partyXpThresholds=[0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+function partyExperienceGaugeMarkup(detail){
+  const level=Math.max(1,Math.min(20,Number(detail?.level)||1)),xp=Math.max(0,Number(detail?.experience)||0);
+  const floor=partyXpThresholds[level-1]||0,ceil=level>=20?floor:(partyXpThresholds[level]||floor),span=Math.max(1,ceil-floor),pct=level>=20?100:Math.max(0,Math.min(100,((xp-floor)/span)*100));
+  return `<div class="experience-card party-xp-card"><div class="experience-heading"><div><span>Experience</span><b>Level ${level}</b></div><strong>${xp.toLocaleString()} XP</strong></div><div class="experience-track"><i style="width:${pct}%"></i></div><div class="experience-meta"><strong>${level>=20?'Maximum Level':`${Math.max(0,xp-floor).toLocaleString()} / ${span.toLocaleString()} toward Level ${level+1}`}</strong><small>${level>=20?'Level 20':`${Math.max(0,ceil-xp).toLocaleString()} XP remaining`}</small></div></div>`;
+}
+
+async function showPartyMemberDetails(member) {
   document.querySelector('#partyMemberOverlay')?.remove();
   const overlay=document.createElement('div');
   overlay.id='partyMemberOverlay';overlay.className='modal-overlay';
@@ -3406,6 +3761,7 @@ function showPartyMemberDetails(member) {
         <p>${escapeHtml(member.displayName)} • @${escapeHtml(member.discordUsername)}</p>
         <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} • ${escapeHtml(member.backgroundName||'')} ${member.alignment?`• ${escapeHtml(member.alignment)}`:''}</p>
         <div class="vitals party-detail-vitals"><div>HP <b ${member.characterId===currentGameData?.character?.characterId?'data-live-self-hp':''}>${member.currentHp}/${member.maxHp}</b></div><div>AC <b>${member.armorClass}</b></div><div>Initiative <b>${formatSigned(member.initiative)}</b></div><div>Speed <b>${member.speed} ft.</b></div><div>Passive Perception <b>${member.passivePerception}</b></div><div>Proficiency <b>${formatSigned(member.proficiencyBonus)}</b></div></div>
+        <div id="partyProgressionDetail"><div class="loading mini">Loading Experience and Alignment...</div></div>
         <div class="stats">${statBox('STR',member.strength)}${statBox('DEX',member.dexterity)}${statBox('CON',member.constitution)}${statBox('INT',member.intelligence)}${statBox('WIS',member.wisdom)}${statBox('CHA',member.charisma)}</div>
       </div>
     </div>
@@ -3414,6 +3770,12 @@ function showPartyMemberDetails(member) {
   document.querySelector('#closePartyMember').onclick=()=>overlay.remove();
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   hydratePortraits(overlay);
+  try {
+    const detail=await api(`/game-api/campaigns/${currentCampaignId}/party/${member.characterId}/details`);
+    const host=overlay.querySelector('#partyProgressionDetail');
+    if(host)host.innerHTML=`${partyExperienceGaugeMarkup(detail)}${alignmentGaugeMarkup(detail)}${isSoloCampaign()&&!detail.activeSoloCharacter?'<button id="partyPlayAs" class="button primary wide solo-play-as">Play As This Character</button>':''}`;
+    const playAs=overlay.querySelector('#partyPlayAs');if(playAs)playAs.onclick=async()=>{overlay.remove();await switchSoloActiveCharacter(member.characterId,{preserveTab:true});};
+  } catch(error) { const host=overlay.querySelector('#partyProgressionDetail');if(host)host.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`; }
 }
 
 function statBox(name,score){return `<div class="stat"><span>${name}</span><b>${score}</b><small>${formatSigned(abilityMod(score))}</small></div>`;}
@@ -3541,7 +3903,7 @@ function renderCharacterTab(){
           </div>
         </div>
       </section>
-      <section class="panel party-panel"><h3>Campaign Party</h3><p class="muted">Select a character to view their portrait and current public combat stats.</p>
+      <section class="panel party-panel"><div class="party-panel-heading"><div><h3>Campaign Party</h3><p class="muted">Select a character to view combat stats, Experience, and Alignment.</p></div>${isSoloCampaign()?`<button id="addSoloPartyMember" class="button primary small" ${currentGameData.soloParty?.canAdd?'':'disabled'}>Add Party Member</button>`:''}</div>${isSoloCampaign()?`<small class="solo-party-count">${Number(currentGameData.soloParty?.characterCount)||party.length} / ${Number(currentGameData.soloParty?.maxCharacters)||5} player-controlled characters</small>`:''}
         <div class="party-list visual-party-list">${party.length?party.map((p,index)=>`<button class="party-card visual-party-card" data-party-index="${index}">
           ${portraitFrameHtml(p.characterId,p.characterName,p.hasPortrait,'party-thumbnail')}
           <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP <b ${p.characterId===c.characterId?'data-live-self-hp':''}>${p.currentHp}/${p.maxHp}</b> • AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
@@ -3549,6 +3911,7 @@ function renderCharacterTab(){
       </section>
     </div>`;
   document.querySelector('#refreshParty').onclick=refreshPartyData;
+  const addSolo=document.querySelector('#addSoloPartyMember');if(addSolo)addSolo.onclick=()=>showCharacterCreator(currentCampaignId,{soloPartyMember:true});
   document.querySelector('#characterDetails').onclick=showCharacterDetails;
   document.querySelector('#uploadPortrait').onclick=()=>document.querySelector('#portraitFile').click();
   document.querySelector('#portraitFile').onchange=e=>uploadCharacterPortrait(e.target.files?.[0]);

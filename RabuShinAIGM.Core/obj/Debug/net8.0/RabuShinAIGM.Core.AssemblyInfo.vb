@@ -16,7 +16,7 @@ Imports System.Reflection
 <Assembly: System.Reflection.AssemblyCompanyAttribute("RabuShinAIGM.Core"),  _
  Assembly: System.Reflection.AssemblyConfigurationAttribute("Debug"),  _
  Assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0"),  _
- Assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e8f046313c623d785a6b40d3f6f7f32861c6eb1"),  _
+ Assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+418f83f4f6297690d29e45a56e77546324cce359"),  _
  Assembly: System.Reflection.AssemblyProductAttribute("RabuShinAIGM.Core"),  _
  Assembly: System.Reflection.AssemblyTitleAttribute("RabuShinAIGM.Core"),  _
  Assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")> 

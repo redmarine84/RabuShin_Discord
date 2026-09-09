@@ -123,8 +123,10 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - A basic Waterskin filled from questionable water becomes Waterskin(Tainted). Its water causes nausea, removes 30 percentage points of Hunger, and restores only 1 percentage point of Thirst per drink.
 - A Magic Waterskin automatically purifies every source, including questionable water. Never mark its final contents tainted.
 - When a character with suitable heat and a container actually boils the tainted contents and pours the water back, call boil_waterskin. This keeps the remaining drink count and restores the basic item to Waterskin with clean water.
-- Short Rest and Long Rest tools automatically advance survival time by 1 hour and 8 hours respectively. NEVER call advance_survival_time again for those same rest hours.
-- For travel, waiting, downtime, watches, imprisonment, or other fiction that definitively advances meaningful in-game time, call advance_survival_time with the characters affected and the actual hours elapsed.
+- RULES BUILD 6.16: WORLD TIME is now shared and server-authoritative. Do not use advance_survival_time directly. Whenever meaningful in-game time passes for travel, waiting, exploration, watches, downtime, or a completed Short Rest, use advance_world_time. That single tool advances the shared campaign clock, survival needs, weather progression, and sleeping-character HP recovery together.
+- A completed Short Rest still uses complete_short_rest; after it succeeds, the server advances the shared world clock by exactly 1 hour. Do not add another hour separately.
+- A Long Rest is no longer completed instantly. When a character actually begins sleeping, use start_long_rest. The sleep engine tracks the full 8 hours, gradual HP recovery, paid Inn lodging, and early waking. Never use complete_long_rest directly in Build 6.16.
+- If every currently active living player is sleeping, the server may fast-forward the shared world clock to complete their sleep. If even one active living player remains awake, the clock does not fast-forward; continue play normally and advance_world_time only when story time actually passes.
 - When the environment becomes hot enough to require double water, call set_survival_hot_weather with hotWeather=true. Set it false when the party leaves the hot environment. Do not toggle it merely for ordinary warm weather.
 - Survival Exhaustion returned by the server is authoritative. Apply it in adjudication and narration; never invent or erase survival Exhaustion by narration alone.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
@@ -192,13 +194,25 @@ EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
 - When update_combat_monster first marks a monster defeated, RabuShin automatically reads that monster's trusted Challenge Rating / XP value from the Monster Codex and awards the encounter XP to the player characters who received initiative in that fight. Do not call a separate monster-XP tool and do not award the same monster twice.
 - Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
 - Earning enough XP does NOT immediately change a character's level. It only makes that character Level Up Ready.
-- A character levels only after actually completing an in-game LONG REST. Do not call complete_long_rest merely because the player says they intend to sleep; resolve whether the Long Rest successfully completes first.
-- A first-person request such as "I take a Short Rest" or "I take a Long Rest" applies only to the speaking player's character unless the players explicitly establish that the party is resting together. Never silently rest absent or nonparticipating party members.
-- When one or more characters actually wake from a completed Long Rest, call complete_long_rest and pass only the characters who completed it. The server restores HP to full, restores all spent Hit Dice, restores tracked spell slots/resources, and, if XP qualifies, advances them to the earned level.
-- If complete_long_rest reports a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
+- A character levels only after actually completing an in-game LONG REST. Build 6.16 tracks this as an 8-hour sleep session on the shared world clock.
+- A first-person request such as "I take a Short Rest" or "I go to sleep / take a Long Rest" applies only to the speaking player's character unless the players explicitly establish that the party is resting together. Never silently rest absent or nonparticipating party members.
+- When a character starts sleeping, call start_long_rest with the exact character name(s), whether the story location is otherwise safe, the location description, and a short reason. Paid lodging at the character's current Inn is verified by the server and automatically qualifies as safe lodging.
+- Do not call complete_long_rest yourself. The server automatically finalizes a Long Rest only after 8 authoritative world-time hours have elapsed. At that point it restores full HP, Hit Dice, tracked spell slots/resources, and applies any XP-earned level.
+- Sleeping characters have a Resting window with current world time, HP, gradual recovery, elapsed/remaining rest time, and a Wake button. If a player wakes early, keep the HP already recovered but do not grant full Long Rest resources.
+- If the completed Long Rest produces a level increase, do not choose the player's subclass, class options, spells, or other level-up choices for them. Tell them they wake stronger and that their Level Up screen is waiting in the Character tab.
 - A spellcasting character who completes a Long Rest without leveling can optionally review/change their spells after waking. The client presents that choice; do not choose spells for the player.
 - A Short Rest never triggers an XP level increase. A Short Rest must actually complete before you call complete_short_rest. The server then presents each named player with their own Hit Dice screen. Do NOT roll or spend their Hit Dice for them.
 - On that Short Rest screen, the player may spend zero or more of their AVAILABLE Hit Dice. Each spent die is rolled by the server and adds the character's Constitution modifier; healing is at least 1 HP per die and cannot exceed max HP. A character cannot spend more Hit Dice in one Short Rest than their total character level, and previously spent Hit Dice stay unavailable until a completed Long Rest restores them.
+
+WORLD TIME / WEATHER / TRAVEL / SLEEP — SERVER-AUTHORITATIVE / MANDATORY:
+- The WORLD TIME STATE below is the single shared campaign clock. Narration must match its Day, time of day, daylight, current weather, and current location.
+- Keep all implementation language invisible. Never say "world-time RPC", "state update", "server clock", "sleep session", or similar backend terms to players. Simply narrate dawn, dusk, rain, heat, darkness, travel duration, sleep, waking, and changing conditions naturally.
+- Use advance_world_time whenever a resolved action consumes meaningful time. Use realistic elapsed durations rather than advancing time for trivial speech.
+- World-map travel must consume time. Resolve any encounter/interruption first; whenever the journey actually advances, call advance_world_time for the hours that passed. Only call travel_to_world_location after the party truly arrives.
+- Weather may evolve automatically as time passes. Use set_world_weather when story canon or an immediate event requires a specific condition. Hot-weather state must match the actual narrated weather.
+- If a player says they sleep, do not immediately narrate eight completed hours. Call start_long_rest. If another active player stays awake, continue their story while sleeping characters remain unavailable for ordinary actions until they Wake or complete the rest.
+- A paid Inn room is verified by the server at the character's current Inn. Do not accept a player's claim that they paid unless the sleep tool reports paid lodging.
+- A character who wakes before 8 hours is not entitled to full Long Rest spell slots, Hit Dice, or level-up benefits; only the gradually recovered HP already earned remains.
 
 ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
 - The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
@@ -215,6 +229,11 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var inputBuilder = new StringBuilder();
         inputBuilder.AppendLine($"CAMPAIGN: {campaign.CampaignName}");
         inputBuilder.AppendLine($"CHAPTER: {campaign.CurrentChapter}; CURRENT LOCATION: {campaign.CurrentLocation}");
+        var worldTimeState = await GetWorldTimeStateForGmAsync(campaign.CampaignId);
+        if (worldTimeState is not null)
+        {
+            inputBuilder.AppendLine($"WORLD TIME STATE: Day {worldTimeState.DayNumber}, {worldTimeState.DisplayTime} ({worldTimeState.DayPart}); Weather: {worldTimeState.WeatherLabel}; Daylight: {(worldTimeState.IsDaylight ? "Yes" : "No")}; Hot Weather: {(worldTimeState.HotWeather ? "Yes" : "No")}");
+        }
 
         var canon = _canon.GetCanon(campaign.CurrentChapter, campaign.CurrentLocation);
         if (!string.IsNullOrWhiteSpace(canon))
@@ -463,13 +482,13 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildConsumeSurvivalItemTool(),
             BuildFillWaterskinTool(),
             BuildBoilWaterskinTool(),
-            BuildAdvanceSurvivalTimeTool(),
-            BuildSetSurvivalHotWeatherTool(),
+            BuildAdvanceWorldTimeTool(),
+            BuildSetWorldWeatherTool(),
+            BuildStartLongRestTool(),
             BuildDiscoverWorldLocationTool(),
             BuildTravelToWorldLocationTool(),
             BuildCompleteQuestTool(),
             BuildCompleteShortRestTool(),
-            BuildCompleteLongRestTool(),
             BuildSetEncounterMapTool(),
             BuildStartCombatTool(),
             BuildAddCombatMonsterTool(),
@@ -691,6 +710,30 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = result;
                         break;
                     }
+                    case "advance_world_time":
+                    {
+                        var args = DeserializeArguments<AdvanceWorldTimeToolArguments>(call.ArgumentsJson, "world time");
+                        var result = await AdvanceWorldTimeAsync(campaign.CampaignId, args.Hours, args.Reason);
+                        stateAudits.Add(new GameMasterStateAudit("WorldTime", $"World time advanced {args.Hours:0.##} hour(s)."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "set_world_weather":
+                    {
+                        var args = DeserializeArguments<SetWorldWeatherToolArguments>(call.ArgumentsJson, "world weather");
+                        var result = await SetWorldWeatherAsync(campaign.CampaignId, args);
+                        stateAudits.Add(new GameMasterStateAudit("WorldTime", $"Weather set to {args.WeatherLabel}."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "start_long_rest":
+                    {
+                        var args = DeserializeArguments<StartLongRestToolArguments>(call.ArgumentsJson, "Long Rest sleep");
+                        var result = await StartLongRestAsync(campaign.CampaignId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Rest", $"Long Rest sleep started for: {string.Join(", ", args.CharacterNames ?? Array.Empty<string>())}."));
+                        toolResult = new { authoritative = true, action = "start_long_rest", characters = result };
+                        break;
+                    }
                     case "advance_survival_time":
                     {
                         var args = DeserializeArguments<AdvanceSurvivalTimeToolArguments>(call.ArgumentsJson, "survival time");
@@ -740,25 +783,24 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<CompleteShortRestToolArguments>(call.ArgumentsJson, "short rest completion");
                         var result = await CompleteShortRestAsync(campaign.CampaignId, args);
-                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 1m, $"Short Rest: {args.Reason}");
+                        var worldTime = await AdvanceWorldTimeAsync(campaign.CampaignId, 1m, $"Short Rest: {args.Reason}");
                         var waiting = result.Where(r => r.Status.Equals("awaiting_hit_dice", StringComparison.OrdinalIgnoreCase))
                             .Select(r => r.CharacterName).ToArray();
                         stateAudits.Add(new GameMasterStateAudit("Rest", waiting.Length > 0
                             ? $"Short Rest completed; Hit Dice choices waiting for: {string.Join(", ", waiting)}"
                             : "Short Rest completed."));
-                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result, survival };
+                        toolResult = new { authoritative = true, action = "complete_short_rest", characters = result, worldTime };
                         break;
                     }
                     case "complete_long_rest":
                     {
-                        var args = DeserializeArguments<CompleteLongRestToolArguments>(call.ArgumentsJson, "long rest completion");
-                        var result = await CompleteLongRestAsync(campaign.CampaignId, args);
-                        var survival = await AdvanceSurvivalTimeAsync(campaign.CampaignId, args.CharacterNames, 8m, $"Long Rest: {args.Reason}");
-                        var leveled = result.Where(r => r.LeveledUp).Select(r => $"{r.CharacterName} {r.FromLevel}→{r.ToLevel}").ToArray();
-                        stateAudits.Add(new GameMasterStateAudit("Rest", leveled.Length > 0
-                            ? $"Long Rest completed; level up: {string.Join(", ", leveled)}"
-                            : "Long Rest completed; no XP level increase."));
-                        toolResult = new { authoritative = true, action = "complete_long_rest", characters = result, survival };
+                        toolResult = new
+                        {
+                            authoritative = true,
+                            action = "complete_long_rest",
+                            rejected = true,
+                            reason = "Build 6.16 Long Rests must be started with start_long_rest and completed by elapsed world time."
+                        };
                         break;
                     }
                     case "set_encounter_map":
@@ -1276,7 +1318,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             type = "function",
             name = "travel_to_world_location",
-            description = "Commit the campaign's current location after the party actually arrives at a discovered World Map destination. Never call merely when travel begins or while a journey is interrupted.",
+            description = "Commit the campaign's current location only after the party actually arrives at a discovered World Map destination. Before arrival, use advance_world_time for the real journey hours that elapsed, including partial travel before interruptions. Never teleport time or location simply because travel was requested.",
             strict = true,
             parameters = new
             {
@@ -1377,6 +1419,83 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short narrative reason confirming how the water was boiled." }
                 },
                 required = new[] { "inventoryItemId", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildAdvanceWorldTimeTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "advance_world_time",
+            description = "Advance the single shared campaign clock when meaningful in-game time actually passes. This also advances Hunger/Thirst, weather progression, and HP recovery for sleeping characters. Use for travel, waiting, exploration, watches, downtime, and other elapsed time. Do not use for trivial dialogue.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    hours = new { type = "number", minimum = 0.02, maximum = 168, description = "Actual elapsed in-game hours. Fractions are allowed, e.g. 0.25 for 15 minutes." },
+                    reason = new { type = "string", description = "Short story reason for the time passage." }
+                },
+                required = new[] { "hours", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildSetWorldWeatherTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "set_world_weather",
+            description = "Set a specific current weather condition when campaign canon, magic, or a resolved story event requires it. Ordinary weather also evolves automatically as the shared world clock advances.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    weatherKey = new { type = "string", description = "Short machine-safe key such as clear, rain, fog, storm, snow, hot-clear, sandstorm." },
+                    weatherLabel = new { type = "string", description = "Natural player-facing weather label such as Heavy Rain or Hot and Clear." },
+                    hotWeather = new { type = "boolean", description = "True only when conditions are hot enough to require the 2-gallon daily water rule." },
+                    reason = new { type = "string", description = "Short in-world reason or cause." }
+                },
+                required = new[] { "weatherKey", "weatherLabel", "hotWeather", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildStartLongRestTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "start_long_rest",
+            description = "Begin an 8-hour sleeping Long Rest for the exact named player characters who actually go to sleep. Paid lodging at the character's current Inn is verified and consumed by the server. The rest is not completed immediately; HP recovers with elapsed world time and the player can Wake early.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    characterNames = new
+                    {
+                        type = "array",
+                        minItems = 1,
+                        maxItems = 20,
+                        items = new { type = "string" },
+                        description = "Exact character names that actually begin sleeping now."
+                    },
+                    safeLocation = new { type = "boolean", description = "True only if the story location is legitimately safe even without paid Inn lodging, e.g. secured home, protected temple, guarded barracks, secure magical shelter." },
+                    locationDescription = new { type = "string", description = "Short in-world sleeping location, e.g. Modest room at the Mudhaven Inn or guarded temple quarters." },
+                    reason = new { type = "string", description = "Short narrative reason for beginning the Long Rest." }
+                },
+                required = new[] { "characterNames", "safeLocation", "locationDescription", "reason" },
                 additionalProperties = false
             }
         };
@@ -2200,6 +2319,84 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             "Unable to boil waterskin water");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
+    }
+
+    private async Task<WorldTimeStateForGm?> GetWorldTimeStateForGmAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_world_time_state",
+            new { p_campaign_id = campaignId },
+            "Unable to load world time");
+        return JsonSerializer.Deserialize<WorldTimeStateForGm>(raw, JsonOptions);
+    }
+
+    private async Task<JsonElement> AdvanceWorldTimeAsync(Guid campaignId, decimal hours, string? reason)
+    {
+        if (hours <= 0m || hours > 168m)
+            throw new InvalidOperationException("World time must advance between 0 and 168 hours.");
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_advance_world_time",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_hours = Math.Round(hours, 2),
+                p_reason = CleanReason(reason, "In-game time passed")
+            },
+            "Unable to advance world time");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> SetWorldWeatherAsync(Guid campaignId, SetWorldWeatherToolArguments args)
+    {
+        var key = (args.WeatherKey ?? string.Empty).Trim().ToLowerInvariant();
+        var label = (args.WeatherLabel ?? string.Empty).Trim();
+        if (key.Length == 0) key = "clear";
+        if (label.Length == 0) label = "Clear";
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_set_world_weather",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_weather_key = key,
+                p_weather_label = label,
+                p_hot_weather = args.HotWeather,
+                p_reason = CleanReason(args.Reason, label)
+            },
+            "Unable to update world weather");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<List<JsonElement>> StartLongRestAsync(Guid campaignId, StartLongRestToolArguments args)
+    {
+        var names = (args.CharacterNames ?? Array.Empty<string>())
+            .Select(name => (name ?? string.Empty).Trim())
+            .Where(name => name.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToArray();
+        if (names.Length == 0)
+            throw new InvalidOperationException("Long Rest sleep requires at least one character name.");
+
+        var results = new List<JsonElement>();
+        foreach (var name in names)
+        {
+            var raw = await CallSupabaseRpcAsync(
+                "discord_gm_start_long_rest",
+                new
+                {
+                    p_campaign_id = campaignId,
+                    p_character_name = name,
+                    p_safe_location = args.SafeLocation,
+                    p_location_description = CleanReason(args.LocationDescription, "Safe shelter"),
+                    p_reason = CleanReason(args.Reason, "Begins Long Rest")
+                },
+                $"Unable to start Long Rest for {name}");
+            using var document = JsonDocument.Parse(raw);
+            results.Add(document.RootElement.Clone());
+        }
+        return results;
     }
 
     private async Task<JsonElement> AdvanceSurvivalTimeAsync(
@@ -3305,6 +3502,41 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("hunger_percent")] public decimal HungerPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("thirst_percent")] public decimal ThirstPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
+    }
+
+    private sealed class WorldTimeStateForGm
+    {
+        public long WorldMinute { get; set; }
+        public int DayNumber { get; set; }
+        public string DisplayTime { get; set; } = string.Empty;
+        public string DayPart { get; set; } = string.Empty;
+        public bool IsDaylight { get; set; }
+        public string WeatherKey { get; set; } = string.Empty;
+        public string WeatherLabel { get; set; } = string.Empty;
+        public bool HotWeather { get; set; }
+        public string CurrentLocation { get; set; } = string.Empty;
+    }
+
+    private sealed class AdvanceWorldTimeToolArguments
+    {
+        public decimal Hours { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class SetWorldWeatherToolArguments
+    {
+        public string WeatherKey { get; set; } = string.Empty;
+        public string WeatherLabel { get; set; } = string.Empty;
+        public bool HotWeather { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class StartLongRestToolArguments
+    {
+        public string[] CharacterNames { get; set; } = Array.Empty<string>();
+        public bool SafeLocation { get; set; }
+        public string LocationDescription { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
     }
 
     private sealed class CompleteShortRestToolArguments
