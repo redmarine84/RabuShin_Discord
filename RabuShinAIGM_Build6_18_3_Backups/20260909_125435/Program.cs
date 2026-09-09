@@ -1726,12 +1726,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/shop/buy", async (
 
         // RULES BUILD 6.15 - INN/TAVERN SERVICES
         var hospitalityKind = (poi.ShopKind ?? string.Empty).Trim().ToLowerInvariant();
-        var hospitalityCategory = (item.Category ?? string.Empty).Trim().ToLowerInvariant();
-        // RULES BUILD 6.18.3 - INN/TAVERN INVENTORY PURCHASE FIX
-        // Rooms are services/reservations. Food and drinks are physical purchases and
-        // must use the normal settlement-item RPC so they enter authoritative inventory.
-        if ((hospitalityKind is "inn" or "tavern" or "inn-tavern") &&
-            hospitalityCategory == "room / lifestyle")
+        if (hospitalityKind is "inn" or "tavern" or "inn-tavern")
         {
             var hospitality = await service.BuyHospitalityServiceAsync(
                 playerId, campaignId, settlement.SettlementKey, poi.PoiKey, item, quantity, poi.Name);

@@ -181,9 +181,6 @@ public static class ItemPhysicalProfileService
 
     private static decimal EstimateFoodLb(string name, string text)
     {
-        // RULES BUILD 6.18.3 - INN FOOD PORTIONS
-        // One purchased Inn meal is one prepared-food portion, matching Build 6.15's +33 Hunger rule.
-        if (ContainsAny(text, "fresh bread", "vegetable soup", "hearth soup", "meat loaf", "beef stew", "roast meat plate")) return 0.33m;
         if (RationMechanicsService.TryGetDayCount(name, out var rationDays)) return rationDays;
         if (text.Contains("ration")) return 1m;
         if (ContainsAny(text, "fresh fish", "fish fillet", "meat", "steak", "jerky", "dried meat", "bread", "provisions", "meal")) return 1m;
@@ -193,11 +190,6 @@ public static class ItemPhysicalProfileService
 
     private static decimal EstimateWaterGallons(string name, string text)
     {
-        // RULES BUILD 6.18.3 - TAVERN DRINK PORTIONS
-        // Preserve the hydration values that Build 6.15 applied when drinks were consumed immediately.
-        if (text.Contains("clean water", StringComparison.OrdinalIgnoreCase)) return 0.25m;
-        if (ContainsAny(text, "common wine", "fine wine")) return 0.05m;
-        if (ContainsAny(text, "house ale", "light ale", "dark ale", "hard cider", "stout", "mead")) return 0.10m;
         if (ContainsAny(text, "water (1 gallon)", "one gallon water", "1 gallon of water")) return 1m;
         if (ContainsAny(text, "water (1/2 gallon)", "half gallon water", "0.5 gallon water")) return 0.5m;
         if (ContainsAny(text, "full waterskin", "waterskin (full)", "filled waterskin")) return 0.5m;

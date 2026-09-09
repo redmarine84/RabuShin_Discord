@@ -3056,8 +3056,9 @@ function renderSettlementShop(shop,initialMode='buy') {
     if(eyebrow) eyebrow.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'?'TAVERN':'INN';
     overlay.querySelector('.shop-mode-tabs')?.remove();
     const note=overlay.querySelector('.settlement-shop-actions .muted');
-    // RULES BUILD 6.18.3 - HOSPITALITY INVENTORY UI
-    if(note) note.textContent='Food and drinks purchased here are added to Inventory. Room quantity is the number of lodging days.';
+    if(note) note.textContent=String(shop.shopKind||'').toLowerCase()==='tavern'
+      ? 'Drinks are served immediately and do not enter inventory.'
+      : 'Meals are served immediately; room quantity is the number of lodging days.';
   }
   if(currentGameData?.character&&shop.gold!==undefined) {
     currentGameData.character.gold=shop.gold;
@@ -3111,19 +3112,13 @@ async function buySettlementShopItem(button,shop) {
     } catch(refreshError) {
       console.warn('Inventory refresh after shop purchase failed:',refreshError);
     }
-    // RULES BUILD 6.18.3 - SAFE HOSPITALITY PURCHASE REFRESH
-    // Inn/Tavern catalogs have unlimited menu stock. Keep the current modal alive after
-    // purchase instead of destroying/recreating it while its Buy handler is still running.
-    const hospitalityShop=['inn','tavern','inn-tavern'].includes(String(shop?.shopKind||'').toLowerCase());
-    if(!hospitalityShop) {
-      try {
-        const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
-        renderSettlementShop(freshShop,'buy');
-      } catch(shopRefreshError) {
-        console.warn('Shop refresh after purchase failed:',shopRefreshError);
-      }
+    try {
+      const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+      renderSettlementShop(freshShop,'buy');
+    } catch(shopRefreshError) {
+      console.warn('Shop refresh after purchase failed:',shopRefreshError);
     }
-    showNotice(result.message || `Purchased ${result.quantityPurchased} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)}.`);
+    showNotice(`Purchased ${result.quantityPurchased} × ${result.itemName} for ${formatShopGp(result.totalPriceGp)}.`);
   } catch(error) {
     if(errorBox)errorBox.textContent=error.message;
   } finally {
