@@ -93,7 +93,7 @@ let gmVoiceCurrentMessageKey = '';
 let gmVoiceVoicesChangedBound = false;
 
 const app = document.querySelector('#app');
-const publicSiteBase = (import.meta.env.VITE_PUBLIC_SITE_BASE_URL || 'https://redmarine84.github.io/Quests-of-Rabu-Shin/').replace(/\/$/, '');
+const publicSiteBase = 'https://redmarine84.github.io/Quests-of-Rabu-Shin';
 const legalUrls = {
   terms: `${publicSiteBase}/terms.html`,
   privacy: `${publicSiteBase}/privacy.html`,
