@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 
 public static class RationMechanicsService
 {
-    // RULES BUILD 6.18.1 - LEGACY RATION PORTION NORMALIZATION
     public const string MechanicsVersion = "6.10";
     public const int PortionsPerDay = 3;
     public const decimal HungerPercentPerPortion = 33m;
@@ -14,30 +13,12 @@ public static class RationMechanicsService
         @"\bRations?\s*\(\s*(?<days>1|3|5|7)\s+days?\s*\)\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    // Older character-creation and GM inventory paths could create names such as
-    // "Rations" or "Dried Fish Rations" without a day-count suffix. Each inventory
-    // quantity represents one day of food, so these legacy names are a 1-day pack.
-    private static readonly Regex LegacyRationNamePattern = new(
-        @"\bRations?\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
     public static bool TryGetDayCount(string? itemName, out int dayCount)
     {
         dayCount = 0;
-        var normalizedName = (itemName ?? string.Empty).Trim();
-        var match = RationNamePattern.Match(normalizedName);
-        if (match.Success && int.TryParse(match.Groups["days"].Value, out dayCount)
-            && dayCount is 1 or 3 or 5 or 7)
-            return true;
-
-        if (LegacyRationNamePattern.IsMatch(normalizedName))
-        {
-            dayCount = 1;
-            return true;
-        }
-
-        dayCount = 0;
-        return false;
+        var match = RationNamePattern.Match((itemName ?? string.Empty).Trim());
+        return match.Success && int.TryParse(match.Groups["days"].Value, out dayCount)
+            && dayCount is 1 or 3 or 5 or 7;
     }
 
     public static int MaximumPortions(int dayCount) => Math.Max(0, dayCount) * PortionsPerDay;
