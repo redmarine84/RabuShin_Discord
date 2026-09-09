@@ -1752,15 +1752,7 @@ public sealed class DiscordSurvivalState
     [JsonPropertyName("food_deficit_hours")] public decimal FoodDeficitHours { get; set; }
     [JsonPropertyName("water_deficit_hours")] public decimal WaterDeficitHours { get; set; }
     [JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-    [JsonPropertyName("starvation_limit_days")] public int StarvationLimitDays { get; set; }
-    [JsonPropertyName("starvation_days_without_food")] public int StarvationDaysWithoutFood { get; set; }
-    [JsonPropertyName("hydration_window_hours")] public decimal HydrationWindowHours { get; set; }
-    [JsonPropertyName("hydration_consumed_gal")] public decimal HydrationConsumedGal { get; set; }
-    [JsonPropertyName("hydration_requirement_gal")] public decimal HydrationRequirementGal { get; set; }
-    [JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-    [JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
 
-    // RULES BUILD 6.18.4 - EXHAUSTION RULES OVERHAUL
     // JsonPropertyName attributes above match the snake_case Supabase RPC
     // response. Never return this database DTO directly to the browser because
     // those attributes also control ASP.NET output serialization.
@@ -1779,14 +1771,7 @@ public sealed class DiscordSurvivalState
         thirstPercent = ThirstPercent,
         foodDeficitHours = FoodDeficitHours,
         waterDeficitHours = WaterDeficitHours,
-        exhaustionLevel = ExhaustionLevel,
-        starvationLimitDays = StarvationLimitDays,
-        starvationDaysWithoutFood = StarvationDaysWithoutFood,
-        hydrationWindowHours = HydrationWindowHours,
-        hydrationConsumedGal = HydrationConsumedGal,
-        hydrationRequirementGal = HydrationRequirementGal,
-        effectiveSpeed = EffectiveSpeed,
-        effectiveMaxHp = EffectiveMaxHp
+        exhaustionLevel = ExhaustionLevel
     };
 }
 

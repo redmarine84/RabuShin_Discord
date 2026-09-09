@@ -1206,9 +1206,11 @@ function switchGameTab(tab,button) {
 }
 
 function survivalMetersHtml(state) {
-  // RULES BUILD 6.18.4 - EXHAUSTION HUD
   if(!state?.enabled)return '';
-  // Accept both camelCase and snake_case DTO shapes during rolling deployments.
+  // Build 6.8 originally returned the Supabase DTO directly, so its
+  // JsonPropertyName attributes emitted snake_case even though the UI expected
+  // camelCase. Accept both shapes during rolling deployments while the server
+  // now returns the canonical camelCase contract.
   const value=(camel,snake)=>state[camel]??state[snake];
   const hunger=Math.max(0,Math.min(100,Number(value('hungerPercent','hunger_percent'))||0));
   const thirst=Math.max(0,Math.min(100,Number(value('thirstPercent','thirst_percent'))||0));
@@ -1217,29 +1219,14 @@ function survivalMetersHtml(state) {
   const water=Math.max(0,Number(value('waterCreditGal','water_credit_gal'))||0);
   const waterReq=Math.max(0.01,Number(value('waterRequirementGal','water_requirement_gal'))||1);
   const exhaustion=Math.max(0,Number(value('exhaustionLevel','exhaustion_level'))||0);
-  const starvationLimit=Math.max(1,Number(value('starvationLimitDays','starvation_limit_days'))||1);
-  const starvationDays=Math.max(0,Number(value('starvationDaysWithoutFood','starvation_days_without_food'))||0);
-  const hydrationConsumed=Math.max(0,Number(value('hydrationConsumedGal','hydration_consumed_gal'))||0);
-  const effectiveSpeed=Math.max(0,Number(value('effectiveSpeed','effective_speed'))||0);
-  const effectiveMaxHp=Math.max(0,Number(value('effectiveMaxHp','effective_max_hp'))||0);
   const hotWeather=Boolean(value('hotWeather','hot_weather'));
-  const effects=[
-    '',
-    'Disadvantage on ability checks, including initiative and skill checks.',
-    'Speed is halved.',
-    'Disadvantage on attack rolls and saving throws.',
-    'Hit point maximum is halved.',
-    'Speed is reduced to 0.',
-    'Death.'
-  ];
-  const activeEffects=[];
-  for(let i=1;i<=Math.min(6,exhaustion);i++)activeEffects.push(`L${i}: ${effects[i]}`);
   return `<div class="survival-meters">
-    <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb • starvation ${starvationDays}/${starvationLimit} safe days</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
-    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal • ${hydrationConsumed.toFixed(2)} gal counted this hydration day</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
-    ${exhaustion>0?`<div class="survival-exhaustion"><b>Exhaustion ${exhaustion}</b><small>${activeEffects.join(' ')}</small>${exhaustion>=2?`<small>Effective Speed: ${effectiveSpeed} ft.</small>`:''}${exhaustion>=4?`<small>Effective Max HP: ${effectiveMaxHp}</small>`:''}</div>`:''}
+    <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
+    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
+    ${exhaustion>0?`<div class="survival-exhaustion">Exhaustion ${exhaustion}</div>`:''}
   </div>`;
 }
+
 function updateSurvivalHeader() {
   const host=document.querySelector('#survivalMetersHost');
   if(host)host.innerHTML=survivalMetersHtml(currentGameData?.survival);
@@ -4264,7 +4251,7 @@ function renderSettingsTab(){
     <section class="panel settings survival-settings">
       <h4>Hunger & Thirst Survival Rules</h4>
       <p>${currentGameData?.survival?.enabled?'<span class="good">Hunger and Thirst are ON for this campaign.</span>':'<span class="muted">Hunger and Thirst are OFF for this campaign.</span>'}</p>
-      <p class="muted">When enabled, characters need 1 lb of food and 1 gallon of water per in-game day; hot weather raises water to 2 gallons. Starvation is safe for 3 + CON modifier days (minimum 1), then adds 1 Exhaustion per additional foodless day. Drinking at least 2/3 but less than the full daily water requirement triggers a DC 15 CON save; less than 2/3 automatically adds Exhaustion. Exhaustion is cumulative through Level 6. A Long Rest removes 1 level only if the character has eaten and drunk since the previous Long Rest. Weight Capacity remains active even when Hunger and Thirst are off.</p>
+      <p class="muted">When enabled, characters need 1 lb of food and 1 gallon of water per in-game day. Hot weather raises water to 2 gallons. Missing requirements can add Exhaustion. Weight Capacity remains active even when Hunger and Thirst are off.</p>
       <button id="toggleSurvivalRules" class="button ${currentGameData?.survival?.enabled?'danger-button':'primary'}" ${currentGameData?.campaign?.isOwner?'':'disabled'}>${currentGameData?.survival?.enabled?'Turn Hunger & Thirst OFF':'Turn Hunger & Thirst ON'}</button>
       ${currentGameData?.campaign?.isOwner?'':'<small class="muted settings-owner-note">Only the campaign owner can change this setting.</small>'}
       <div id="survivalSettingsError" class="error"></div>

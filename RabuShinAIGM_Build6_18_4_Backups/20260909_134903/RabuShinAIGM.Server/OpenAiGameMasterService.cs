@@ -128,12 +128,7 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - A Long Rest is no longer completed instantly. When a character actually begins sleeping, use start_long_rest. The sleep engine tracks the full 8 hours, gradual HP recovery, paid Inn lodging, and early waking. Never use complete_long_rest directly in Build 6.16.
 - If every currently active living player is sleeping, the server may fast-forward the shared world clock to complete their sleep. If even one active living player remains awake, the clock does not fast-forward; continue play normally and advance_world_time only when story time actually passes.
 - When the environment becomes hot enough to require double water, call set_survival_hot_weather with hotWeather=true. Set it false when the party leaves the hot environment. Do not toggle it merely for ordinary warm weather.
-- RULES BUILD 6.18.4 EXHAUSTION: starvation has a safe period of 3 + Constitution modifier days without food, minimum 1 day. After that, each additional completed foodless day adds 1 Exhaustion.
-- WATER EXHAUSTION: each completed hydration day is checked by the server. Drinking at least 2/3 but less than the full daily requirement requires a DC 15 Constitution save or +1 Exhaustion. Drinking less than 2/3 automatically adds +1 Exhaustion. Hot weather doubles the gallon requirement.
-- Exhaustion is cumulative and all reached effects stack: Level 1 disadvantage on ability checks including initiative/skills; Level 2 speed halved; Level 3 disadvantage on attack rolls and saving throws; Level 4 maximum HP halved; Level 5 speed 0; Level 6 death.
-- A completed Long Rest reduces Exhaustion by exactly 1 only if the character has ingested some food AND some drink since the previous Long Rest. Greater Restoration reduces Exhaustion by exactly 1; when that spell successfully resolves, call adjust_exhaustion with delta -1.
-- For any OTHER explicit rules effect that adds or removes Exhaustion, call adjust_exhaustion. Never change Exhaustion only in narration. The server enforces initiative, movement, HP cap, and death; roll_dice also enforces Level 1/3 disadvantage when actorName and rollType identify the affected character and d20 roll.
-- For every roll_dice call, actorName MUST be the exact party character name when a party character is rolling, or an empty string for monsters/NPCs/random tables. rollType MUST accurately identify ability_check, initiative, attack, saving_throw, death_save, damage, or other.
+- Survival Exhaustion returned by the server is authoritative. Apply it in adjudication and narration; never invent or erase survival Exhaustion by narration alone.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
 WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
@@ -321,9 +316,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             inputBuilder.AppendLine($"Hunger {survivalState.HungerPercent:0}% ({survivalState.FoodCreditLb:0.##}/{survivalState.FoodRequirementLb:0.##} lb daily food); " +
                 $"Thirst {survivalState.ThirstPercent:0}% ({survivalState.WaterCreditGal:0.##}/{survivalState.WaterRequirementGal:0.##} gal daily water); " +
-                $"Hot Weather {(survivalState.HotWeather ? "YES" : "NO")}; Survival Exhaustion {survivalState.ExhaustionLevel}; " +
-                $"Starvation {survivalState.StarvationDaysWithoutFood}/{survivalState.StarvationLimitDays} safe days; " +
-                $"Effective Speed {survivalState.EffectiveSpeed} ft.; Effective Max HP {survivalState.EffectiveMaxHp}.");
+                $"Hot Weather {(survivalState.HotWeather ? "YES" : "NO")}; Survival Exhaustion {survivalState.ExhaustionLevel}.");
         }
 
         inputBuilder.AppendLine();
@@ -479,7 +472,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var tools = new[]
         {
             BuildDiceTool(),
-            BuildAdjustExhaustionTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
@@ -564,9 +556,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "roll_dice":
                     {
                         var args = DeserializeArguments<DiceToolArguments>(call.ArgumentsJson, "dice");
-                        var exhaustion = await GetCharacterExhaustionAsync(campaign.CampaignId, args.ActorName);
-                        var effectiveArgs = ApplyExhaustionToRoll(args, exhaustion);
-                        var audit = ExecuteAuthoritativeRoll(effectiveArgs);
+                        var audit = ExecuteAuthoritativeRoll(args);
                         rollAudits.Add(audit);
                         toolResult = new
                         {
@@ -582,15 +572,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             dc = audit.Dc,
                             success = audit.Dc > 0 ? (bool?)audit.Success : null
                         };
-                        break;
-                    }
-                    case "adjust_exhaustion":
-                    {
-                        var args = DeserializeArguments<AdjustExhaustionToolArguments>(call.ArgumentsJson, "exhaustion adjustment");
-                        if (args.Delta == 0) throw new InvalidOperationException("Exhaustion adjustment cannot be zero.");
-                        var result = await AdjustExhaustionAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Exhaustion", $"{args.CharacterName}: {args.Delta:+#;-#;0} level ({args.Reason})"));
-                        toolResult = result;
                         break;
                     }
                     case "adjust_gold":
@@ -869,9 +850,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                                 : candidate.InitiativeModifier;
                             var audit = ExecuteAuthoritativeRoll(new DiceToolArguments
                             {
-                                Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=candidate.ExhaustionLevel>=1,
-                                ActorName=candidate.EntityType.Equals("character", StringComparison.OrdinalIgnoreCase)?candidate.DisplayName:string.Empty,
-                                RollType="initiative",Reason=$"{candidate.DisplayName} initiative",Dc=0
+                                Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=false,
+                                Reason=$"{candidate.DisplayName} initiative",Dc=0
                             });
                             rollAudits.Add(audit);
                             entries.Add(new InitiativePersistEntry(candidate.EntityType,candidate.CharacterId,candidate.CombatMonsterId,audit.Rolls[0],modifier,audit.Total));
@@ -1099,18 +1079,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     disadvantage = new
                     {
                         type = "boolean",
-                        description = "True only for a d20 roll made with disadvantage before Exhaustion is applied by the server."
-                    },
-                    actorName = new
-                    {
-                        type = "string",
-                        description = "Exact party character name when a party character is making this roll. Use an empty string for monsters, NPCs, random tables, or rolls with no party-character actor."
-                    },
-                    rollType = new
-                    {
-                        type = "string",
-                        @enum = new[] { "ability_check", "initiative", "attack", "saving_throw", "death_save", "damage", "other" },
-                        description = "Mechanical roll category. The server uses this to enforce cumulative Exhaustion disadvantage."
+                        description = "True only for a d20 roll made with disadvantage."
                     },
                     reason = new
                     {
@@ -1127,31 +1096,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 },
                 required = new[]
                 {
-                    "count", "sides", "modifier", "advantage", "disadvantage", "actorName", "rollType", "reason", "dc"
+                    "count", "sides", "modifier", "advantage", "disadvantage", "reason", "dc"
                 },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildAdjustExhaustionTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "adjust_exhaustion",
-            description = "Apply or relieve cumulative Exhaustion for an explicit rules effect. Greater Restoration must use delta -1. Survival starvation/dehydration and Long Rest recovery are automatic and must not be duplicated with this tool.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    characterName = new { type = "string", description = "Exact party character name." },
-                    delta = new { type = "integer", minimum = -6, maximum = 6, description = "Levels to add/remove. Cannot be 0. Greater Restoration is exactly -1." },
-                    reason = new { type = "string", description = "Exact spell, hazard, rule, or effect causing this adjustment." }
-                },
-                required = new[] { "characterName", "delta", "reason" },
                 additionalProperties = false
             }
         };
@@ -1904,52 +1850,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             additionalProperties=false
         }
     };
-    private async Task<CharacterExhaustionForGm?> GetCharacterExhaustionAsync(Guid campaignId, string actorName)
-    {
-        if (string.IsNullOrWhiteSpace(actorName)) return null;
-        try
-        {
-            var raw = await CallSupabaseRpcAsync("discord_gm_get_character_exhaustion", new
-            {
-                p_campaign_id = campaignId,
-                p_character_name = actorName.Trim()
-            }, "Unable to load character Exhaustion");
-            var rows = JsonSerializer.Deserialize<List<CharacterExhaustionForGm>>(raw, JsonOptions) ?? new();
-            return rows.FirstOrDefault();
-        }
-        catch { return null; }
-    }
-
-    private static DiceToolArguments ApplyExhaustionToRoll(DiceToolArguments args, CharacterExhaustionForGm? exhaustion)
-    {
-        if (args.Sides != 20 || exhaustion is null || exhaustion.ExhaustionLevel <= 0) return args;
-        var type = (args.RollType ?? string.Empty).Trim().ToLowerInvariant();
-        var forced = (exhaustion.ExhaustionLevel >= 1 && (type is "ability_check" or "initiative")) ||
-                     (exhaustion.ExhaustionLevel >= 3 && (type is "attack" or "saving_throw" or "death_save"));
-        if (!forced) return args;
-        // D&D advantage and disadvantage cancel rather than stacking.
-        if (args.Advantage)
-        {
-            args.Advantage = false;
-            args.Disadvantage = false;
-        }
-        else args.Disadvantage = true;
-        return args;
-    }
-
-    private async Task<JsonElement> AdjustExhaustionAsync(Guid campaignId, AdjustExhaustionToolArguments args)
-    {
-        var raw = await CallSupabaseRpcAsync("discord_gm_adjust_exhaustion", new
-        {
-            p_campaign_id = campaignId,
-            p_character_name = (args.CharacterName ?? string.Empty).Trim(),
-            p_delta = Math.Clamp(args.Delta, -6, 6),
-            p_reason = CleanReason(args.Reason, "Exhaustion adjustment")
-        }, "Unable to adjust Exhaustion");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
     private GameMasterDiceAudit ExecuteAuthoritativeRoll(DiceToolArguments args)
     {
         var count = Math.Clamp(args.Count, 1, 100);
@@ -3279,26 +3179,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public int Modifier { get; set; }
         public bool Advantage { get; set; }
         public bool Disadvantage { get; set; }
-        public string ActorName { get; set; } = string.Empty;
-        public string RollType { get; set; } = "other";
         public string Reason { get; set; } = "GM roll";
         public int Dc { get; set; }
-    }
-
-    private sealed class AdjustExhaustionToolArguments
-    {
-        public string CharacterName { get; set; } = string.Empty;
-        public int Delta { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class CharacterExhaustionForGm
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
     }
 
     private sealed class AdjustGoldToolArguments
@@ -3499,7 +3381,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("initiative_modifier")] public int InitiativeModifier { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
     }
     private sealed class CombatInitiativeForGm
     {
@@ -3621,11 +3502,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("hunger_percent")] public decimal HungerPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("thirst_percent")] public decimal ThirstPercent { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("exhaustion_level")] public int ExhaustionLevel { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("starvation_limit_days")] public int StarvationLimitDays { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("starvation_days_without_food")] public int StarvationDaysWithoutFood { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("hydration_consumed_gal")] public decimal HydrationConsumedGal { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_speed")] public int EffectiveSpeed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effective_max_hp")] public int EffectiveMaxHp { get; set; }
     }
 
     private sealed class WorldTimeStateForGm
@@ -3697,9 +3573,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         [System.Text.Json.Serialization.JsonPropertyName("experience")] public int Experience { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("hpGain")] public int HpGain { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("maxHp")] public int MaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("effectiveMaxHp")] public int EffectiveMaxHp { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustionReduced")] public bool ExhaustionReduced { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("exhaustionLevel")] public int ExhaustionLevel { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("proficiencyBonus")] public int ProficiencyBonus { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("spellSelectionRequired")] public bool SpellSelectionRequired { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("spellReviewAvailable")] public bool SpellReviewAvailable { get; set; }
