@@ -1187,7 +1187,9 @@ public sealed class DiscordSupabaseService
             p_campaign_id = campaignId
         });
         return await ReadListAsync<DiscordCombatConditionRow>(response, "Unable to load combat conditions");
-    }    // VISUALS BUILD 5 - TACTICAL COMBAT STATE
+    }
+
+    // VISUALS BUILD 5 - TACTICAL COMBAT STATE
     public async Task<DiscordTacticalCombatStateRow?> GetTacticalCombatStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_tactical_combat_state", new
@@ -1330,6 +1332,100 @@ public sealed class DiscordSupabaseService
         return rows.FirstOrDefault()
             ?? throw new InvalidOperationException("Supabase returned no death saving throw result.");
     }
+
+    // RULES BUILD 6.19.2 - STABLE RECOVERY + FULL ACTION ECONOMY
+    public async Task<StableRecoveryStateRow?> GetStableRecoveryStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_stable_recovery_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var rows = await ReadListAsync<StableRecoveryStateRow>(response, "Unable to load Stable Recovery state");
+        return rows.FirstOrDefault();
+    }
+
+    public async Task<ActionEconomyStateRow?> GetActionEconomyStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_action_economy_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var rows = await ReadListAsync<ActionEconomyStateRow>(response, "Unable to load action economy");
+        return rows.FirstOrDefault();
+    }
+
+    public async Task<JsonElement> DashActionAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_player_dash_action", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Unable to Dash: {json}");
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
+
+    public async Task<JsonElement> UseActionSurgeAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_player_use_action_surge", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Unable to use Action Surge: {json}");
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
+
+    public sealed class StableRecoveryStateRow
+    {
+        [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+        [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [JsonPropertyName("stable")] public bool Stable { get; set; }
+        [JsonPropertyName("current_hp")] public int CurrentHp { get; set; }
+        [JsonPropertyName("recovery_roll_hours")] public int? RecoveryRollHours { get; set; }
+        [JsonPropertyName("stabilized_world_minute")] public long? StabilizedWorldMinute { get; set; }
+        [JsonPropertyName("recovery_due_world_minute")] public long? RecoveryDueWorldMinute { get; set; }
+        [JsonPropertyName("current_world_minute")] public long CurrentWorldMinute { get; set; }
+        [JsonPropertyName("remaining_minutes")] public long? RemainingMinutes { get; set; }
+        [JsonPropertyName("remaining_hours")] public decimal? RemainingHours { get; set; }
+    }
+
+    public sealed class ActionEconomyStateRow
+    {
+        [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+        [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [JsonPropertyName("active_combat")] public bool ActiveCombat { get; set; }
+        [JsonPropertyName("is_current_turn")] public bool IsCurrentTurn { get; set; }
+        [JsonPropertyName("action_available")] public bool ActionAvailable { get; set; }
+        [JsonPropertyName("can_action")] public bool CanAction { get; set; }
+        [JsonPropertyName("bonus_action_available")] public bool BonusActionAvailable { get; set; }
+        [JsonPropertyName("can_bonus_action")] public bool CanBonusAction { get; set; }
+        [JsonPropertyName("reaction_available")] public bool ReactionAvailable { get; set; }
+        [JsonPropertyName("can_reaction")] public bool CanReaction { get; set; }
+        [JsonPropertyName("object_interaction_available")] public bool ObjectInteractionAvailable { get; set; }
+        [JsonPropertyName("can_object_interaction")] public bool CanObjectInteraction { get; set; }
+        [JsonPropertyName("surge_action_available")] public bool SurgeActionAvailable { get; set; }
+        [JsonPropertyName("can_surge_action")] public bool CanSurgeAction { get; set; }
+        [JsonPropertyName("action_surge_used_this_turn")] public bool ActionSurgeUsedThisTurn { get; set; }
+        [JsonPropertyName("action_surge_max_charges")] public int ActionSurgeMaxCharges { get; set; }
+        [JsonPropertyName("action_surge_charges_remaining")] public int ActionSurgeChargesRemaining { get; set; }
+        [JsonPropertyName("effective_speed_ft")] public int EffectiveSpeedFt { get; set; }
+        [JsonPropertyName("dash_count")] public int DashCount { get; set; }
+        [JsonPropertyName("movement_allowance_ft")] public int MovementAllowanceFt { get; set; }
+        [JsonPropertyName("movement_spent_ft")] public int MovementSpentFt { get; set; }
+        [JsonPropertyName("movement_remaining_ft")] public int MovementRemainingFt { get; set; }
+        [JsonPropertyName("incapacitated")] public bool Incapacitated { get; set; }
+        [JsonPropertyName("resource_blocked_reason")] public string ResourceBlockedReason { get; set; } = string.Empty;
+    }
+
     // RULES BUILD 6.2 - DEATH / RESPAWN STATE
     public async Task<DeathStateRow?> GetDeathStateAsync(Guid playerId, Guid campaignId)
     {
@@ -1489,7 +1585,10 @@ public sealed class DiscordSupabaseService
         "discord_buy_settlement_item","discord_buy_hospitality_service","discord_sell_settlement_item",
         "discord_get_combat_state","discord_get_tactical_combat_state","discord_move_own_combat_token",
         "discord_get_tactical_door_states","discord_move_own_combat_token_costed","discord_get_combat_initiative",
-        "discord_end_player_combat_turn","discord_get_death_state","discord_choose_respawn","discord_accept_respawn_donation",
+        "discord_end_player_combat_turn","discord_get_death_save_state","discord_resolve_death_save",
+        "discord_get_stable_recovery_state","discord_get_action_economy_state","discord_player_spend_action_resource",
+        "discord_player_dash_action","discord_player_use_action_surge",
+        "discord_get_death_state","discord_choose_respawn","discord_accept_respawn_donation",
         "discord_donate_to_respawn","discord_decline_respawn_donation","discord_finalize_party_respawn"
     };
 

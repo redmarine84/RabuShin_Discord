@@ -166,6 +166,19 @@ SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
 - When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
 - Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
 
+FULL ACTION ECONOMY — SERVER-AUTHORITATIVE / MANDATORY:
+- During active combat, every creature has one Action, one Bonus Action, one Reaction, movement, and one free Object Interaction. These resources reset at the proper turn boundary; merely reading state never replenishes them.
+- Before resolving an Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
+- EXCEPTION: Dash is atomic. Do NOT call spend_action_resource separately for Dash; call dash_action once and it spends the selected Action/Surge Action itself.
+- Normal voluntary movement does not consume an Action. Tactical movement is cumulative and may be split before and after actions.
+- To Dash, call dash_action before using the extra movement. A normal Dash spends the Action and grants one additional amount of the creature's current effective Speed. An available Action-Surge Action can also Dash.
+- Do not grant a universal Bonus Action Dash. Only class/features that explicitly support it may do so; Build 6.19.2's trusted dash_action tool intentionally accepts only Action or Surge Action.
+- Fighter Action Surge is server-authoritative. A Fighter gains one charge at level 2 and two charges at level 17; charges refill on Short or Long Rest. Call use_action_surge to create the extra Surge Action. It can be used before or after the normal Action, but only once per turn even when two charges are available.
+- The Surge Action CANNOT be spent on the Magic action. Use spend_action_resource with resource=surge_action and the actual actionKind; the server rejects Magic.
+- Incapacitated, Paralyzed, Petrified, Stunned, and Unconscious suppress Action/Bonus Action/Reaction use without falsely marking an unspent resource as consumed. Movement-blocking conditions and Exhaustion modify the authoritative movement pool.
+- Monster voluntary movement uses trusted walking Speed parsed from its Monster Codex stat block. Never assume every monster has 30 ft. Speed.
+- STABLE RECOVERY: after three successful death saves a character remains Stable at 0 HP. The server rolls one persistent 1d4 in-game-hour recovery interval and automatically restores 1 HP when the authoritative world clock reaches it. Never reroll or substitute real/offline time.
+
 COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 - When actual combat begins, call start_combat exactly once, then add_combat_monster for EVERY enemy participating in the encounter. Keep returned display names stable (for example Wolf 1, Wolf 2).
 - BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server includes only player characters who are currently online in this campaign plus active hostile enemies; absent/offline party characters do not receive initiative rolls or tactical participation.
@@ -423,7 +436,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         $"  source={row.SourceName}; duration={duration}{save}; notes={row.Notes}");
                 }
             }
-        }        var partyCombatants = await GetPartyCombatantsForGmAsync(campaign.CampaignId);
+        }
+
+        var partyCombatants = await GetPartyCombatantsForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("PARTY COMBAT STATS (SERVER-AUTHORITATIVE):");
         foreach (var member in partyCombatants)
@@ -434,6 +449,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
         // VISUALS BUILD 4 - MONSTER COMBAT GM
         var combatState = await GetCombatStateForGmAsync(campaign.CampaignId);
+        if (combatState is not null && combatState.Active)
+            await EnsureMonsterWalkingSpeedsAsync(campaign.CampaignId, combatState.Monsters);
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("COMBAT STATE (SERVER-AUTHORITATIVE / CAMPAIGN-WIDE):");
         if (combatState is null || !combatState.Active)
@@ -515,6 +532,30 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         }
 
+        var actionEconomyState = await GetActionEconomyForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine("ACTION ECONOMY STATE:");
+        if (actionEconomyState.Count == 0)
+        {
+            inputBuilder.AppendLine("- No active combat action economy.");
+        }
+        else
+        {
+            foreach (var actionState in actionEconomyState)
+            {
+                inputBuilder.AppendLine(
+                    $"- {actionState.DisplayName} [{actionState.EntityType}]: " +
+                    $"Action {(actionState.CanAction ? "READY" : actionState.ActionAvailable ? "SUPPRESSED" : "SPENT")}; " +
+                    $"Bonus {(actionState.CanBonusAction ? "READY" : actionState.BonusActionAvailable ? "SUPPRESSED" : "SPENT")}; " +
+                    $"Reaction {(actionState.CanReaction ? "READY" : actionState.ReactionAvailable ? "SUPPRESSED" : "SPENT")}; " +
+                    $"Object {(actionState.CanObjectInteraction ? "READY" : actionState.ObjectInteractionAvailable ? "SUPPRESSED" : "SPENT")}; " +
+                    $"Surge Action {(actionState.CanSurgeAction ? "READY" : actionState.SurgeActionAvailable ? "SUPPRESSED" : "NONE")}; " +
+                    $"Action Surge {actionState.ActionSurgeChargesRemaining}/{actionState.ActionSurgeMaxCharges}; " +
+                    $"Movement {actionState.MovementRemainingFt}/{actionState.MovementAllowanceFt} ft; " +
+                    $"Speed {actionState.EffectiveSpeedFt} ft; Dash x{actionState.DashCount}.");
+            }
+        }
+        inputBuilder.AppendLine();
+
         if (recentHistory.Count > 0)
         {
             inputBuilder.AppendLine();
@@ -532,6 +573,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildApplyConditionTool(),
             BuildRemoveConditionTool(),
             BuildAdjustExhaustionTool(),
+            BuildSpendActionResourceTool(),
+            BuildDashActionTool(),
+            BuildUseActionSurgeTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
@@ -705,7 +749,35 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             $"{args.TargetName}: -{ConditionRulesService.Title(args.ConditionName)} ({CleanReason(args.Reason, "condition ended")})"));
                         toolResult = result;
                         break;
-                    }                    case "adjust_exhaustion":
+                    }
+                    case "spend_action_resource":
+                    {
+                        var args = DeserializeArguments<ActionEconomyToolArguments>(call.ArgumentsJson, "action resource");
+                        var result = await SpendActionResourceAsync(campaign.CampaignId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Action Economy",
+                            $"{args.CombatantName} spent {args.Resource} for {args.ActionKind}."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "dash_action":
+                    {
+                        var args = DeserializeArguments<DashActionToolArguments>(call.ArgumentsJson, "Dash action");
+                        var result = await DashActionAsync(campaign.CampaignId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Action Economy",
+                            $"{args.CombatantName} used Dash with {args.Resource}."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "use_action_surge":
+                    {
+                        var args = DeserializeArguments<UseActionSurgeToolArguments>(call.ArgumentsJson, "Action Surge");
+                        var result = await UseActionSurgeAsync(campaign.CampaignId, args);
+                        stateAudits.Add(new GameMasterStateAudit("Action Economy",
+                            $"{args.CharacterName} used Action Surge."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "adjust_exhaustion":
                     {
                         var args = DeserializeArguments<AdjustExhaustionToolArguments>(call.ArgumentsJson, "exhaustion adjustment");
                         if (args.Delta == 0) throw new InvalidOperationException("Exhaustion adjustment cannot be zero.");
@@ -1362,7 +1434,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 additionalProperties = false
             }
         };
-    }    private static object BuildAdjustExhaustionTool()
+    }
+
+    private static object BuildAdjustExhaustionTool()
     {
         return new
         {
@@ -1977,6 +2051,69 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         parameters=new { type="object", properties=new { reason=new { type="string" } }, required=new[]{"reason"}, additionalProperties=false }
     };
 
+
+    private static object BuildSpendActionResourceTool() => new
+    {
+        type="function",
+        name="spend_action_resource",
+        description="Spend one authoritative combat resource before resolving an Action, Bonus Action, Reaction, free Object Interaction, or Action-Surge Action.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                entityType=new { type="string", @enum=new[]{"character","monster"} },
+                combatantName=new { type="string", description="Exact party character name or exact stable monster display name." },
+                resource=new { type="string", @enum=new[]{"action","bonus_action","reaction","object_interaction","surge_action"} },
+                actionKind=new { type="string", description="Rules action kind, e.g. Attack, Magic, Help, Hide, Ready, Object Interaction." },
+                reason=new { type="string", description="Short in-world reason for spending the resource." }
+            },
+            required=new[]{"entityType","combatantName","resource","actionKind","reason"},
+            additionalProperties=false
+        }
+    };
+
+    private static object BuildDashActionTool() => new
+    {
+        type="function",
+        name="dash_action",
+        description="Spend the normal Action or an available Action-Surge Action on Dash and add one current-Speed amount to this turn's movement pool.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                entityType=new { type="string", @enum=new[]{"character","monster"} },
+                combatantName=new { type="string", description="Exact party character name or exact stable monster display name." },
+                resource=new { type="string", @enum=new[]{"action","surge_action"} },
+                reason=new { type="string" }
+            },
+            required=new[]{"entityType","combatantName","resource","reason"},
+            additionalProperties=false
+        }
+    };
+
+    private static object BuildUseActionSurgeTool() => new
+    {
+        type="function",
+        name="use_action_surge",
+        description="Use one Fighter Action Surge charge to make a separate Surge Action available this turn. The Surge Action cannot be used for the Magic action.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                characterName=new { type="string", description="Exact Fighter character name." },
+                reason=new { type="string" }
+            },
+            required=new[]{"characterName","reason"},
+            additionalProperties=false
+        }
+    };
+
     private static object BuildUpdateCharacterHpTool() => new
     {
         type="function", name="update_character_hp",
@@ -2207,6 +2344,161 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             result.Mode,
             dc,
             dc > 0 && result.Total >= dc);
+    }
+
+
+    // RULES BUILD 6.19.2 - FULL ACTION ECONOMY
+    private async Task<List<ActionEconomyForGm>> GetActionEconomyForGmAsync(Guid campaignId)
+    {
+        try
+        {
+            var raw = await CallSupabaseRpcAsync(
+                "discord_gm_get_action_economy_state",
+                new { p_campaign_id = campaignId },
+                "Unable to load action economy");
+            return JsonSerializer.Deserialize<List<ActionEconomyForGm>>(raw, JsonOptions) ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    private async Task<JsonElement> SpendActionResourceAsync(Guid campaignId, ActionEconomyToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_spend_action_resource",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_entity_type = (args.EntityType ?? string.Empty).Trim(),
+                p_combatant_name = (args.CombatantName ?? string.Empty).Trim(),
+                p_resource = (args.Resource ?? string.Empty).Trim(),
+                p_action_kind = (args.ActionKind ?? string.Empty).Trim(),
+                p_reason = CleanReason(args.Reason, "Combat action")
+            },
+            "Unable to spend action resource");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> DashActionAsync(Guid campaignId, DashActionToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_dash_action",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_entity_type = (args.EntityType ?? string.Empty).Trim(),
+                p_combatant_name = (args.CombatantName ?? string.Empty).Trim(),
+                p_resource = (args.Resource ?? string.Empty).Trim(),
+                p_reason = CleanReason(args.Reason, "Dash")
+            },
+            "Unable to use Dash");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> UseActionSurgeAsync(Guid campaignId, UseActionSurgeToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_use_action_surge",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_name = (args.CharacterName ?? string.Empty).Trim(),
+                p_reason = CleanReason(args.Reason, "Action Surge")
+            },
+            "Unable to use Action Surge");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private static int? GetMonsterWalkingSpeed(string? monsterName)
+    {
+        var name=(monsterName??string.Empty).Trim();
+        if(name.Length==0)return null;
+        var codex=MonsterCodexService.Shared.Find(name);
+        var details=codex?.Details??string.Empty;
+        var match=Regex.Match(details,@"(?im)^\s*Speed\s+(\d+)\s*ft\.");
+        return match.Success && int.TryParse(
+            match.Groups[1].Value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var speed)
+            ? Math.Clamp(speed,0,1000)
+            : null;
+    }
+
+    private async Task SetMonsterWalkingSpeedAsync(Guid campaignId, IEnumerable<string> displayNames, int speedFt)
+    {
+        var names=(displayNames??Array.Empty<string>())
+            .Select(n=>(n??string.Empty).Trim())
+            .Where(n=>n.Length>0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(100)
+            .ToArray();
+        if(names.Length==0)return;
+
+        _=await CallSupabaseRpcAsync(
+            "discord_gm_set_monster_walking_speed",
+            new { p_campaign_id=campaignId,p_display_names=names,p_speed_ft=Math.Clamp(speedFt,0,1000) },
+            "Unable to persist Monster Codex walking Speed");
+    }
+
+    private async Task EnsureMonsterWalkingSpeedsAsync(Guid campaignId, IEnumerable<CombatMonsterForGm> monsters)
+    {
+        foreach(var group in (monsters??Array.Empty<CombatMonsterForGm>())
+            .Where(m=>!m.Defeated)
+            .GroupBy(m=>m.MonsterName??string.Empty,StringComparer.OrdinalIgnoreCase))
+        {
+            var speed=GetMonsterWalkingSpeed(group.Key);
+            if(!speed.HasValue)continue;
+            await SetMonsterWalkingSpeedAsync(campaignId,group.Select(m=>m.DisplayName),speed.Value);
+        }
+    }
+
+    private sealed class ActionEconomyToolArguments
+    {
+        public string EntityType { get; set; } = string.Empty;
+        public string CombatantName { get; set; } = string.Empty;
+        public string Resource { get; set; } = string.Empty;
+        public string ActionKind { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class DashActionToolArguments
+    {
+        public string EntityType { get; set; } = string.Empty;
+        public string CombatantName { get; set; } = string.Empty;
+        public string Resource { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class UseActionSurgeToolArguments
+    {
+        public string CharacterName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class ActionEconomyForGm
+    {
+        public string EntityType { get; set; } = string.Empty;
+        public Guid EntityId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool ActionAvailable { get; set; }
+        public bool CanAction { get; set; }
+        public bool BonusActionAvailable { get; set; }
+        public bool CanBonusAction { get; set; }
+        public bool ReactionAvailable { get; set; }
+        public bool CanReaction { get; set; }
+        public bool ObjectInteractionAvailable { get; set; }
+        public bool CanObjectInteraction { get; set; }
+        public bool SurgeActionAvailable { get; set; }
+        public bool CanSurgeAction { get; set; }
+        public int ActionSurgeMaxCharges { get; set; }
+        public int ActionSurgeChargesRemaining { get; set; }
+        public int EffectiveSpeedFt { get; set; }
+        public int DashCount { get; set; }
+        public int MovementAllowanceFt { get; set; }
+        public int MovementRemainingFt { get; set; }
     }
 
     private async Task<AlignmentDeedToolResult> RecordAlignmentDeedAsync(Guid characterId, Guid campaignId, string direction, string reason)
@@ -2906,7 +3198,11 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var hp=Math.Max(1,codex?.HitPoints??(args.MaxHp>0?args.MaxHp:1));
         var ac=Math.Max(0,codex?.ArmorClass??(args.ArmorClass>0?args.ArmorClass:10));
         var raw=await CallSupabaseRpcAsync("discord_gm_add_combat_monster",new { p_campaign_id=campaignId,p_monster_name=name,p_display_name=(args.DisplayName??string.Empty).Trim(),p_max_hp=hp,p_armor_class=ac,p_count=Math.Clamp(args.Count,1,20) },"Unable to add combat monster");
-        return JsonSerializer.Deserialize<List<string>>(raw,JsonOptions)??new();
+        var displayNames=JsonSerializer.Deserialize<List<string>>(raw,JsonOptions)??new();
+        var walkingSpeed=GetMonsterWalkingSpeed(name);
+        if(walkingSpeed.HasValue && displayNames.Count>0)
+            await SetMonsterWalkingSpeedAsync(campaignId,displayNames,walkingSpeed.Value);
+        return displayNames;
     }
 
     private async Task<CombatMonsterForGm> UpdateCombatMonsterAsync(Guid campaignId,UpdateCombatMonsterToolArguments args)
@@ -3199,7 +3495,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }
 
         var raw = await CallSupabaseRpcAsync(
-            "discord_gm_position_combat_token_costed",
+            "discord_gm_position_combat_token_action_economy",
             new
             {
                 p_campaign_id = campaignId,
@@ -3312,7 +3608,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             "Unable to remove condition");
         using var document = JsonDocument.Parse(raw);
         return document.RootElement.Clone();
-    }    private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
+    }
+
+    private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
         var secretKey = _configuration["Supabase:SecretKey"];

@@ -1375,6 +1375,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             : new List<DiscordTacticalTokenInfo>();
 
         var conditionRows = await service.GetCombatConditionsAsync(playerId, campaignId);
+        var actionEconomy = await service.GetActionEconomyStateAsync(playerId, campaignId);
         IReadOnlyList<DiscordCombatConditionRow> viewerConditions = state.ViewerCharacterId.HasValue
             ? ConditionRulesService.ForCharacter(conditionRows, state.ViewerCharacterId.Value)
             : Array.Empty<DiscordCombatConditionRow>();
@@ -1384,7 +1385,8 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
                       state.ViewerCharacterId.HasValue &&
                       state.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
                       state.CurrentTurnCharacterId == state.ViewerCharacterId &&
-                      !viewerImmobile;
+                      !viewerImmobile &&
+                      (actionEconomy?.MovementRemainingFt ?? state.ViewerMovementRemaining) > 0;
 
         // BUILD 5 FIX - BROWSER TACTICAL TOKEN JSON
         // The model uses snake_case JsonPropertyName attributes for Supabase input.
@@ -1422,12 +1424,43 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             currentTurnMonsterId = state.CurrentTurnMonsterId,
             currentTurnName = state.CurrentTurnName,
             viewerCharacterId = state.ViewerCharacterId,
-            viewerSpeed = viewerImmobile ? 0 : Math.Max(0, state.ViewerSpeed),
-            viewerMovementRemaining = viewerImmobile ? 0 : Math.Max(0, state.ViewerMovementRemaining),
+            viewerSpeed = viewerImmobile
+                ? 0
+                : Math.Max(0, actionEconomy?.EffectiveSpeedFt ?? state.ViewerSpeed),
+            viewerMovementRemaining = viewerImmobile
+                ? 0
+                : Math.Max(0, actionEconomy?.MovementRemainingFt ?? state.ViewerMovementRemaining),
             movementBlockedReason = viewerImmobile
                 ? ConditionRulesService.MovementBlockReason(viewerConditions)
                 : string.Empty,
             canMove,
+            actionEconomy = actionEconomy is null ? null : new
+            {
+                characterId = actionEconomy.CharacterId,
+                characterName = actionEconomy.CharacterName,
+                activeCombat = actionEconomy.ActiveCombat,
+                isCurrentTurn = actionEconomy.IsCurrentTurn,
+                actionAvailable = actionEconomy.ActionAvailable,
+                canAction = actionEconomy.CanAction,
+                bonusActionAvailable = actionEconomy.BonusActionAvailable,
+                canBonusAction = actionEconomy.CanBonusAction,
+                reactionAvailable = actionEconomy.ReactionAvailable,
+                canReaction = actionEconomy.CanReaction,
+                objectInteractionAvailable = actionEconomy.ObjectInteractionAvailable,
+                canObjectInteraction = actionEconomy.CanObjectInteraction,
+                surgeActionAvailable = actionEconomy.SurgeActionAvailable,
+                canSurgeAction = actionEconomy.CanSurgeAction,
+                actionSurgeUsedThisTurn = actionEconomy.ActionSurgeUsedThisTurn,
+                actionSurgeMaxCharges = actionEconomy.ActionSurgeMaxCharges,
+                actionSurgeChargesRemaining = actionEconomy.ActionSurgeChargesRemaining,
+                effectiveSpeedFt = actionEconomy.EffectiveSpeedFt,
+                dashCount = actionEconomy.DashCount,
+                movementAllowanceFt = actionEconomy.MovementAllowanceFt,
+                movementSpentFt = actionEconomy.MovementSpentFt,
+                movementRemainingFt = actionEconomy.MovementRemainingFt,
+                incapacitated = actionEconomy.Incapacitated,
+                resourceBlockedReason = actionEconomy.ResourceBlockedReason
+            },
             tokens = clientTokens
         });
     }
@@ -1476,6 +1509,114 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move", async 
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
+
+// RULES BUILD 6.19.2 - STABLE RECOVERY + FULL ACTION ECONOMY
+app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/action-economy", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var state = await service.GetActionEconomyStateAsync(playerId, campaignId);
+        return Results.Ok(new
+        {
+            success = true,
+            actionEconomy = state is null ? null : new
+            {
+                characterId = state.CharacterId,
+                characterName = state.CharacterName,
+                activeCombat = state.ActiveCombat,
+                isCurrentTurn = state.IsCurrentTurn,
+                actionAvailable = state.ActionAvailable,
+                canAction = state.CanAction,
+                bonusActionAvailable = state.BonusActionAvailable,
+                canBonusAction = state.CanBonusAction,
+                reactionAvailable = state.ReactionAvailable,
+                canReaction = state.CanReaction,
+                objectInteractionAvailable = state.ObjectInteractionAvailable,
+                canObjectInteraction = state.CanObjectInteraction,
+                surgeActionAvailable = state.SurgeActionAvailable,
+                canSurgeAction = state.CanSurgeAction,
+                actionSurgeUsedThisTurn = state.ActionSurgeUsedThisTurn,
+                actionSurgeMaxCharges = state.ActionSurgeMaxCharges,
+                actionSurgeChargesRemaining = state.ActionSurgeChargesRemaining,
+                effectiveSpeedFt = state.EffectiveSpeedFt,
+                dashCount = state.DashCount,
+                movementAllowanceFt = state.MovementAllowanceFt,
+                movementSpentFt = state.MovementSpentFt,
+                movementRemainingFt = state.MovementRemainingFt,
+                incapacitated = state.Incapacitated,
+                resourceBlockedReason = state.ResourceBlockedReason
+            }
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/action-economy/dash", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await service.DashActionAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, actionEconomy = result });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/action-economy/action-surge", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await service.UseActionSurgeAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, actionEconomy = result });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/stable-recovery", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var state = await service.GetStableRecoveryStateAsync(playerId, campaignId);
+        return Results.Ok(new
+        {
+            success = true,
+            stableRecovery = state is null ? null : new
+            {
+                characterId = state.CharacterId,
+                characterName = state.CharacterName,
+                stable = state.Stable,
+                currentHp = state.CurrentHp,
+                recoveryRollHours = state.RecoveryRollHours,
+                stabilizedWorldMinute = state.StabilizedWorldMinute,
+                recoveryDueWorldMinute = state.RecoveryDueWorldMinute,
+                currentWorldMinute = state.CurrentWorldMinute,
+                remainingMinutes = state.RemainingMinutes,
+                remainingHours = state.RemainingHours
+            }
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 // RULES BUILD 6.19 - CURRENT PARTY / MONSTER CONDITIONS
 app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/conditions", async (
     Guid campaignId,
@@ -2231,6 +2372,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
             !tactical.CurrentTurnMonsterId.HasValue &&
             initiative.Count == 0;
         var deathSaveState = await service.GetDeathSaveStateAsync(player, campaignId);
+        var stableRecoveryState = await service.GetStableRecoveryStateAsync(player, campaignId);
         var combatCanAct = (tactical?.Active != true || combatSetupPending ||
             (tactical.ViewerCharacterId.HasValue &&
              tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
@@ -2270,6 +2412,14 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
                 viewerCharacterId = tactical?.ViewerCharacterId,
                 canAct = combatCanAct,
                 deathSave = deathSaveState,
+                stableRecovery = stableRecoveryState is null ? null : new
+                {
+                    stable = stableRecoveryState.Stable,
+                    recoveryRollHours = stableRecoveryState.RecoveryRollHours,
+                    remainingMinutes = stableRecoveryState.RemainingMinutes,
+                    remainingHours = stableRecoveryState.RemainingHours,
+                    recoveryDueWorldMinute = stableRecoveryState.RecoveryDueWorldMinute
+                },
                 initiative = initiative.Select(i => new
                 {
                     orderPosition = i.OrderPosition,
