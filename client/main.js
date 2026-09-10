@@ -1,5 +1,6 @@
 import { DiscordSDK } from '@discord/embedded-app-sdk';
 import './style.css';
+import './conditions.css'; // RULES BUILD 6.19 - condition badges
 
 const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
@@ -3182,7 +3183,42 @@ async function sellSettlementShopItem(button,shop) {
   }
 }
 
-async function loadCombatState() {
+function conditionTitle(value){
+  const s=String(value||'').trim().toLowerCase();
+  const map={blinded:'Blinded',charmed:'Charmed',deafened:'Deafened',frightened:'Frightened',grappled:'Grappled',incapacitated:'Incapacitated',invisible:'Invisible',paralyzed:'Paralyzed',petrified:'Petrified',poisoned:'Poisoned',prone:'Prone',restrained:'Restrained',stunned:'Stunned',unconscious:'Unconscious',exhaustion:'Exhaustion'};
+  return map[s]||String(value||'');
+}
+function conditionsFor(data,entityType,id){
+  const type=String(entityType||'').toLowerCase();
+  return (data?.conditions||[]).filter(c=>
+    String(c.entityType||'').toLowerCase()===type &&
+    (type==='character'
+      ? String(c.characterId||'')===String(id||'')
+      : String(c.combatMonsterId||'')===String(id||'')));
+}
+function conditionListMarkup(data,entityType,id,emptyText='No conditions'){
+  const rows=conditionsFor(data,entityType,id);
+  const seen=new Set(),badges=[];
+  rows.forEach(row=>{
+    const key=String(row.conditionName||'').toLowerCase();
+    if(seen.has(key))return;seen.add(key);
+    const label=key==='exhaustion'&&Number(row.exhaustionLevel)>0?`Exhaustion ${Number(row.exhaustionLevel)}`:conditionTitle(key);
+    const source=row.sourceName?` â€¢ ${escapeHtml(row.sourceName)}`:'';
+    const notes=row.notes?` â€¢ ${escapeHtml(row.notes)}`:'';
+    badges.push(`<span class="condition-badge condition-${escapeHtml(key)}" title="${escapeHtml(label)}${source}${notes}">${escapeHtml(label)}</span>`);
+  });
+  return badges.length?`<div class="condition-badges">${badges.join('')}</div>`:`<span class="condition-none muted">${escapeHtml(emptyText)}</span>`;
+}
+async function refreshCharacterConditionHost(){
+  const host=document.querySelector('#characterConditionsHost');
+  if(!host||!currentCampaignId||!currentGameData?.character)return;
+  try{
+    const data=await api(`/game-api/campaigns/${currentCampaignId}/combat/conditions`);
+    if(host.isConnected)host.innerHTML=conditionListMarkup(data,'character',currentGameData.character.characterId,'No active conditions');
+  }catch(error){
+    if(host.isConnected)host.innerHTML=`<span class="error">${escapeHtml(error.message)}</span>`;
+  }
+}async function loadCombatState() {
   currentCombatData=await api(`/game-api/campaigns/${currentCampaignId}/combat`);
   return currentCombatData;
 }
@@ -3205,10 +3241,10 @@ async function renderCombatTab() {
     const party=currentGameData.party||[];
     const monsters=data.monsters||[];
       view.innerHTML =`<div class="view-heading"><div><h3>\u2694 ${escapeHtml(data.title||'Combat')}</h3><small>Round ${Number(data.roundNumber)||1}</small></div><div class="row gap"><button id="combatEncounterMap" class="button small">Encounter Map</button><button id="refreshCombat" class="button small">Refresh</button></div></div>
-      <section class="combat-party-strip"><h4>Party</h4><div class="combat-party-list">${party.map(p=>`<div class="combat-party-vital"><b>${escapeHtml(p.characterName)}</b><span>HP ${p.currentHp}/${p.maxHp}</span><span>AC ${p.armorClass}</span></div>`).join('')}</div></section>
+      <section class="combat-party-strip"><h4>Party</h4><div class="combat-party-list">${party.map(p=>`<div class="combat-party-vital"><b>${escapeHtml(p.characterName)}</b><span>HP ${p.currentHp}/${p.maxHp}</span><span>AC ${p.armorClass}</span>${conditionListMarkup(data,'character',p.characterId,'No conditions')}</div>`).join('')}</div></section>
       <section class="panel"><h3>Enemies</h3><div class="combat-monster-grid">${monsters.length?monsters.map(m=>`<button class="combat-monster-card ${m.defeated?'defeated':''}" data-monster-id="${escapeHtml(m.combatMonsterId)}">
         ${monsterImageHtml(m)}
-        <div class="combat-monster-card-body"><h4>${escapeHtml(m.displayName)}</h4>${m.displayName!==m.monsterName?`<small>${escapeHtml(m.monsterName)}</small>`:''}<div class="combat-monster-vitals"><span>HP <b>${m.currentHp}/${m.maxHp}</b></span><span>AC <b>${m.armorClass}</b></span></div><p>${escapeHtml(m.defeated?'Defeated':m.conditions||'No conditions')}</p><span class="view-stat-block">View Image & Stat Block’</span></div>
+        <div class="combat-monster-card-body"><h4>${escapeHtml(m.displayName)}</h4>${m.displayName!==m.monsterName?`<small>${escapeHtml(m.monsterName)}</small>`:''}<div class="combat-monster-vitals"><span>HP <b>${m.currentHp}/${m.maxHp}</b></span><span>AC <b>${m.armorClass}</b></span></div>${m.defeated?'<p>Defeated</p>':conditionListMarkup(data,'monster',m.combatMonsterId,'No conditions')}<span class="view-stat-block">View Image & Stat Block’</span></div>
       </button>`).join(''):'<div class="empty small">Combat is active, but no enemies have been added yet.</div>'}</div></section>`;
     document.querySelector('#refreshCombat').onclick=renderCombatTab;
     const tacticalHost=document.createElement('section');
@@ -3236,7 +3272,7 @@ function stopTacticalCombatPolling() {
 }
 
 function tacticalStateSignature(tactical,combat) {
-  const tokens=(tactical?.tokens||[]).map(t=>[t.tokenId,t.gridX,t.gridY,t.movementSpentFt,t.currentHp,t.defeated]);
+  const tokens=(tactical?.tokens||[]).map(t=>[t.tokenId,t.gridX,t.gridY,t.movementSpentFt,t.currentHp,t.conditions,t.defeated]);
   const monsters=(combat?.monsters||[]).map(m=>[m.combatMonsterId,m.currentHp,m.conditions,m.defeated]);
   return JSON.stringify([tactical?.active,tactical?.roundNumber,tactical?.currentTurnType,tactical?.currentTurnCharacterId,tactical?.currentTurnMonsterId,tactical?.viewerMovementRemaining,tokens,monsters]);
 }
@@ -3323,7 +3359,9 @@ function renderTacticalCombatBoardView(host,tactical,mapData,combatData,party) {
 
   const movementText=canMove
     ? `Your movement: ${Math.max(0,Number(tactical.viewerMovementRemaining)||0)} / ${Math.max(0,Number(tactical.viewerSpeed)||0)} ft. remaining`
-    : (tactical.currentTurnName ? `Waiting for ${escapeHtml(tactical.currentTurnName)}` : 'Waiting for the AI Game Master to set the active turn');
+    : (tactical.movementBlockedReason
+        ? escapeHtml(tactical.movementBlockedReason)
+        : (tactical.currentTurnName ? `Waiting for ${escapeHtml(tactical.currentTurnName)}` : 'Waiting for the AI Game Master to set the active turn'));
 
   host.innerHTML=`<div class="tactical-combat-heading">
       <div><h3>Tactical Encounter Map</h3><p class="muted">20 x 20 logical grid - 5 ft. per square - ${escapeHtml(tacticalTurnLabel(tactical))}</p></div>
@@ -3913,6 +3951,7 @@ function renderCharacterTab(){
             <h2>${escapeHtml(c.characterName)}</h2>
             <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b data-live-self-hp>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
+            <div id="characterConditionsHost" class="character-conditions-card"><span class="muted">Loading active conditions...</span></div>
             <div class="currency-purse-card"><span>Currency Purse</span><b data-live-self-currency>${currencyPurseText(c.gold)}</b><small>10 CP = 1 SP • 10 SP = 1 GP • 10 GP = 1 PP</small></div>
             <div id="experienceProgressHost" class="experience-progress-host">${experienceProgressHtml(currentProgression)}</div>
             <div id="restResourceHost" class="rest-resource-host">${restResourceHtml(lastRestState)}</div>
@@ -3937,6 +3976,7 @@ function renderCharacterTab(){
   document.querySelectorAll('[data-party-index]').forEach(button=>button.onclick=()=>showPartyMemberDetails(party[Number(button.dataset.partyIndex)]));
   hydratePortraits(view);
   void loadCharacterFeatureSummary();
+  void refreshCharacterConditionHost();
   void refreshCharacterProgression(true);
   void refreshRestState(true);
 }

@@ -133,7 +133,20 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - Exhaustion is cumulative and all reached effects stack: Level 1 disadvantage on ability checks including initiative/skills; Level 2 speed halved; Level 3 disadvantage on attack rolls and saving throws; Level 4 maximum HP halved; Level 5 speed 0; Level 6 death.
 - A completed Long Rest reduces Exhaustion by exactly 1 only if the character has ingested some food AND some drink since the previous Long Rest. Greater Restoration reduces Exhaustion by exactly 1; when that spell successfully resolves, call adjust_exhaustion with delta -1.
 - For any OTHER explicit rules effect that adds or removes Exhaustion, call adjust_exhaustion. Never change Exhaustion only in narration. The server enforces initiative, movement, HP cap, and death; roll_dice also enforces Level 1/3 disadvantage when actorName and rollType identify the affected character and d20 roll.
-- For every roll_dice call, actorName MUST be the exact party character name when a party character is rolling, or an empty string for monsters/NPCs/random tables. rollType MUST accurately identify ability_check, initiative, attack, saving_throw, death_save, damage, or other.
+- RULES BUILD 6.19 CONDITIONS: Blinded automatically fails checks that require sight; its attacks have disadvantage and attacks against it have advantage. Deafened automatically fails checks that require hearing.
+- Charmed cannot attack the charmer, and the charmer has advantage on social interaction checks with the Charmed creature. For Charmed and Frightened, sourceName must identify the charmer/source of fear whenever known.
+- Frightened has disadvantage on ability checks and attack rolls while the source of fear is within line of sight and cannot willingly move closer to that source.
+- Grappled has Speed 0. Restrained has Speed 0, disadvantage on its attacks, attacks against it have advantage, and it has disadvantage on Dexterity saves.
+- Incapacitated cannot take actions or reactions. Paralyzed, Petrified, Stunned, and Unconscious include Incapacitated. Paralyzed/Petrified/Stunned/Unconscious automatically fail Strength and Dexterity saves; attacks against them have advantage.
+- Invisible has advantage on its attacks and attacks against it have disadvantage unless another rule cancels that benefit.
+- Paralyzed and Unconscious: an attack that hits from within 5 feet is a critical hit. Unconscious also counts as Prone.
+- Petrified has resistance to all damage and immunity to new poison; an existing Poisoned condition is suspended while Petrified. The server halves damage before HP persistence.
+- Poisoned has disadvantage on attack rolls and ability checks.
+- Prone attacks with disadvantage; attacks against a Prone target have advantage within 5 feet and disadvantage farther away. Voluntary tactical movement is crawling and costs double until Prone is removed.
+- Conditions do not directly change Armor Class here. Advantage and disadvantage from Conditions, Exhaustion, and other causes cancel normally rather than stacking extra d20s.
+- Every persistent condition change MUST use apply_condition or remove_condition. Never merely narrate a condition. For update_combat_monster, pass the compatibility conditions field as an empty string.
+- Use durationType=rounds only for a known round duration; use save_ends with saveAbility/saveDc when an effect ends on a save; otherwise use persistent/until_removed.
+- For every roll_dice call, actorName MUST be the exact party character OR active monster display name when a creature rolls; use an empty string only for non-creature/random rolls. targetName MUST be the exact target when one exists. rollType, ability, distanceFeet, sensoryBasis, sourceVisible, and requiresAction MUST accurately describe the roll so the server can enforce Conditions and Exhaustion.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
 WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
@@ -375,12 +388,45 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 ? $"- Encounter Map: ACTIVE for {localMapState.CurrentLocation} ({localMapState.EncounterReason})"
                 : "- Encounter Map: INACTIVE");
         }
-        var partyCombatants = await GetPartyCombatantsForGmAsync(campaign.CampaignId);
+        // RULES BUILD 6.19 - persistent condition authority
+        var conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine();
+        inputBuilder.AppendLine("ACTIVE CONDITIONS (SERVER-AUTHORITATIVE):");
+        if (conditionState.Count == 0)
+        {
+            inputBuilder.AppendLine("- None.");
+        }
+        else
+        {
+            foreach (var group in conditionState.GroupBy(
+                         c => $"{c.EntityType}\u001f{c.DisplayName}",
+                         StringComparer.OrdinalIgnoreCase))
+            {
+                var first = group.First();
+                inputBuilder.AppendLine(
+                    $"- {first.EntityType} {first.DisplayName}: " +
+                    ConditionRulesService.FormatForEntity(group, first.EntityType, first.DisplayName));
+
+                foreach (var row in group.Where(r =>
+                             !r.ConditionName.Equals("exhaustion", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var duration = row.DurationType.Equals("rounds", StringComparison.OrdinalIgnoreCase)
+                        ? $"{row.RoundsRemaining ?? 0} round(s) remaining"
+                        : row.DurationType;
+                    var save = row.DurationType.Equals("save_ends", StringComparison.OrdinalIgnoreCase)
+                        ? $"; save {row.SaveAbility} DC {row.SaveDc}"
+                        : string.Empty;
+                    inputBuilder.AppendLine(
+                        $"  source={row.SourceName}; duration={duration}{save}; notes={row.Notes}");
+                }
+            }
+        }        var partyCombatants = await GetPartyCombatantsForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("PARTY COMBAT STATS (SERVER-AUTHORITATIVE):");
         foreach (var member in partyCombatants)
         {
-            inputBuilder.AppendLine($"- {member.CharacterName}: Level {member.Level} {member.ClassName}; HP {member.CurrentHp}/{member.MaxHp}; AC {member.ArmorClass}; Speed {member.Speed} ft.; PB +{member.ProficiencyBonus}; STR {member.Strength} ({FormatModifier(AbilityModifier(member.Strength))}), DEX {member.Dexterity} ({FormatModifier(AbilityModifier(member.Dexterity))}), CON {member.Constitution} ({FormatModifier(AbilityModifier(member.Constitution))}), INT {member.Intelligence} ({FormatModifier(AbilityModifier(member.Intelligence))}), WIS {member.Wisdom} ({FormatModifier(AbilityModifier(member.Wisdom))}), CHA {member.Charisma} ({FormatModifier(AbilityModifier(member.Charisma))})");
+            var memberConditions = ConditionRulesService.FormatForEntity(conditionState, "character", member.CharacterName);
+            inputBuilder.AppendLine($"- {member.CharacterName}: Level {member.Level} {member.ClassName}; HP {member.CurrentHp}/{member.MaxHp}; AC {member.ArmorClass}; Speed {member.Speed} ft.; PB +{member.ProficiencyBonus}; STR {member.Strength} ({FormatModifier(AbilityModifier(member.Strength))}), DEX {member.Dexterity} ({FormatModifier(AbilityModifier(member.Dexterity))}), CON {member.Constitution} ({FormatModifier(AbilityModifier(member.Constitution))}), INT {member.Intelligence} ({FormatModifier(AbilityModifier(member.Intelligence))}), WIS {member.Wisdom} ({FormatModifier(AbilityModifier(member.Wisdom))}), CHA {member.Charisma} ({FormatModifier(AbilityModifier(member.Charisma))}); Conditions: {(string.IsNullOrWhiteSpace(memberConditions) ? "None" : memberConditions)}");
         }
 
         // VISUALS BUILD 4 - MONSTER COMBAT GM
@@ -396,7 +442,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
             foreach (var enemy in combatState.Monsters)
             {
-                inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemy.Conditions) ? "None" : enemy.Conditions)}; Disposition: {enemy.Disposition}; Defeated: {enemy.Defeated}");
+                var enemyConditions = ConditionRulesService.FormatForEntity(conditionState, "monster", enemy.DisplayName);
+                inputBuilder.AppendLine($"- {enemy.DisplayName} [{enemy.MonsterName}] HP {enemy.CurrentHp}/{enemy.MaxHp}; AC {enemy.ArmorClass}; Conditions: {(string.IsNullOrWhiteSpace(enemyConditions) ? "None" : enemyConditions)}; Disposition: {enemy.Disposition}; Defeated: {enemy.Defeated}");
                 var codexEnemy = MonsterCodexService.Shared.Find(enemy.MonsterName);
                 if (codexEnemy is not null && !string.IsNullOrWhiteSpace(codexEnemy.Details))
                 {
@@ -479,6 +526,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var tools = new[]
         {
             BuildDiceTool(),
+            BuildApplyConditionTool(),
+            BuildRemoveConditionTool(),
             BuildAdjustExhaustionTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
@@ -566,6 +615,50 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<DiceToolArguments>(call.ArgumentsJson, "dice");
                         var exhaustion = await GetCharacterExhaustionAsync(campaign.CampaignId, args.ActorName);
                         var effectiveArgs = ApplyExhaustionToRoll(args, exhaustion);
+                        var conditionRoll = ConditionRulesService.ResolveRoll(
+                            conditionState,
+                            effectiveArgs.ActorName,
+                            effectiveArgs.TargetName,
+                            effectiveArgs.RollType,
+                            effectiveArgs.Ability,
+                            effectiveArgs.DistanceFeet,
+                            effectiveArgs.SensoryBasis,
+                            effectiveArgs.SourceVisible,
+                            effectiveArgs.RequiresAction,
+                            effectiveArgs.Advantage,
+                            effectiveArgs.Disadvantage);
+
+                        if (conditionRoll.IllegalAction)
+                        {
+                            toolResult = new
+                            {
+                                authoritative = true,
+                                rejected = true,
+                                action = "roll_dice",
+                                conditionSummary = conditionRoll.Summary,
+                                message = "The attempted action is prohibited by an active condition."
+                            };
+                            break;
+                        }
+
+                        if (conditionRoll.AutomaticFailure)
+                        {
+                            toolResult = new
+                            {
+                                authoritative = true,
+                                action = "roll_dice",
+                                automaticFailure = true,
+                                conditionSummary = conditionRoll.Summary,
+                                criticalOnHit = false,
+                                total = (int?)null,
+                                dc = effectiveArgs.Dc,
+                                success = effectiveArgs.Dc > 0 ? (bool?)false : null
+                            };
+                            break;
+                        }
+
+                        effectiveArgs.Advantage = conditionRoll.Advantage;
+                        effectiveArgs.Disadvantage = conditionRoll.Disadvantage;
                         var audit = ExecuteAuthoritativeRoll(effectiveArgs);
                         rollAudits.Add(audit);
                         toolResult = new
@@ -580,11 +673,36 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             total = audit.Total,
                             mode = audit.Mode,
                             dc = audit.Dc,
-                            success = audit.Dc > 0 ? (bool?)audit.Success : null
+                            success = audit.Dc > 0 ? (bool?)audit.Success : null,
+                            conditionSummary = conditionRoll.Summary,
+                            criticalOnHit = conditionRoll.CriticalOnHit
                         };
                         break;
                     }
-                    case "adjust_exhaustion":
+                    case "apply_condition":
+                    {
+                        var args = DeserializeArguments<ApplyConditionToolArguments>(
+                            call.ArgumentsJson, "condition application");
+                        var result = await ApplyConditionAsync(campaign.CampaignId, args);
+                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Condition",
+                            $"{args.TargetName}: +{ConditionRulesService.Title(args.ConditionName)} ({args.SourceName})"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "remove_condition":
+                    {
+                        var args = DeserializeArguments<RemoveConditionToolArguments>(
+                            call.ArgumentsJson, "condition removal");
+                        var result = await RemoveConditionAsync(campaign.CampaignId, args);
+                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Condition",
+                            $"{args.TargetName}: -{ConditionRulesService.Title(args.ConditionName)} ({CleanReason(args.Reason, "condition ended")})"));
+                        toolResult = result;
+                        break;
+                    }                    case "adjust_exhaustion":
                     {
                         var args = DeserializeArguments<AdjustExhaustionToolArguments>(call.ArgumentsJson, "exhaustion adjustment");
                         if (args.Delta == 0) throw new InvalidOperationException("Exhaustion adjustment cannot be zero.");
@@ -867,12 +985,28 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             var modifier = candidate.EntityType.Equals("monster", StringComparison.OrdinalIgnoreCase)
                                 ? GetMonsterInitiativeModifier(candidate.MonsterName)
                                 : candidate.InitiativeModifier;
-                            var audit = ExecuteAuthoritativeRoll(new DiceToolArguments
+                            var initiativeArgs = new DiceToolArguments
                             {
                                 Count=1,Sides=20,Modifier=modifier,Advantage=false,Disadvantage=candidate.ExhaustionLevel>=1,
-                                ActorName=candidate.EntityType.Equals("character", StringComparison.OrdinalIgnoreCase)?candidate.DisplayName:string.Empty,
-                                RollType="initiative",Reason=$"{candidate.DisplayName} initiative",Dc=0
-                            });
+                                ActorName=candidate.DisplayName,TargetName=string.Empty,
+                                RollType="initiative",Ability="dexterity",DistanceFeet=0,SensoryBasis="none",
+                                SourceVisible=true,RequiresAction=false,Reason=$"{candidate.DisplayName} initiative",Dc=0
+                            };
+                            var initiativeConditionRoll = ConditionRulesService.ResolveRoll(
+                                conditionState,
+                                initiativeArgs.ActorName,
+                                string.Empty,
+                                "initiative",
+                                "dexterity",
+                                0,
+                                "none",
+                                true,
+                                false,
+                                initiativeArgs.Advantage,
+                                initiativeArgs.Disadvantage);
+                            initiativeArgs.Advantage = initiativeConditionRoll.Advantage;
+                            initiativeArgs.Disadvantage = initiativeConditionRoll.Disadvantage;
+                            var audit = ExecuteAuthoritativeRoll(initiativeArgs);
                             rollAudits.Add(audit);
                             entries.Add(new InitiativePersistEntry(candidate.EntityType,candidate.CharacterId,candidate.CombatMonsterId,audit.Rolls[0],modifier,audit.Total));
                         }
@@ -884,6 +1018,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "update_combat_monster":
                     {
                         var args = DeserializeArguments<UpdateCombatMonsterToolArguments>(call.ArgumentsJson, "combat monster update");
+                        args.HpDelta = ConditionRulesService.ApplyPetrifiedDamageResistance(
+                            conditionState, "monster", args.DisplayName, args.HpDelta);
+                        args.Conditions = string.Empty;
                         var updated = await UpdateCombatMonsterAsync(campaign.CampaignId, args);
                         combatEndedDuringTurn |= updated.CombatEnded;
                         JsonElement? xpAward = null;
@@ -923,7 +1060,10 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     case "update_character_hp":
                     {
                         var args = DeserializeArguments<UpdateCharacterHpToolArguments>(call.ArgumentsJson, "character HP update");
+                        args.HpDelta = ConditionRulesService.ApplyPetrifiedDamageResistance(
+                            conditionState, "character", args.CharacterName, args.HpDelta);
                         var result = await UpdateCharacterHpAsync(campaign.CampaignId,args);
+                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{result.CharacterName}: HP {result.CurrentHp}/{result.MaxHp} ({(args.HpDelta >= 0 ? "+" : string.Empty)}{args.HpDelta})"));
                         toolResult = new { authoritative=true, action="update_character_hp", result.CharacterName, result.CurrentHp, result.MaxHp, hpDelta=args.HpDelta, result.Reason };
                         break;
@@ -1063,78 +1203,163 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             type = "function",
             name = "roll_dice",
-            description = "Roll authoritative game dice on the trusted RabuShin server. Use this whenever any player, NPC, monster, attack, save, check, damage, random table, or other game mechanic requires randomness. Never ask the player to roll instead.",
+            description = "Roll authoritative game dice on the trusted RabuShin server. Build 6.19 uses actor, target, and context fields to enforce Conditions and Exhaustion.",
             strict = true,
             parameters = new
             {
                 type = "object",
                 properties = new
                 {
-                    count = new
-                    {
-                        type = "integer",
-                        minimum = 1,
-                        maximum = 100,
-                        description = "Number of dice to roll. For advantage/disadvantage use count 1 and sides 20."
-                    },
-                    sides = new
-                    {
-                        type = "integer",
-                        minimum = 2,
-                        maximum = 1000,
-                        description = "Number of sides on each die, such as 4, 6, 8, 10, 12, 20, or 100."
-                    },
-                    modifier = new
-                    {
-                        type = "integer",
-                        minimum = -100,
-                        maximum = 100,
-                        description = "Total numeric modifier to add after rolling."
-                    },
-                    advantage = new
-                    {
-                        type = "boolean",
-                        description = "True only for a d20 roll made with advantage."
-                    },
-                    disadvantage = new
-                    {
-                        type = "boolean",
-                        description = "True only for a d20 roll made with disadvantage before Exhaustion is applied by the server."
-                    },
+                    count = new { type = "integer", minimum = 1, maximum = 100 },
+                    sides = new { type = "integer", minimum = 2, maximum = 1000 },
+                    modifier = new { type = "integer", minimum = -100, maximum = 100 },
+                    advantage = new { type = "boolean" },
+                    disadvantage = new { type = "boolean" },
                     actorName = new
                     {
                         type = "string",
-                        description = "Exact party character name when a party character is making this roll. Use an empty string for monsters, NPCs, random tables, or rolls with no party-character actor."
+                        description = "Exact party character or active monster display name making the roll; empty only for non-creature/random rolls."
+                    },
+                    targetName = new
+                    {
+                        type = "string",
+                        description = "Exact target character/monster display name when one exists; otherwise empty."
                     },
                     rollType = new
                     {
                         type = "string",
-                        @enum = new[] { "ability_check", "initiative", "attack", "saving_throw", "death_save", "damage", "other" },
-                        description = "Mechanical roll category. The server uses this to enforce cumulative Exhaustion disadvantage."
+                        @enum = new[] { "ability_check", "initiative", "attack", "saving_throw", "death_save", "damage", "other" }
                     },
-                    reason = new
+                    ability = new
                     {
                         type = "string",
-                        description = "Short human-readable reason, e.g. Stealth check, longsword attack, fireball damage, Goblin Dexterity save."
+                        @enum = new[] { "", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma" }
                     },
-                    dc = new
+                    distanceFeet = new
                     {
                         type = "integer",
                         minimum = 0,
                         maximum = 1000,
-                        description = "Target DC or AC if this roll is checked against one. Use 0 if no DC applies, such as most damage rolls."
-                    }
+                        description = "Attacker-to-target distance for an attack; 0 when not applicable."
+                    },
+                    sensoryBasis = new
+                    {
+                        type = "string",
+                        @enum = new[] { "none", "sight", "hearing" },
+                        description = "Use sight/hearing only when an ability check specifically requires that sense."
+                    },
+                    sourceVisible = new
+                    {
+                        type = "boolean",
+                        description = "True when the source of the actor's Frightened condition is currently in line of sight."
+                    },
+                    requiresAction = new
+                    {
+                        type = "boolean",
+                        description = "True when this roll belongs to an action or reaction that Incapacitated would prohibit."
+                    },
+                    reason = new { type = "string" },
+                    dc = new { type = "integer", minimum = 0, maximum = 1000 }
                 },
                 required = new[]
                 {
-                    "count", "sides", "modifier", "advantage", "disadvantage", "actorName", "rollType", "reason", "dc"
+                    "count","sides","modifier","advantage","disadvantage","actorName","targetName",
+                    "rollType","ability","distanceFeet","sensoryBasis","sourceVisible","requiresAction","reason","dc"
                 },
                 additionalProperties = false
             }
         };
     }
 
-    private static object BuildAdjustExhaustionTool()
+    private static object BuildApplyConditionTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "apply_condition",
+            description = "Persist one standard D&D condition on a party character or active combat monster.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    targetType = new { type = "string", @enum = new[] { "character", "monster" } },
+                    targetName = new { type = "string" },
+                    conditionName = new
+                    {
+                        type = "string",
+                        @enum = new[]
+                        {
+                            "blinded","charmed","deafened","frightened","grappled","incapacitated",
+                            "invisible","paralyzed","petrified","poisoned","prone","restrained","stunned","unconscious"
+                        }
+                    },
+                    sourceName = new
+                    {
+                        type = "string",
+                        description = "For Charmed/Frightened use the charmer/fear source when known; otherwise a concise effect name."
+                    },
+                    durationType = new
+                    {
+                        type = "string",
+                        @enum = new[] { "persistent", "until_removed", "rounds", "save_ends" }
+                    },
+                    roundsRemaining = new { type = "integer", minimum = 0, maximum = 1000 },
+                    saveAbility = new
+                    {
+                        type = "string",
+                        @enum = new[] { "", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma" }
+                    },
+                    saveDc = new { type = "integer", minimum = 0, maximum = 1000 },
+                    notes = new { type = "string" }
+                },
+                required = new[]
+                {
+                    "targetType","targetName","conditionName","sourceName","durationType",
+                    "roundsRemaining","saveAbility","saveDc","notes"
+                },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildRemoveConditionTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "remove_condition",
+            description = "Remove an authoritative condition when it ends, is cured, or its ending save succeeds.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    targetType = new { type = "string", @enum = new[] { "character", "monster" } },
+                    targetName = new { type = "string" },
+                    conditionName = new
+                    {
+                        type = "string",
+                        @enum = new[]
+                        {
+                            "blinded","charmed","deafened","frightened","grappled","incapacitated",
+                            "invisible","paralyzed","petrified","poisoned","prone","restrained","stunned","unconscious"
+                        }
+                    },
+                    sourceName = new
+                    {
+                        type = "string",
+                        description = "Exact source to remove; empty removes every source of this condition."
+                    },
+                    reason = new { type = "string" }
+                },
+                required = new[] { "targetType","targetName","conditionName","sourceName","reason" },
+                additionalProperties = false
+            }
+        };
+    }    private static object BuildAdjustExhaustionTool()
     {
         return new
         {
@@ -1771,11 +1996,11 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private static object BuildUpdateCombatMonsterTool() => new
     {
-        type="function", name="update_combat_monster", description="Persist HP, conditions, and defeated state for one active enemy. hpDelta is negative damage or positive healing.", strict=true,
+        type="function", name="update_combat_monster", description="Persist HP and defeated state for one active enemy. Build 6.19 conditions use apply_condition/remove_condition; pass the compatibility conditions field as empty.", strict=true,
         parameters=new { type="object", properties=new {
             displayName=new { type="string", description="Exact stable display name from COMBAT STATE." },
             hpDelta=new { type="integer", minimum=-100000, maximum=100000 },
-            conditions=new { type="string", description="Full current condition list after this update; empty string means none." },
+            conditions=new { type="string", description="Compatibility field: pass an empty string. Conditions are persisted separately by apply_condition/remove_condition." },
             defeated=new { type="boolean" }
         }, required=new[]{"displayName","hpDelta","conditions","defeated"}, additionalProperties=false }
     };
@@ -2923,6 +3148,33 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var teleport=reason.Contains("teleport",StringComparison.OrdinalIgnoreCase) ||
                      reason.Contains("dimension door",StringComparison.OrdinalIgnoreCase) ||
                      reason.Contains("misty step",StringComparison.OrdinalIgnoreCase);
+        var forced=teleport ||
+                   reason.Contains("forced",StringComparison.OrdinalIgnoreCase) ||
+                   reason.Contains("shove",StringComparison.OrdinalIgnoreCase) ||
+                   reason.Contains("push",StringComparison.OrdinalIgnoreCase) ||
+                   reason.Contains("pull",StringComparison.OrdinalIgnoreCase) ||
+                   reason.Contains("drag",StringComparison.OrdinalIgnoreCase);
+
+        var combatConditions=await GetCombatConditionsForGmAsync(campaignId);
+        var tokenConditions=ConditionRulesService.ForEntity(combatConditions,token.EntityType,token.DisplayName);
+        if(!forced)
+        {
+            var movementBlock=ConditionRulesService.MovementBlockReason(tokenConditions);
+            if(!string.IsNullOrWhiteSpace(movementBlock))
+                throw new InvalidOperationException($"{token.DisplayName} cannot move: {movementBlock}");
+
+            foreach(var sourceName in ConditionRulesService.FrighteningSources(tokenConditions))
+            {
+                var sourceToken=tactical.Tokens.FirstOrDefault(t =>
+                    t.DisplayName.Equals(sourceName,StringComparison.OrdinalIgnoreCase)&&!t.Defeated);
+                if(sourceToken is null)continue;
+                var before=Math.Max(Math.Abs(token.GridX-sourceToken.GridX),Math.Abs(token.GridY-sourceToken.GridY));
+                var after=Math.Max(Math.Abs(destinationX-sourceToken.GridX),Math.Abs(destinationY-sourceToken.GridY));
+                if(after<before)
+                    throw new InvalidOperationException($"Frightened: {token.DisplayName} cannot willingly move closer to {sourceToken.DisplayName}.");
+            }
+        }
+
         if(!teleport)
         {
             var doorStates=await GetTacticalDoorStatesForGmAsync(campaignId,localMap.LocationKey);
@@ -2937,6 +3189,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 doorStates,occupied);
             if(!path.Success) throw new InvalidOperationException(path.Error);
             cost=path.CostFt;
+            if(!forced && ConditionRulesService.IsProne(tokenConditions))
+                cost=checked(cost*2);
         }
 
         var raw = await CallSupabaseRpcAsync(
@@ -3005,7 +3259,55 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         using var document=JsonDocument.Parse(raw);
         return document.RootElement.Clone();
     }
-    private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
+    // RULES BUILD 6.19 - CONDITION PERSISTENCE
+    private async Task<List<DiscordCombatConditionRow>> GetCombatConditionsForGmAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_combat_conditions",
+            new { p_campaign_id = campaignId },
+            "Unable to load active conditions");
+        return JsonSerializer.Deserialize<List<DiscordCombatConditionRow>>(raw, JsonOptions) ?? new();
+    }
+
+    private async Task<JsonElement> ApplyConditionAsync(Guid campaignId, ApplyConditionToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_apply_condition",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_target_type = (args.TargetType ?? string.Empty).Trim(),
+                p_target_name = (args.TargetName ?? string.Empty).Trim(),
+                p_condition_name = (args.ConditionName ?? string.Empty).Trim(),
+                p_source_name = (args.SourceName ?? string.Empty).Trim(),
+                p_duration_type = (args.DurationType ?? string.Empty).Trim(),
+                p_rounds_remaining = args.RoundsRemaining,
+                p_save_ability = (args.SaveAbility ?? string.Empty).Trim(),
+                p_save_dc = args.SaveDc,
+                p_notes = CleanReason(args.Notes, string.Empty)
+            },
+            "Unable to apply condition");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> RemoveConditionAsync(Guid campaignId, RemoveConditionToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_remove_condition",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_target_type = (args.TargetType ?? string.Empty).Trim(),
+                p_target_name = (args.TargetName ?? string.Empty).Trim(),
+                p_condition_name = (args.ConditionName ?? string.Empty).Trim(),
+                p_source_name = (args.SourceName ?? string.Empty).Trim(),
+                p_reason = CleanReason(args.Reason, "Condition ended")
+            },
+            "Unable to remove condition");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }    private async Task<string> CallSupabaseRpcAsync(string functionName, object body, string errorPrefix)
     {
         var supabaseUrl = _configuration["Supabase:Url"];
         var secretKey = _configuration["Supabase:SecretKey"];
@@ -3280,9 +3582,37 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public bool Advantage { get; set; }
         public bool Disadvantage { get; set; }
         public string ActorName { get; set; } = string.Empty;
+        public string TargetName { get; set; } = string.Empty;
         public string RollType { get; set; } = "other";
+        public string Ability { get; set; } = string.Empty;
+        public int DistanceFeet { get; set; }
+        public string SensoryBasis { get; set; } = "none";
+        public bool SourceVisible { get; set; }
+        public bool RequiresAction { get; set; }
         public string Reason { get; set; } = "GM roll";
         public int Dc { get; set; }
+    }
+
+    private sealed class ApplyConditionToolArguments
+    {
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetName { get; set; } = string.Empty;
+        public string ConditionName { get; set; } = string.Empty;
+        public string SourceName { get; set; } = string.Empty;
+        public string DurationType { get; set; } = "persistent";
+        public int RoundsRemaining { get; set; }
+        public string SaveAbility { get; set; } = string.Empty;
+        public int SaveDc { get; set; }
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    private sealed class RemoveConditionToolArguments
+    {
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetName { get; set; } = string.Empty;
+        public string ConditionName { get; set; } = string.Empty;
+        public string SourceName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
     }
 
     private sealed class AdjustExhaustionToolArguments

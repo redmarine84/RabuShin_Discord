@@ -1178,7 +1178,16 @@ public sealed class DiscordSupabaseService
         var rows = await ReadListAsync<DiscordCombatStateRow>(response, "Unable to load Combat state");
         return rows.FirstOrDefault();
     }
-    // VISUALS BUILD 5 - TACTICAL COMBAT STATE
+    // RULES BUILD 6.19 - COMBAT CONDITIONS + STATUS EFFECTS
+    public async Task<List<DiscordCombatConditionRow>> GetCombatConditionsAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_combat_conditions", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadListAsync<DiscordCombatConditionRow>(response, "Unable to load combat conditions");
+    }    // VISUALS BUILD 5 - TACTICAL COMBAT STATE
     public async Task<DiscordTacticalCombatStateRow?> GetTacticalCombatStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_tactical_combat_state", new

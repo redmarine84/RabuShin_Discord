@@ -1210,6 +1210,35 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move51", asyn
         var ownToken = tokens.FirstOrDefault(t => t.CharacterId == state.ViewerCharacterId)
             ?? throw new InvalidOperationException("Your tactical token could not be found.");
 
+        // RULES BUILD 6.19 - condition-aware voluntary movement
+        var conditionRows = await service.GetCombatConditionsAsync(playerId, campaignId);
+        var ownConditions = ConditionRulesService.ForCharacter(conditionRows, state.ViewerCharacterId.Value);
+        var movementBlock = ConditionRulesService.MovementBlockReason(ownConditions);
+        if (!string.IsNullOrWhiteSpace(movementBlock))
+            return Results.BadRequest(new { success = false, error = movementBlock });
+
+        // Frightened creatures cannot willingly move closer to the source of their fear.
+        foreach (var sourceName in ConditionRulesService.FrighteningSources(ownConditions))
+        {
+            var sourceToken = tokens.FirstOrDefault(t =>
+                t.DisplayName.Equals(sourceName, StringComparison.OrdinalIgnoreCase) && !t.Defeated);
+            if (sourceToken is null) continue;
+
+            var before = Math.Max(
+                Math.Abs(ownToken.GridX - sourceToken.GridX),
+                Math.Abs(ownToken.GridY - sourceToken.GridY));
+            var after = Math.Max(
+                Math.Abs(move.GridX - sourceToken.GridX),
+                Math.Abs(move.GridY - sourceToken.GridY));
+
+            if (after < before)
+                return Results.BadRequest(new
+                {
+                    success = false,
+                    error = $"Frightened: {ownToken.DisplayName} cannot willingly move closer to {sourceToken.DisplayName}."
+                });
+        }
+
         var doorRows = await service.GetTacticalDoorStatesAsync(playerId, campaignId, mapDefinition.LocationKey);
         var doorStates = doorRows.ToDictionary(d => d.DoorId, d => d.IsOpen);
         var occupied = tokens
@@ -1229,12 +1258,17 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move51", asyn
         if (!path.Success)
             return Results.BadRequest(new { success = false, error = path.Error });
 
+        // Prone voluntary movement is crawling: every foot costs one extra foot.
+        var conditionAwareMoveCost = ConditionRulesService.IsProne(ownConditions)
+            ? checked(path.CostFt * 2)
+            : path.CostFt;
+
         var result = await service.MoveOwnCombatTokenCostedAsync(
             playerId,
             campaignId,
             move.GridX,
             move.GridY,
-            path.CostFt);
+            conditionAwareMoveCost);
 
         return Results.Ok(new
         {
@@ -1340,10 +1374,17 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new()
             : new List<DiscordTacticalTokenInfo>();
 
+        var conditionRows = await service.GetCombatConditionsAsync(playerId, campaignId);
+        IReadOnlyList<DiscordCombatConditionRow> viewerConditions = state.ViewerCharacterId.HasValue
+            ? ConditionRulesService.ForCharacter(conditionRows, state.ViewerCharacterId.Value)
+            : Array.Empty<DiscordCombatConditionRow>();
+        var viewerImmobile = ConditionRulesService.IsImmobile(viewerConditions);
+
         var canMove = state.Active &&
                       state.ViewerCharacterId.HasValue &&
                       state.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
-                      state.CurrentTurnCharacterId == state.ViewerCharacterId;
+                      state.CurrentTurnCharacterId == state.ViewerCharacterId &&
+                      !viewerImmobile;
 
         // BUILD 5 FIX - BROWSER TACTICAL TOKEN JSON
         // The model uses snake_case JsonPropertyName attributes for Supabase input.
@@ -1363,6 +1404,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             currentHp = token.CurrentHp,
             maxHp = token.MaxHp,
             armorClass = token.ArmorClass,
+            conditions = ConditionRulesService.FormatForEntity(conditionRows, token.EntityType, token.DisplayName),
             defeated = token.Defeated,
             hasPortrait = token.HasPortrait
         }).ToList();
@@ -1380,8 +1422,11 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/tactical", async (
             currentTurnMonsterId = state.CurrentTurnMonsterId,
             currentTurnName = state.CurrentTurnName,
             viewerCharacterId = state.ViewerCharacterId,
-            viewerSpeed = Math.Max(0, state.ViewerSpeed),
-            viewerMovementRemaining = Math.Max(0, state.ViewerMovementRemaining),
+            viewerSpeed = viewerImmobile ? 0 : Math.Max(0, state.ViewerSpeed),
+            viewerMovementRemaining = viewerImmobile ? 0 : Math.Max(0, state.ViewerMovementRemaining),
+            movementBlockedReason = viewerImmobile
+                ? ConditionRulesService.MovementBlockReason(viewerConditions)
+                : string.Empty,
             canMove,
             tokens = clientTokens
         });
@@ -1431,7 +1476,30 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/tactical/move", async 
         return Results.BadRequest(new { success = false, error = ex.Message });
     }
 });
-// VISUALS BUILD 4 - COMBAT ENDPOINT
+// RULES BUILD 6.19 - CURRENT PARTY / MONSTER CONDITIONS
+app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/conditions", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var rows = await service.GetCombatConditionsAsync(playerId, campaignId);
+
+        return Results.Ok(new
+        {
+            success = true,
+            conditions = rows.Select(ConditionRulesService.ToClientCondition).ToList()
+        });
+    }
+    catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});// VISUALS BUILD 4 - COMBAT ENDPOINT
 app.MapGet("/game-api/campaigns/{campaignId:guid}/combat", async (
     Guid campaignId,
     HttpRequest request,
@@ -1446,6 +1514,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat", async (
         if (state is not null && state.Monsters.ValueKind == JsonValueKind.Array)
             monsters = JsonSerializer.Deserialize<List<DiscordCombatMonsterInfo>>(state.Monsters.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
 
+        var conditionRows = await service.GetCombatConditionsAsync(playerId, campaignId);
         var codex = MonsterCodexService.Shared;
         return Results.Ok(new
         {
@@ -1454,6 +1523,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat", async (
             title = state?.Title ?? string.Empty,
             roundNumber = Math.Max(1, state?.RoundNumber ?? 1),
             startedAt = state?.StartedAt,
+            conditions = conditionRows.Select(ConditionRulesService.ToClientCondition).ToList(),
             monsters = monsters.Select(m =>
             {
                 var entry = codex.Find(m.MonsterName);
@@ -1466,7 +1536,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat", async (
                     currentHp = m.CurrentHp,
                     maxHp = m.MaxHp,
                     armorClass = m.ArmorClass,
-                    conditions = m.Conditions,
+                    conditions = ConditionRulesService.FormatForEntity(conditionRows, "monster", m.DisplayName),
                     defeated = m.Defeated,
                     imageUrl,
                     subtitle = entry?.Subtitle ?? "Creature",
