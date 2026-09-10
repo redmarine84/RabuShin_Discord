@@ -2230,10 +2230,12 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
             !tactical.CurrentTurnCharacterId.HasValue &&
             !tactical.CurrentTurnMonsterId.HasValue &&
             initiative.Count == 0;
-        var combatCanAct = tactical?.Active != true || combatSetupPending ||
+        var deathSaveState = await service.GetDeathSaveStateAsync(player, campaignId);
+        var combatCanAct = (tactical?.Active != true || combatSetupPending ||
             (tactical.ViewerCharacterId.HasValue &&
              tactical.CurrentTurnType.Equals("character", StringComparison.OrdinalIgnoreCase) &&
-             tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId);
+             tactical.CurrentTurnCharacterId == tactical.ViewerCharacterId))
+            && deathSaveState?.Active != true;
 
         return Results.Ok(new
         {
@@ -2267,6 +2269,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/gm", async (Guid campaignId, H
                 currentTurnName = tactical?.CurrentTurnName ?? string.Empty,
                 viewerCharacterId = tactical?.ViewerCharacterId,
                 canAct = combatCanAct,
+                deathSave = deathSaveState,
                 initiative = initiative.Select(i => new
                 {
                     orderPosition = i.OrderPosition,
@@ -2570,6 +2573,94 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/gm/turn/input", async (
     }
 });
 
+// RULES BUILD 6.19.1 - SERVER-ROLLED DEATH SAVING THROW
+app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/death-save", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var player = await service.GetOrCreatePlayerAsync(user);
+        await service.TouchCampaignPresenceAsync(player, campaignId);
+        await service.SkipOfflineCurrentCombatTurnAsync(campaignId);
+
+        var death = await service.GetDeathStateAsync(player, campaignId);
+        if (death?.ViewerIsDeadPlayer == true)
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "Your character is already dead. Resolve the Respawn screen instead.",
+                deadCharacter = true
+            });
+
+        var state = await service.GetDeathSaveStateAsync(player, campaignId);
+        if (state is null)
+            return Results.NotFound(new { success = false, error = "Character could not be found." });
+
+        if (!state.Active)
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "Your character is not at 0 HP and does not need a death saving throw."
+            });
+
+        if (state.Stable)
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "Your character is already stable and does not make death saving throws."
+            });
+
+        if (state.CombatActive && !state.IsCurrentTurn)
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "Death saving throws are resolved only on that character's initiative turn."
+            });
+
+        if (!state.RequiresSave)
+            return Results.Conflict(new
+            {
+                success = false,
+                error = "This round's death saving throw has already been resolved."
+            });
+
+        var roll = DeathSaveRulesService.RollD20();
+        var result = await service.ResolveDeathSaveAsync(player, campaignId, roll);
+        var message = DeathSaveRulesService.Summary(result);
+
+        return Results.Ok(new
+        {
+            success = true,
+            deathSave = new
+            {
+                result.CharacterId,
+                result.CharacterName,
+                result.Roll,
+                result.Outcome,
+                result.Successes,
+                result.Failures,
+                result.Stable,
+                result.CurrentHp,
+                result.MaxHp,
+                result.Dead,
+                result.CombatActive,
+                result.IsCurrentTurn,
+                message
+            }
+        });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.Unauthorized();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
 // COMBAT BUILD 6.1 - PLAYER END TURN / AUTOMATIC CONSECUTIVE ENEMY TURNS
 app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/end-turn", async (
     Guid campaignId,

@@ -1303,6 +1303,33 @@ public sealed class DiscordSupabaseService
             ?? throw new InvalidOperationException("Supabase returned an invalid combat turn result.");
     }
 
+    // RULES BUILD 6.19.1 - DEATH SAVING THROWS
+    public async Task<DeathSaveStateRow?> GetDeathSaveStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_death_save_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        var rows = await ReadListAsync<DeathSaveStateRow>(response, "Unable to load death saving throw state");
+        return rows.FirstOrDefault();
+    }
+
+    public async Task<DeathSaveResolutionRow> ResolveDeathSaveAsync(
+        Guid playerId,
+        Guid campaignId,
+        int naturalRoll)
+    {
+        using var response = await CallRpcAsync("discord_resolve_death_save", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_roll = naturalRoll
+        });
+        var rows = await ReadListAsync<DeathSaveResolutionRow>(response, "Unable to resolve death saving throw");
+        return rows.FirstOrDefault()
+            ?? throw new InvalidOperationException("Supabase returned no death saving throw result.");
+    }
     // RULES BUILD 6.2 - DEATH / RESPAWN STATE
     public async Task<DeathStateRow?> GetDeathStateAsync(Guid playerId, Guid campaignId)
     {

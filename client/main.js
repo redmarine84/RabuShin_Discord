@@ -2483,9 +2483,21 @@ function updateGmTurnUi() {
     !combat?.currentTurnMonsterId &&
     liveInitiative.length===0;
   const combatCanAct=!combatActive||combatSetupPending||!!combat?.canAct;
+  const deathSave=combat?.deathSave||null;
+  const deathSaveActive=!!deathSave?.active;
+  const deathSaveRequired=deathSaveActive&&!!deathSave?.requiresSave;
+  const deathSaveTurn=deathSaveActive&&(
+    !combatActive||
+    (String(combat?.currentTurnType||'').toLowerCase()==='character'&&
+     String(combat?.currentTurnCharacterId||'')===String(combat?.viewerCharacterId||''))
+  );
   if(endTurn) {
-    endTurn.hidden=!combatActive||combatSetupPending;
-    endTurn.disabled=!combatActive||combatSetupPending||!combatCanAct||gmTurnSubmitting||!!state?.processing;
+    endTurn.textContent=deathSaveRequired&&deathSaveTurn?'Resolve Death Save':'End Turn';
+    endTurn.hidden=(!combatActive&&!deathSaveRequired)||combatSetupPending;
+    endTurn.disabled=combatSetupPending||
+      ((!combatCanAct)&&!deathSaveTurn)||
+      (deathSaveActive&&!deathSaveTurn)||
+      gmTurnSubmitting||!!state?.processing;
   }
   if(resumeEnemy) {
     const enemyTurn=combatActive&&String(combat?.currentTurnType||'').toLowerCase()==='monster';
@@ -2517,6 +2529,27 @@ function updateGmTurnUi() {
     return;
   }
 
+  if(deathSaveActive) {
+    status.classList.add('locked');
+    const successes=Math.max(0,Math.min(3,Number(deathSave.successes)||0));
+    const failures=Math.max(0,Math.min(3,Number(deathSave.failures)||0));
+    const successPips=`${'â—'.repeat(successes)}${'â—‹'.repeat(3-successes)}`;
+    const failurePips=`${'â—'.repeat(failures)}${'â—‹'.repeat(3-failures)}`;
+    const tracker=`<span class="death-save-track"><b>Death Saves</b> <span class="death-save-success">Success ${successPips}</span> <span class="death-save-failure">Failure ${failurePips}</span></span>`;
+
+    if(deathSave.stable) {
+      status.innerHTML=`${tracker}<span><b>Stable at 0 HP.</b>${combatActive&&deathSaveTurn?' End Turn when ready.':' Awaiting healing or another effect.'}</span>`;
+    } else if(deathSaveTurn&&deathSaveRequired) {
+      status.innerHTML=`${tracker}<span><b>${combatActive?'It is your turn.':'Death save required.'}</b> Use Resolve Death Save. RabuShin rolls the d20.</span>`;
+    } else if(deathSaveTurn) {
+      status.innerHTML=`${tracker}<span>This death save is already resolved. End Turn.</span>`;
+    } else {
+      status.innerHTML=`${tracker}<span>Unconscious at 0 HP. Waiting for ${escapeHtml(combat?.currentTurnName||'your initiative turn')}.</span>`;
+    }
+    input.disabled=true;
+    send.disabled=true;
+    return;
+  }
   if(combatActive&&!combatCanAct) {
     status.classList.add('locked');
     const who=combat.currentTurnName||'another combatant';
@@ -3651,7 +3684,16 @@ function renderGameMasterTab() {
 
   const endTurnButton=document.querySelector('#endCombatTurn');
   if(endTurnButton)endTurnButton.onclick=async()=>{
-    if(gmTurnSubmitting||!gmCombatTurnState?.active||!gmCombatTurnState?.canAct)return;
+    const deathSave=gmCombatTurnState?.deathSave||null;
+    const combatActive=!!gmCombatTurnState?.active;
+    const deathSaveRequired=!!deathSave?.active&&!!deathSave?.requiresSave;
+    const deathSaveTurn=!!deathSave?.active&&(
+      !combatActive||
+      (String(gmCombatTurnState?.currentTurnType||'').toLowerCase()==='character'&&
+       String(gmCombatTurnState?.currentTurnCharacterId||'')===String(gmCombatTurnState?.viewerCharacterId||''))
+    );
+    if(gmTurnSubmitting||(!combatActive&&!deathSaveRequired)||
+      (!gmCombatTurnState?.canAct&&!deathSaveTurn))return;
     gmTurnSubmitting=true;
     document.querySelector('#gmError').textContent='';
     gmTurnDraft='';
@@ -3659,6 +3701,36 @@ function renderGameMasterTab() {
     gmTurnState={...(gmTurnState||{}),active:true,processing:true,isOwner:true,ownerName:(currentDiscordUser?.global_name||currentDiscordUser?.username||'You')};
     updateGmTurnUi();
     try {
+      if(deathSaveRequired&&deathSaveTurn) {
+        const saveResult=await api(`/game-api/campaigns/${currentCampaignId}/combat/death-save`,{method:'POST'});
+        const resolved=saveResult?.deathSave||null;
+        if(resolved?.message)showNotice(resolved.message,!!resolved.dead);
+
+        if(resolved?.outcome==='natural_20') {
+          if(currentGameData?.character)currentGameData.character.currentHp=1;
+          document.querySelectorAll('[data-live-self-hp]').forEach(el=>{
+            el.textContent=`1/${currentGameData?.character?.maxHp||resolved.maxHp||1}`;
+          });
+          await refreshDeathState(true);
+          await refreshGmLive(true);
+          return;
+        }
+
+        if(resolved?.dead) {
+          await refreshDeathState(true);
+          await refreshGmLive(true);
+          return;
+        }
+
+        // In combat an ordinary success/failure/stabilization consumes the turn.
+        // Outside combat there is no initiative turn to advance.
+        if(!combatActive) {
+          await refreshDeathState(true);
+          await refreshGmLive(true);
+          return;
+        }
+      }
+
       await api(`/game-api/campaigns/${currentCampaignId}/combat/end-turn`,{method:'POST'});
       try {
         const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);

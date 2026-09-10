@@ -64,3 +64,20 @@
 .combat-monster-card .condition-badges{
   justify-content:center;
 }
+
+/* RULES BUILD 6.19.1 - Death Saving Throws */
+.death-save-track{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  margin-right:8px;
+}
+.death-save-success{
+  color:#39D98A;
+  font-weight:700;
+}
+.death-save-failure{
+  color:#D94A4A;
+  font-weight:700;
+}

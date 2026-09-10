@@ -185,7 +185,10 @@ COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 
 CHARACTER DEATH / REVIVAL AUTHORITY — MANDATORY:
 - Reaching 0 HP is NOT automatically death. A character at 0 HP is unconscious and follows normal D&D death-saving-throw / instant-death rules unless a rule explicitly says otherwise.
-- Use roll_dice for death saving throws when they are required. Do not call mark_character_dead merely because HP reached 0.
+- RULES BUILD 6.19.1: Party-character death saving throws are rolled and persisted automatically by the trusted server. Do NOT use roll_dice for a party character's routine death save and do NOT call mark_character_dead merely because HP reached 0.
+- Death save results are: 10-19 = one success; 2-9 = one failure; natural 1 = two failures; natural 20 = regain 1 HP; three successes = stable; three failures = actual death.
+- Damage against a character who was already at 0 HP causes one failed death save, or two failures when the damaging hit is a critical hit. update_character_hp enforces this automatically; set criticalHit accurately.
+- Massive damage that leaves remaining damage equal to or greater than the character's effective hit point maximum causes instant death automatically.
 - Call mark_character_dead exactly once only when the character is truly dead: for example after the normal death-save failure threshold, massive/instant death, or another rule/effect that explicitly kills them. Include the cause.
 - Once mark_character_dead succeeds, the server creates the player's Respawn decision state. Do not decide Yes/No for the player and do not deduct Respawn gold yourself.
 - Normal D&D revival remains valid. If Revivify, another legal revival spell/effect, or an owned revival item is successfully used on a truly dead character, resolve all normal spell/item requirements first and then call revive_character with the HP the rule grants. The server cancels any open Respawn fund and refunds party donations.
@@ -1982,8 +1985,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         parameters=new { type="object", properties=new {
             characterName=new { type="string", description="Exact party character name." },
             hpDelta=new { type="integer", minimum=-100000, maximum=100000 },
+            criticalHit=new { type="boolean", description="True only when this HP damage came from a confirmed critical hit. This matters for damage taken while already at 0 HP." },
             reason=new { type="string", description="Short cause such as Wolf bite damage or healing." }
-        }, required=new[]{"characterName","hpDelta","reason"}, additionalProperties=false }
+        }, required=new[]{"characterName","hpDelta","criticalHit","reason"}, additionalProperties=false }
     };
 
     private static object BuildAdvanceCombatTurnTool() => new
@@ -2998,11 +3002,12 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private async Task<CharacterHpResult> UpdateCharacterHpAsync(Guid campaignId,UpdateCharacterHpToolArguments args)
     {
-        var raw=await CallSupabaseRpcAsync("discord_gm_adjust_character_hp",new
+        var raw=await CallSupabaseRpcAsync("discord_gm_adjust_character_hp_with_death_saves",new
         {
             p_campaign_id=campaignId,
             p_character_name=(args.CharacterName??string.Empty).Trim(),
             p_hp_delta=args.HpDelta,
+            p_critical_hit=args.CriticalHit,
             p_reason=CleanReason(args.Reason,"Combat HP change")
         },"Unable to update character HP");
         return JsonSerializer.Deserialize<CharacterHpResult>(raw,JsonOptions) ?? throw new InvalidOperationException("Supabase returned invalid character HP state.");
@@ -3800,6 +3805,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         public string CharacterName { get; set; } = string.Empty;
         public int HpDelta { get; set; }
+        public bool CriticalHit { get; set; }
         public string Reason { get; set; } = string.Empty;
     }
     private sealed class AdvanceCombatTurnToolArguments { public string Reason { get; set; } = string.Empty; }
