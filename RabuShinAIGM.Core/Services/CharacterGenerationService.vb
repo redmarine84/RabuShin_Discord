@@ -210,7 +210,8 @@ Public Class CharacterGenerationService
                String.Equals(GetSecondaryHeritage(speciesDisplay), wanted, StringComparison.OrdinalIgnoreCase)
     End Function
 
-    Public Function Generate(speciesName As String, className As String, level As Integer, requestedName As String) As PlayerCharacter
+    Public Function Generate(speciesName As String, className As String, level As Integer, requestedName As String,
+                             Optional applyHeritageAbilityBonuses As Boolean = True) As PlayerCharacter
         Dim selectedSpecies = If(speciesName, String.Empty).Trim()
         Dim primaryHeritage = GetPrimaryHeritage(selectedSpecies)
         If String.IsNullOrWhiteSpace(primaryHeritage) Then primaryHeritage = selectedSpecies
@@ -237,7 +238,7 @@ Public Class CharacterGenerationService
         c.BackgroundName = ChooseBackground(className)
         ApplyBackgroundBoost(c, c.BackgroundName, className)
         c.ProficiencyBonus = ProficiencyForLevel(c.Level)
-        ApplyHeritageTraits(c, primaryHeritage, secondaryHeritage, True)
+        ApplyHeritageTraits(c, primaryHeritage, secondaryHeritage, applyHeritageAbilityBonuses)
         If HasHeritage(c.SpeciesName, "Dragonborn") Then ApplyRandomDraconicAncestry(c)
         c.Initiative = PlayerCharacter.AbilityModifier(c.Dexterity)
         c.PassivePerception = 10 + PlayerCharacter.AbilityModifier(c.Wisdom) + If(HasHeritage(c.SpeciesName, "Elf"), c.ProficiencyBonus, 0)

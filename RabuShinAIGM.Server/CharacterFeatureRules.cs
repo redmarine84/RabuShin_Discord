@@ -309,6 +309,59 @@ public static class CharacterFeatureRules
             values["Intelligence"], values["Wisdom"], values["Charisma"], applied);
     }
 
+    // RULES BUILD 6.18.5.4 - RANDOM BUILD RACIAL OVERFLOW REDISTRIBUTION
+    // Random Build has no editable base scores. Apply every racial/subrace/secondary
+    // heritage increase normally, cap each ability at 20, then redistribute only the
+    // unusable overflow points to random OTHER abilities that still have room.
+    // Manual Build continues to use ApplyAbilityScores and remains strict.
+    public static AppliedRacialScores ApplyRandomAbilityScores(
+        string species,
+        int strength, int dexterity, int constitution, int intelligence, int wisdom, int charisma,
+        Dictionary<string, int>? choices,
+        string? subrace,
+        string? secondaryHeritage = null,
+        string? secondarySubrace = null,
+        Dictionary<string, int>? secondaryChoices = null)
+    {
+        var values = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Strength"] = ClampBase(strength), ["Dexterity"] = ClampBase(dexterity), ["Constitution"] = ClampBase(constitution),
+            ["Intelligence"] = ClampBase(intelligence), ["Wisdom"] = ClampBase(wisdom), ["Charisma"] = ClampBase(charisma)
+        };
+        var applied = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var overflowSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var overflow = 0;
+        var heritage = PrimaryHeritage(species);
+        var secondary = NormalizeSecondaryHeritage(species, heritage, secondaryHeritage);
+
+        ApplyHeritageAbilityBonusesRandom(values, applied, heritage, choices, ref overflow, overflowSources);
+
+        var selectedSubrace = GetSubraceRule(heritage, subrace, requireWhenSupported: true);
+        if (selectedSubrace is not null)
+        {
+            foreach (var pair in selectedSubrace.AbilityBonuses)
+                AddRandomBonus(values, applied, pair.Key, pair.Value, ref overflow, overflowSources);
+        }
+
+        if (!string.IsNullOrWhiteSpace(secondary))
+        {
+            ApplyHeritageAbilityBonusesRandom(values, applied, secondary, secondaryChoices, ref overflow, overflowSources);
+
+            var selectedSecondarySubrace = GetSubraceRule(secondary, secondarySubrace, requireWhenSupported: true);
+            if (selectedSecondarySubrace is not null)
+            {
+                foreach (var pair in selectedSecondarySubrace.AbilityBonuses)
+                    AddRandomBonus(values, applied, pair.Key, pair.Value, ref overflow, overflowSources);
+            }
+        }
+
+        RedistributeRandomOverflow(values, applied, overflow, overflowSources);
+
+        return new AppliedRacialScores(
+            values["Strength"], values["Dexterity"], values["Constitution"],
+            values["Intelligence"], values["Wisdom"], values["Charisma"], applied);
+    }
+
     // The random generator is now invoked with the primary heritage only for Half Race characters.
     // It has already applied the primary base ability increase; this method adds the primary subrace,
     // then the selected secondary heritage's base and subrace increases.
@@ -367,6 +420,82 @@ public static class CharacterFeatureRules
 
         if (FixedAbilityBonuses.TryGetValue(heritage, out var fixedBonuses))
             foreach (var pair in fixedBonuses) AddBonus(values, applied, pair.Key, pair.Value);
+    }
+
+    private static void ApplyHeritageAbilityBonusesRandom(
+        Dictionary<string, int> values,
+        Dictionary<string, int> applied,
+        string heritage,
+        Dictionary<string, int>? flexibleChoices,
+        ref int overflow,
+        HashSet<string> overflowSources)
+    {
+        if (heritage.Equals("Tortle", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = NormalizeFlexibleChoices(flexibleChoices);
+            foreach (var pair in normalized)
+                AddRandomBonus(values, applied, pair.Key, pair.Value, ref overflow, overflowSources);
+            return;
+        }
+
+        if (FixedAbilityBonuses.TryGetValue(heritage, out var fixedBonuses))
+        {
+            foreach (var pair in fixedBonuses)
+                AddRandomBonus(values, applied, pair.Key, pair.Value, ref overflow, overflowSources);
+        }
+    }
+
+    private static void AddRandomBonus(
+        Dictionary<string, int> values,
+        Dictionary<string, int> applied,
+        string ability,
+        int bonus,
+        ref int overflow,
+        HashSet<string> overflowSources)
+    {
+        var current = values[ability];
+        var room = Math.Max(0, 20 - current);
+        var placed = Math.Min(room, Math.Max(0, bonus));
+
+        if (placed > 0)
+        {
+            values[ability] = current + placed;
+            applied[ability] = applied.TryGetValue(ability, out var prior) ? prior + placed : placed;
+        }
+
+        var extra = Math.Max(0, bonus - placed);
+        if (extra > 0)
+        {
+            overflow += extra;
+            overflowSources.Add(ability);
+        }
+    }
+
+    private static void RedistributeRandomOverflow(
+        Dictionary<string, int> values,
+        Dictionary<string, int> applied,
+        int overflow,
+        HashSet<string> overflowSources)
+    {
+        while (overflow > 0)
+        {
+            // "Other stats" means an ability that caused overflow is not a destination.
+            var candidates = AbilityNames
+                .Where(ability => !overflowSources.Contains(ability) && values[ability] < 20)
+                .ToArray();
+
+            // Defensive fallback: if every non-source ability is capped, use any legal
+            // ability below 20. In normal level-1 Random Builds this should never be needed.
+            if (candidates.Length == 0)
+                candidates = AbilityNames.Where(ability => values[ability] < 20).ToArray();
+            if (candidates.Length == 0)
+                return;
+
+            var target = candidates[Random.Shared.Next(candidates.Length)];
+            values[target] += 1;
+            applied[target] = applied.TryGetValue(target, out var prior) ? prior + 1 : 1;
+            overflow -= 1;
+        }
     }
 
     private static Dictionary<string, int> NormalizeFlexibleChoices(Dictionary<string, int>? choices)

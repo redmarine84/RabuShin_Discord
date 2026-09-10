@@ -418,28 +418,17 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
         // primary heritage here so the legacy random generator cannot silently inject a different second half.
         var generationSpecies = CharacterFeatureRules.IsHalfRace(species) ? CharacterFeatureRules.PrimaryHeritage(species) : species;
         var engineSpecies = CharacterFeatureRules.EngineSpecies(generationSpecies, CharacterGenerationService.Species);
-        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
+        // RULES BUILD 6.18.5.4: generate the class/background stat shell WITHOUT
+        // legacy racial ASIs, then apply every racial increase in one authoritative
+        // pass so overflow can be redistributed after all racial bonuses are known.
+        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "", false);
 
-        AppliedRacialScores scores;
-        if (CharacterFeatureRules.IsTortleLineage(species))
-        {
-            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
-            // the classic Human +1s are removed before applying the player's Tortle choices.
-            scores = CharacterFeatureRules.ApplyAbilityScores(
-                species,
-                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
-                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
-        else
-        {
-            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
-                species,
-                generated.Strength, generated.Dexterity, generated.Constitution,
-                generated.Intelligence, generated.Wisdom, generated.Charisma,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
+        var scores = CharacterFeatureRules.ApplyRandomAbilityScores(
+            species,
+            generated.Strength, generated.Dexterity, generated.Constitution,
+            generated.Intelligence, generated.Wisdom, generated.Charisma,
+            body.RacialAbilityChoices,
+            body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
 
         var profile = CharacterFeatureRules.BuildProfile(
             species, body.SecondaryHeritage, scores,
@@ -565,28 +554,16 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random"
         // primary heritage here so the legacy random generator cannot silently inject a different second half.
         var generationSpecies = CharacterFeatureRules.IsHalfRace(species) ? CharacterFeatureRules.PrimaryHeritage(species) : species;
         var engineSpecies = CharacterFeatureRules.EngineSpecies(generationSpecies, CharacterGenerationService.Species);
-        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "");
+        // RULES BUILD 6.18.5.4: same authoritative Random Build rule for Solo
+        // Add Party Member. Manual Solo character creation remains unchanged.
+        var generated = new CharacterGenerationService().Generate(engineSpecies, className, 1, body.CharacterName ?? "", false);
 
-        AppliedRacialScores scores;
-        if (CharacterFeatureRules.IsTortleLineage(species))
-        {
-            // Tortle is not part of the older generation engine. Human is used only as a stat-roll shell;
-            // the classic Human +1s are removed before applying the player's Tortle choices.
-            scores = CharacterFeatureRules.ApplyAbilityScores(
-                species,
-                Math.Max(1, generated.Strength - 1), Math.Max(1, generated.Dexterity - 1), Math.Max(1, generated.Constitution - 1),
-                Math.Max(1, generated.Intelligence - 1), Math.Max(1, generated.Wisdom - 1), Math.Max(1, generated.Charisma - 1),
-                body.RacialAbilityChoices,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
-        else
-        {
-            scores = CharacterFeatureRules.ApplyGeneratedSubraceScores(
-                species,
-                generated.Strength, generated.Dexterity, generated.Constitution,
-                generated.Intelligence, generated.Wisdom, generated.Charisma,
-                body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
-        }
+        var scores = CharacterFeatureRules.ApplyRandomAbilityScores(
+            species,
+            generated.Strength, generated.Dexterity, generated.Constitution,
+            generated.Intelligence, generated.Wisdom, generated.Charisma,
+            body.RacialAbilityChoices,
+            body.Subrace, body.SecondaryHeritage, body.SecondarySubrace, body.SecondaryRacialAbilityChoices);
 
         var profile = CharacterFeatureRules.BuildProfile(
             species, body.SecondaryHeritage, scores,
