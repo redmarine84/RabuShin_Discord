@@ -1426,6 +1426,38 @@ public sealed class DiscordSupabaseService
         [JsonPropertyName("resource_blocked_reason")] public string ResourceBlockedReason { get; set; } = string.Empty;
     }
 
+    // RULES BUILD 6.19.3 - CONCENTRATION SYSTEM
+    public async Task<List<ConcentrationStateRow>> GetConcentrationStateAsync(Guid playerId, Guid campaignId)
+    {
+        using var response = await CallRpcAsync("discord_get_concentration_state", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId
+        });
+        return await ReadListAsync<ConcentrationStateRow>(response, "Unable to load concentration state");
+    }
+
+    public sealed class ConcentrationStateRow
+    {
+        [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+        [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [JsonPropertyName("active")] public bool Active { get; set; }
+        [JsonPropertyName("spell_name")] public string SpellName { get; set; } = string.Empty;
+        [JsonPropertyName("spell_level")] public int SpellLevel { get; set; }
+        [JsonPropertyName("started_at")] public DateTimeOffset? StartedAt { get; set; }
+        [JsonPropertyName("ended_at")] public DateTimeOffset? EndedAt { get; set; }
+        [JsonPropertyName("end_reason")] public string EndReason { get; set; } = string.Empty;
+        [JsonPropertyName("last_damage")] public int? LastDamage { get; set; }
+        [JsonPropertyName("last_save_dc")] public int? LastSaveDc { get; set; }
+        [JsonPropertyName("last_roll_1")] public int? LastRoll1 { get; set; }
+        [JsonPropertyName("last_roll_2")] public int? LastRoll2 { get; set; }
+        [JsonPropertyName("last_kept_roll")] public int? LastKeptRoll { get; set; }
+        [JsonPropertyName("last_modifier")] public int? LastModifier { get; set; }
+        [JsonPropertyName("last_total")] public int? LastTotal { get; set; }
+        [JsonPropertyName("last_success")] public bool? LastSuccess { get; set; }
+        [JsonPropertyName("last_check_at")] public DateTimeOffset? LastCheckAt { get; set; }
+    }
+
     // RULES BUILD 6.2 - DEATH / RESPAWN STATE
     public async Task<DeathStateRow?> GetDeathStateAsync(Guid playerId, Guid campaignId)
     {

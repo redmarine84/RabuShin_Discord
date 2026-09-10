@@ -89,6 +89,15 @@ INVENTORY AND SPELL AUTHORITY — THESE ARE ALSO MANDATORY:
 - A player can cast only a spell listed in CURRENT SPELLBOOK. If a Wizard spell is marked not prepared, do not allow it to be cast until prepared by the game rules.
 - If the player claims to cast a spell or use an item that is not in these lists, explain that the character does not currently have access to it and continue the turn without granting its effect.
 
+CONCENTRATION — RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
+- A character can maintain only one Concentration spell/effect at a time. CURRENT CONCENTRATION STATE below is authoritative.
+- When the current player character starts casting a spell that the authoritative spell catalog marks as Concentration, call start_concentration as soon as that valid casting begins. Starting it immediately ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
+- Never call start_concentration for a spell that is not marked Concentration, and never invent a concentration spell that is not in CURRENT SPELLBOOK.
+- Do NOT call roll_dice for a Concentration save caused by HP damage. update_character_hp automatically triggers the trusted Constitution save in the database after each distinct damage source. Persist each separately resolved hit/damage source with its own update_character_hp call.
+- The 2024 damage DC is 10 or half the damage taken rounded down, whichever is higher, capped at DC 30. The trusted concentration engine applies the character's Constitution modifier, Constitution saving-throw proficiency when applicable, and existing Exhaustion saving-throw disadvantage.
+- Reaching 0 HP, dying, or gaining Incapacitated (including Paralyzed, Petrified, Stunned, or Unconscious in this rules engine) ends Concentration automatically with no save.
+- A character may voluntarily end Concentration at any time without an action. When the player drops it, or when the spell/effect's duration or other explicit ending condition is reached, call end_concentration.
+
 AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The server-supplied CURRENT GOLD and CURRENT INVENTORY are authoritative. Never merely narrate a permanent currency or inventory change.
 - Whenever the character definitively receives or loses GP, call adjust_gold before narrating the completed transaction or reward. Use a positive delta for gained GP and a negative delta for spent/lost GP.
@@ -367,7 +376,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             {
                 var levelText = spell.SpellLevel == 0 ? "Cantrip" : $"Level {spell.SpellLevel}";
                 var preparedText = spell.Prepared ? "prepared/available" : "not prepared";
-                inputBuilder.AppendLine($"- {spell.SpellName} ({levelText}; {preparedText}; source {spell.SourceTag})");
+                var concentrationText = SpellRequiresConcentration(character, spell) ? "; Concentration" : string.Empty;
+                inputBuilder.AppendLine($"- {spell.SpellName} ({levelText}; {preparedText}; source {spell.SourceTag}{concentrationText})");
             }
         }
 
@@ -532,6 +542,23 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
         }
 
+        var concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine("CONCENTRATION STATE (SERVER-AUTHORITATIVE):");
+        if (concentrationState.Count == 0)
+        {
+            inputBuilder.AppendLine("- No party concentration state is available.");
+        }
+        else
+        {
+            foreach (var concentration in concentrationState)
+            {
+                inputBuilder.AppendLine(concentration.Active
+                    ? $"- {concentration.CharacterName}: Concentrating on {concentration.SpellName} (Level {concentration.SpellLevel})."
+                    : $"- {concentration.CharacterName}: None.");
+            }
+        }
+        inputBuilder.AppendLine();
+
         var actionEconomyState = await GetActionEconomyForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine("ACTION ECONOMY STATE:");
         if (actionEconomyState.Count == 0)
@@ -576,6 +603,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildSpendActionResourceTool(),
             BuildDashActionTool(),
             BuildUseActionSurgeTool(),
+            BuildStartConcentrationTool(),
+            BuildEndConcentrationTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
@@ -732,10 +761,13 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                             call.ArgumentsJson, "condition application");
                         var result = await ApplyConditionAsync(campaign.CampaignId, args);
                         conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
+                        concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+                        var concentrationAfterCondition = concentrationState.FirstOrDefault(c =>
+                            c.CharacterName.Equals(args.TargetName, StringComparison.OrdinalIgnoreCase));
                         stateAudits.Add(new GameMasterStateAudit(
                             "Condition",
                             $"{args.TargetName}: +{ConditionRulesService.Title(args.ConditionName)} ({args.SourceName})"));
-                        toolResult = result;
+                        toolResult = new { condition = result, concentration = concentrationAfterCondition };
                         break;
                     }
                     case "remove_condition":
@@ -774,6 +806,29 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var result = await UseActionSurgeAsync(campaign.CampaignId, args);
                         stateAudits.Add(new GameMasterStateAudit("Action Economy",
                             $"{args.CharacterName} used Action Surge."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "start_concentration":
+                    {
+                        var args = DeserializeArguments<StartConcentrationToolArguments>(call.ArgumentsJson, "concentration start");
+                        var spell = ValidateConcentrationSpell(character, spells, args.SpellName);
+                        var result = await StartConcentrationAsync(
+                            campaign.CampaignId, character.CharacterName, spell, args.Reason);
+                        concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Concentration", $"{character.CharacterName} began concentrating on {spell.SpellName}."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "end_concentration":
+                    {
+                        var args = DeserializeArguments<EndConcentrationToolArguments>(call.ArgumentsJson, "concentration end");
+                        var result = await EndConcentrationAsync(
+                            campaign.CampaignId, character.CharacterName, args.Reason);
+                        concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Concentration", $"{character.CharacterName} ended concentration ({CleanReason(args.Reason, "effect ended")})."));
                         toolResult = result;
                         break;
                     }
@@ -1137,10 +1192,22 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var args = DeserializeArguments<UpdateCharacterHpToolArguments>(call.ArgumentsJson, "character HP update");
                         args.HpDelta = ConditionRulesService.ApplyPetrifiedDamageResistance(
                             conditionState, "character", args.CharacterName, args.HpDelta);
+                        var concentrationBeforeDamage = concentrationState.FirstOrDefault(c =>
+                            c.CharacterName.Equals(args.CharacterName, StringComparison.OrdinalIgnoreCase));
                         var result = await UpdateCharacterHpAsync(campaign.CampaignId,args);
                         conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
+                        concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+                        var concentrationAfterDamage = concentrationState.FirstOrDefault(c =>
+                            c.CharacterName.Equals(result.CharacterName, StringComparison.OrdinalIgnoreCase));
                         stateAudits.Add(new GameMasterStateAudit("Combat", $"{result.CharacterName}: HP {result.CurrentHp}/{result.MaxHp} ({(args.HpDelta >= 0 ? "+" : string.Empty)}{args.HpDelta})"));
-                        toolResult = new { authoritative=true, action="update_character_hp", result.CharacterName, result.CurrentHp, result.MaxHp, hpDelta=args.HpDelta, result.Reason };
+                        if (args.HpDelta < 0 && concentrationBeforeDamage?.Active == true)
+                        {
+                            var resolution = concentrationAfterDamage is not null && concentrationAfterDamage.LastSaveDc.HasValue
+                                ? $"Concentration save {(concentrationAfterDamage.LastSuccess == true ? "succeeded" : "failed")}: {concentrationAfterDamage.LastTotal} vs DC {concentrationAfterDamage.LastSaveDc}."
+                                : $"Concentration ended: {concentrationAfterDamage?.EndReason ?? "automatic concentration termination"}";
+                            stateAudits.Add(new GameMasterStateAudit("Concentration", resolution));
+                        }
+                        toolResult = new { authoritative=true, action="update_character_hp", result.CharacterName, result.CurrentHp, result.MaxHp, hpDelta=args.HpDelta, result.Reason, concentration=concentrationAfterDamage };
                         break;
                     }
                     case "mark_character_dead":
@@ -1150,8 +1217,11 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         if (result.TryGetProperty("combat_advanced", out var advancedState) && advancedState.ValueKind == JsonValueKind.Object &&
                             advancedState.TryGetProperty("combat_ended", out var deathEnded) && deathEnded.ValueKind == JsonValueKind.True)
                             combatEndedDuringTurn = true;
+                        concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
+                        var concentrationAfterDeath = concentrationState.FirstOrDefault(c =>
+                            c.CharacterName.Equals(args.CharacterName, StringComparison.OrdinalIgnoreCase));
                         stateAudits.Add(new GameMasterStateAudit("Death", $"{args.CharacterName} died ({CleanReason(args.Cause, "death")})"));
-                        toolResult = result;
+                        toolResult = new { authoritative=true, action="mark_character_dead", result, concentration=concentrationAfterDeath };
                         break;
                     }
                     case "revive_character":
@@ -2270,6 +2340,124 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             additionalProperties=false
         }
     };
+    // RULES BUILD 6.19.3 - CONCENTRATION TOOLS / TRUSTED STATE
+    private static object BuildStartConcentrationTool() => new
+    {
+        type="function",
+        name="start_concentration",
+        description="Start concentration for the current player character when a valid spell in CURRENT SPELLBOOK is authoritatively marked Concentration. Starting a new one atomically replaces the old concentration.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                spellName=new { type="string", description="Exact spell name from CURRENT SPELLBOOK." },
+                reason=new { type="string", description="Short reason confirming the valid concentration spell casting began." }
+            },
+            required=new[]{"spellName","reason"},
+            additionalProperties=false
+        }
+    };
+
+    private static object BuildEndConcentrationTool() => new
+    {
+        type="function",
+        name="end_concentration",
+        description="End the current player character's concentration voluntarily or because the tracked spell/effect duration or an explicit ending condition has ended. Incapacitation, 0 HP, death, and damage saves are automatic and do not use this tool.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                reason=new { type="string", description="Why concentration ended, e.g. voluntarily dropped or spell duration ended." }
+            },
+            required=new[]{"reason"},
+            additionalProperties=false
+        }
+    };
+
+    private async Task<List<ConcentrationForGm>> GetConcentrationForGmAsync(Guid campaignId)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_get_concentration_state",
+            new { p_campaign_id = campaignId },
+            "Unable to load concentration state");
+        return JsonSerializer.Deserialize<List<ConcentrationForGm>>(raw, JsonOptions) ?? new();
+    }
+
+    private static bool SpellRequiresConcentration(DiscordCharacterInfo character, DiscordSpellInfo spell)
+    {
+        var reference = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level)
+            .FirstOrDefault(s =>
+                s.Name.Equals(spell.SpellName, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(s.PhbTitle) &&
+                 s.PhbTitle.Equals(spell.SpellName, StringComparison.OrdinalIgnoreCase)));
+        return reference?.Concentration == true;
+    }
+
+    private static DiscordSpellInfo ValidateConcentrationSpell(
+        DiscordCharacterInfo character,
+        IReadOnlyList<DiscordSpellInfo> spells,
+        string? requestedSpellName)
+    {
+        var requested = (requestedSpellName ?? string.Empty).Trim();
+        if (requested.Length == 0)
+            throw new InvalidOperationException("A concentration spell name is required.");
+
+        var spell = spells.FirstOrDefault(s =>
+            s.SpellName.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"{character.CharacterName} does not have {requested} in the current spellbook.");
+
+        if (spell.SpellLevel > 0 && !spell.Prepared)
+            throw new InvalidOperationException($"{spell.SpellName} is not currently prepared/available.");
+
+        if (!SpellRequiresConcentration(character, spell))
+            throw new InvalidOperationException($"{spell.SpellName} is not marked as a Concentration spell in the authoritative spell catalog.");
+
+        return spell;
+    }
+
+    private async Task<JsonElement> StartConcentrationAsync(
+        Guid campaignId,
+        string characterName,
+        DiscordSpellInfo spell,
+        string? reason)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_start_concentration",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_name = characterName,
+                p_spell_name = spell.SpellName,
+                p_spell_level = spell.SpellLevel,
+                p_reason = CleanReason(reason, "Concentration spell casting began")
+            },
+            "Unable to start concentration");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> EndConcentrationAsync(
+        Guid campaignId,
+        string characterName,
+        string? reason)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_end_concentration",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_name = characterName,
+                p_reason = CleanReason(reason, "Concentration ended")
+            },
+            "Unable to end concentration");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
     private async Task<CharacterExhaustionForGm?> GetCharacterExhaustionAsync(Guid campaignId, string actorName)
     {
         if (string.IsNullOrWhiteSpace(actorName)) return null;
@@ -3916,6 +4104,38 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string ConditionName { get; set; } = string.Empty;
         public string SourceName { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class StartConcentrationToolArguments
+    {
+        public string SpellName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class EndConcentrationToolArguments
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class ConcentrationForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("active")] public bool Active { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("spell_name")] public string SpellName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("spell_level")] public int SpellLevel { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("started_at")] public DateTimeOffset? StartedAt { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ended_at")] public DateTimeOffset? EndedAt { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("end_reason")] public string EndReason { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("last_damage")] public int? LastDamage { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_save_dc")] public int? LastSaveDc { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_roll_1")] public int? LastRoll1 { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_roll_2")] public int? LastRoll2 { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_kept_roll")] public int? LastKeptRoll { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_modifier")] public int? LastModifier { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_total")] public int? LastTotal { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_success")] public bool? LastSuccess { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("last_check_at")] public DateTimeOffset? LastCheckAt { get; set; }
     }
 
     private sealed class AdjustExhaustionToolArguments

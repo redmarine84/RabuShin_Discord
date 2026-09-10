@@ -1617,6 +1617,46 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/stable-recovery", async
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+// RULES BUILD 6.19.3 - CONCENTRATION SYSTEM
+app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/concentration", async (
+    Guid campaignId,
+    HttpRequest request,
+    DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var rows = await service.GetConcentrationStateAsync(playerId, campaignId);
+        return Results.Ok(new
+        {
+            success = true,
+            concentration = rows.Select(state => new
+            {
+                characterId = state.CharacterId,
+                characterName = state.CharacterName,
+                active = state.Active,
+                spellName = state.SpellName,
+                spellLevel = state.SpellLevel,
+                startedAt = state.StartedAt,
+                endedAt = state.EndedAt,
+                endReason = state.EndReason,
+                lastDamage = state.LastDamage,
+                lastSaveDc = state.LastSaveDc,
+                lastRoll1 = state.LastRoll1,
+                lastRoll2 = state.LastRoll2,
+                lastKeptRoll = state.LastKeptRoll,
+                lastModifier = state.LastModifier,
+                lastTotal = state.LastTotal,
+                lastSuccess = state.LastSuccess,
+                lastCheckAt = state.LastCheckAt
+            }).ToList()
+        });
+    }
+    catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 // RULES BUILD 6.19 - CURRENT PARTY / MONSTER CONDITIONS
 app.MapGet("/game-api/campaigns/{campaignId:guid}/combat/conditions", async (
     Guid campaignId,
