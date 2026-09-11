@@ -1,6 +1,7 @@
 import { DiscordSDK } from '@discord/embedded-app-sdk';
 import './style.css';
 import './conditions.css'; // RULES BUILD 6.19 - condition badges
+import { mountFinalGameplayInventoryPanels, handleFinalEquipmentToggle } from './final-gameplay-ui.js'; // BUILDS 6.22-6.23
 
 const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
@@ -4102,7 +4103,30 @@ async function refreshPartyData() {
   } catch(error) { showNotice(error.message,true); }
 }
 
+function finalGameplayContext() {
+  return {
+    campaignId:currentCampaignId,
+    gameData:currentGameData,
+    selectedInventoryId,
+    api,showNotice,escapeHtml,
+    isSolo:isSoloCampaign(),
+    refreshInventory:async()=>{const payload=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);applyInventoryPayload(payload);},
+    syncArmorClass:armorClass=>{
+      if(currentGameData?.character)currentGameData.character.armorClass=Number(armorClass)||10;
+      const id=String(currentGameData?.character?.characterId||'');
+      const partyMember=(currentGameData?.party||[]).find(p=>String(p.characterId||'')===id);
+      if(partyMember)partyMember.armorClass=Number(armorClass)||10;
+    },
+    rerender:renderInventoryTab
+  };
+}
+
 function renderInventoryTab() {
+  renderInventoryTabLegacy();
+  void mountFinalGameplayInventoryPanels(finalGameplayContext());
+}
+
+function renderInventoryTabLegacy() {
   const items=currentGameData.inventory||[],view=document.querySelector('#gameView');
   if(items.length && !items.some(i=>i.inventoryItemId===selectedInventoryId)) selectedInventoryId=items[0].inventoryItemId;
   if(!items.length) selectedInventoryId=null;
@@ -4200,6 +4224,7 @@ async function refreshInventoryData() {
 }
 
 async function toggleInventoryEquip(item) {
+  if(await handleFinalEquipmentToggle(finalGameplayContext(),item))return;
   try {
     const data=await api(`/game-api/campaigns/${currentCampaignId}/inventory/${item.inventoryItemId}/equip`,{method:'POST'});
     showNotice(data.message||`${item.itemName} updated.`);

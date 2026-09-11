@@ -170,6 +170,22 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE â€” SERVER-AUTHORITATIVE:
 - For every roll_dice call, actorName MUST be the exact party character OR active monster display name when a creature rolls; use an empty string only for non-creature/random rolls. targetName MUST be the exact target when one exists. rollType, ability, distanceFeet, sensoryBasis, sourceVisible, and requiresAction MUST accurately describe the roll so the server can enforce Conditions and Exhaustion.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
+CRAFTING / HARVESTING â€” RULES BUILD 6.22 / SERVER-AUTHORITATIVE:
+- Harvested monster anatomy comes only from the existing authoritative corpse-loot system. Pelts, hides, scales, meat, claws, fangs, bones, chitin, shells, venom glands/sacs, herbs, and similar materials become crafting inputs after they are actually acquired. Never invent harvested materials or skip take_loot_from_source.
+- Crafting consumes real inventory ingredients through the Build 6.22 crafting engine. Never narrate a permanent crafted item into existence merely because the player says they made it.
+- Prepared Monster Meat Rations (1 day) use the existing ration portion system after they enter Inventory.
+
+EQUIPMENT LOADOUT â€” RULES BUILD 6.22.1 / SERVER-AUTHORITATIVE:
+- Equipped status now comes from named equipment slots: Armor, Shield, Main Hand, Off Hand, Ranged, Ammunition, Head, Neck, Hands, Feet, Rings, and Accessories. CURRENT INVENTORY Equipped flags reflect those slots.
+- Only a weapon that is actually equipped in a weapon slot is a normal ready weapon attack. A carried but unequipped longsword is not a ready longsword attack. Unarmed/improvised actions remain possible under normal D&D rules.
+- A weapon with the Ammunition property also requires compatible ammunition in the Ammunition slot to be ready for that ammunition attack.
+- Armor Class is derived from equipped armor, shield, Dexterity limits, natural/unarmored defense, and applicable equipment bonuses. Never keep a shield bonus after the shield is unequipped or removed.
+- Do not invent weapon damage dice, ranges, armor values, or equipment bonuses. Use authoritative inventory/equipment rules.
+
+SOLO PARTY FORMATIONS â€” RULES BUILD 6.23:
+- Solo campaigns may select Front Line, Defensive, Traveling, or Custom formation presets. Initial party token placement is server-controlled and terrain-safe.
+- When stage_combat_tokens is used, do not randomize or manually undo the party formation unless an explicit encounter circumstance requires a different setup. Terrain legality still wins if a requested formation square is blocked.
+
 WORLD MAP / TRAVEL AUTHORITY â€” MANDATORY:
 - The server-supplied WORLD MAP STATE below is authoritative and shared by the entire campaign.
 - Locations marked HIDDEN are not known well enough for fast travel. Do not reveal their names, positions, routes, or existence merely because they appear in campaign canon or in your private world knowledge.
@@ -4394,12 +4410,18 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var monsters=tactical.Tokens.Where(t=>t.EntityType.Equals("monster",StringComparison.OrdinalIgnoreCase)&&!t.Defeated).OrderBy(t=>t.DisplayName).ToList();
         if(characters.Count==0)throw new InvalidOperationException("No party character tokens are available for initial staging.");
 
+        var soloFormation=await GetSoloFormationForGmAsync(campaignId);
+        var formationByCharacter=(soloFormation?.IsSolo==true?soloFormation.Members:new List<SoloFormationPositionForGm>())
+            .ToDictionary(x=>x.CharacterId,x=>x);
+
         var anchor=TacticalTerrainCatalog.FindInitialPartyAnchor(localMap.LocationKey,doors,occupied,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
         for(var i=0;i<characters.Count;i++)
         {
             var token=characters[i];
             TacticalSpawnPoint point;
-            if(i==0) point=anchor;
+            if(token.CharacterId is Guid formationCharacterId && formationByCharacter.TryGetValue(formationCharacterId,out var formationPosition))
+                point=TacticalTerrainCatalog.FindInitialFormationSpawn(localMap.LocationKey,anchor.GridX,anchor.GridY,formationPosition.OffsetX,formationPosition.OffsetY,doors,occupied,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
+            else if(i==0) point=anchor;
             else point=TacticalTerrainCatalog.FindInitialSpawnNear(localMap.LocationKey,anchor.GridX,anchor.GridY,5,Math.Min(15,5+i*5),doors,occupied,true,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
             occupied.Add((point.GridX,point.GridY));
             characterPositions[token.DisplayName]=point;
@@ -4446,6 +4468,37 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         using var doc=JsonDocument.Parse(raw);
         var positioned=doc.RootElement.TryGetProperty("positioned",out var count)&&count.TryGetInt32(out var n)?n:positions.Count;
         return new CombatStagingResult(positioned,reason,positions);
+    }
+
+    // RULES BUILD 6.23 - SOLO PARTY FORMATIONS
+    private sealed class SoloFormationForGm
+    {
+        public bool IsSolo { get; set; }
+        public string PresetKey { get; set; } = string.Empty;
+        public List<SoloFormationPositionForGm> Members { get; set; } = new();
+    }
+
+    private sealed class SoloFormationPositionForGm
+    {
+        public Guid CharacterId { get; set; }
+        public string CharacterName { get; set; } = string.Empty;
+        public int SlotNo { get; set; }
+        public int OffsetX { get; set; }
+        public int OffsetY { get; set; }
+    }
+
+    private async Task<SoloFormationForGm?> GetSoloFormationForGmAsync(Guid campaignId)
+    {
+        try
+        {
+            var raw=await CallSupabaseRpcAsync("discord_gm_get_solo_formation",new { p_campaign_id=campaignId },"Unable to load Solo party formation");
+            return JsonSerializer.Deserialize<SoloFormationForGm>(raw,JsonOptions);
+        }
+        catch
+        {
+            // Safe pre-migration/default behavior: existing terrain-aware staging remains unchanged.
+            return null;
+        }
     }
 
     private async Task<TacticalCombatForGm?> GetTacticalCombatStateForGmAsync(Guid campaignId)

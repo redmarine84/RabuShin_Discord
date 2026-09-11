@@ -17,6 +17,16 @@ public static class InventoryPresentationService
         "pants", "trousers", "dress", "skirt", "vest", "hood", "hat", "scarf"
     };
 
+    private static readonly string[] AccessoryWords =
+    {
+        "ring", "amulet", "necklace", "pendant", "brooch", "bracelet", "charm", "talisman", "belt"
+    };
+
+    private static readonly string[] AmmunitionWords =
+    {
+        "arrow", "arrows", "bolt", "bolts", "bullet", "bullets", "needle", "needles", "ammunition"
+    };
+
     private static readonly string[] ConsumableWords =
     {
         "potion", "elixir", "tonic", "antitoxin", "antidote", "scroll", "ration", "food",
@@ -73,6 +83,19 @@ public static class InventoryPresentationService
             RulesSummary = rulesSummary.Trim(),
             CanEquip = CanEquip(item),
             CanUse = CanUse(item),
+            DamageDice = item.DamageDice ?? string.Empty,
+            VersatileDamageDice = item.VersatileDamageDice ?? string.Empty,
+            DamageType = item.DamageType ?? string.Empty,
+            WeaponProperties = item.WeaponProperties ?? string.Empty,
+            NormalRangeFeet = item.NormalRangeFeet,
+            LongRangeFeet = item.LongRangeFeet,
+            AttackBonus = item.AttackBonus,
+            DamageBonus = item.DamageBonus,
+            ArmorClassBase = item.ArmorClassBase,
+            ArmorClassBonus = item.ArmorClassBonus,
+            MaxDexBonus = item.MaxDexBonus,
+            StrengthRequirement = item.StrengthRequirement,
+            StealthDisadvantage = item.StealthDisadvantage,
             ItemData = info.ItemData
         };
     }
@@ -101,7 +124,8 @@ public static class InventoryPresentationService
                type.Equals("Armor", StringComparison.OrdinalIgnoreCase) ||
                type.Equals("Shield", StringComparison.OrdinalIgnoreCase) ||
                type.Equals("Helmet", StringComparison.OrdinalIgnoreCase) ||
-               type.Equals("Clothing", StringComparison.OrdinalIgnoreCase);
+               type.Equals("Accessory", StringComparison.OrdinalIgnoreCase) ||
+               type.Equals("Ammunition", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool CanUse(InventoryItem item)
@@ -121,6 +145,9 @@ public static class InventoryPresentationService
 
         if (explicitType.Equals("Consumable", StringComparison.OrdinalIgnoreCase)) return "Consumable";
         if (ConsumableWords.Any(lower.Contains)) return "Consumable";
+        if (AmmunitionWords.Any(lower.Contains) || explicitType.Equals("Ammunition", StringComparison.OrdinalIgnoreCase)) return "Ammunition";
+        if (explicitType.Equals("Accessory", StringComparison.OrdinalIgnoreCase) ||
+            (string.IsNullOrWhiteSpace(explicitType) && AccessoryWords.Any(lower.Contains) && !lower.Contains("ring mail"))) return "Accessory";
 
         var inferred = string.IsNullOrWhiteSpace(explicitType)
             ? EquipmentReferenceService.InferItemType(name)
@@ -143,7 +170,15 @@ public static class InventoryPresentationService
     private static string InferDiscordSlot(string itemType, string itemName)
     {
         var lower = (itemName ?? string.Empty).ToLowerInvariant();
-        if (itemType.Equals("Weapon", StringComparison.OrdinalIgnoreCase)) return "Hand";
+        if (itemType.Equals("Ammunition", StringComparison.OrdinalIgnoreCase)) return "Ammunition";
+        if (itemType.Equals("Accessory", StringComparison.OrdinalIgnoreCase))
+        {
+            if (lower.Contains("ring")) return "Ring";
+            if (lower.Contains("amulet") || lower.Contains("necklace") || lower.Contains("pendant") || lower.Contains("brooch")) return "Neck";
+            return "Accessory";
+        }
+        if (itemType.Equals("Weapon", StringComparison.OrdinalIgnoreCase))
+            return lower.Contains("bow") || lower.Contains("crossbow") || lower.Contains("sling") ? "Ranged" : "Hand";
         if (itemType.Equals("Shield", StringComparison.OrdinalIgnoreCase)) return "Off Hand";
         if (itemType.Equals("Helmet", StringComparison.OrdinalIgnoreCase)) return "Head";
         if (itemType.Equals("Clothing", StringComparison.OrdinalIgnoreCase)) return "Body";
@@ -185,6 +220,7 @@ public static class InventoryPresentationService
 
         item.Weight = ReadDecimal(data, "weight");
         item.ItemType = ReadString(data, "item_type", "itemType");
+        if (item.ItemType.Equals("General", StringComparison.OrdinalIgnoreCase)) item.ItemType = string.Empty;
         item.EquipmentSlot = ReadString(data, "equipment_slot", "equipmentSlot");
         item.Rarity = ReadString(data, "rarity");
         if (string.IsNullOrWhiteSpace(item.Rarity)) item.Rarity = "Common";
@@ -284,5 +320,18 @@ public sealed class InventoryClientItem
     public string RulesSummary { get; set; } = string.Empty;
     public bool CanEquip { get; set; }
     public bool CanUse { get; set; }
+    public string DamageDice { get; set; } = string.Empty;
+    public string VersatileDamageDice { get; set; } = string.Empty;
+    public string DamageType { get; set; } = string.Empty;
+    public string WeaponProperties { get; set; } = string.Empty;
+    public int NormalRangeFeet { get; set; }
+    public int LongRangeFeet { get; set; }
+    public int AttackBonus { get; set; }
+    public int DamageBonus { get; set; }
+    public int ArmorClassBase { get; set; }
+    public int ArmorClassBonus { get; set; }
+    public int MaxDexBonus { get; set; } = -1;
+    public int StrengthRequirement { get; set; }
+    public bool StealthDisadvantage { get; set; }
     public JsonElement ItemData { get; set; }
 }

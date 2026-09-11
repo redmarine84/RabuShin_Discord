@@ -11,6 +11,7 @@ Environment.SetEnvironmentVariable("DOTNET_USE_POLLING_FILE_WATCHER", "1");
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient<DiscordSupabaseService>();
+builder.Services.AddHttpClient<FinalGameplaySystemsService>();
 builder.Services.AddHttpClient<DiscordOAuthService>();
 builder.Services.AddHttpClient<OpenAiGameMasterService>();
 builder.Services.AddSingleton<ApiKeyEncryptionService>();
@@ -2123,6 +2124,143 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
                 overCapacity = encumbrance.OverCapacity
             }
         });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+// RULES BUILDS 6.22 / 6.22.1 / 6.23 - CRAFTING, EQUIPMENT LOADOUT, SOLO FORMATIONS
+app.MapGet("/game-api/campaigns/{campaignId:guid}/crafting", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var crafting = await systems.GetCraftingStateAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, crafting });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/crafting/craft", async (
+    Guid campaignId, CraftRecipeRequest body, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await systems.CraftAsync(playerId, campaignId, body?.RecipeKey ?? string.Empty);
+        var crafting = await systems.GetCraftingStateAsync(playerId, campaignId);
+        var message = result.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String
+            ? messageValue.GetString()
+            : "Crafting complete.";
+        return Results.Ok(new { success = true, message, craftResult = result, crafting });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/equipment", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var character = await service.GetCharacterAsync(playerId, campaignId);
+        if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var slots = await systems.GetEquipmentSlotsAsync(playerId, campaignId);
+        var equipment = EquipmentLoadoutRulesService.Build(character, inventory, slots);
+        if (character.ArmorClass != equipment.ArmorClass)
+            await systems.PersistArmorClassAsync(playerId, campaignId, equipment.ArmorClass);
+        return Results.Ok(new { success = true, equipment });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/equipment/equip", async (
+    Guid campaignId, EquipmentEquipRequest body, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var character = await service.GetCharacterAsync(playerId, campaignId)
+            ?? throw new InvalidOperationException("Character could not be found.");
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var rawItem = inventory.FirstOrDefault(x => x.InventoryItemId == body.InventoryItemId)
+            ?? throw new InvalidOperationException("Inventory item could not be found.");
+        var item = InventoryPresentationService.ToClientItem(rawItem);
+        if (!item.CanEquip) throw new InvalidOperationException($"{item.ItemName} is not equippable.");
+        if (!EquipmentLoadoutRulesService.IsSlotEligible(item, body.SlotKey))
+            throw new InvalidOperationException($"{item.ItemName} cannot be equipped in {body.SlotKey}.");
+        await systems.SetEquipmentSlotAsync(playerId, campaignId, body.InventoryItemId, body.SlotKey, EquipmentLoadoutRulesService.MechanicsFor(item));
+        inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var slots = await systems.GetEquipmentSlotsAsync(playerId, campaignId);
+        var equipment = EquipmentLoadoutRulesService.Build(character, inventory, slots);
+        await systems.PersistArmorClassAsync(playerId, campaignId, equipment.ArmorClass);
+        return Results.Ok(new
+        {
+            success = true,
+            message = $"{item.ItemName} equipped in {body.SlotKey.Replace('_',' ')}.",
+            equipment,
+            inventory = inventory.Select(InventoryPresentationService.ToClientItem).ToList()
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/equipment/unequip", async (
+    Guid campaignId, EquipmentUnequipRequest body, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var character = await service.GetCharacterAsync(playerId, campaignId)
+            ?? throw new InvalidOperationException("Character could not be found.");
+        var cleared = await systems.ClearEquipmentSlotAsync(playerId, campaignId, body?.SlotKey ?? string.Empty);
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var slots = await systems.GetEquipmentSlotsAsync(playerId, campaignId);
+        var equipment = EquipmentLoadoutRulesService.Build(character, inventory, slots);
+        await systems.PersistArmorClassAsync(playerId, campaignId, equipment.ArmorClass);
+        var itemName = cleared.TryGetProperty("itemName", out var itemValue) && itemValue.ValueKind == JsonValueKind.String ? itemValue.GetString() : string.Empty;
+        return Results.Ok(new
+        {
+            success = true,
+            message = string.IsNullOrWhiteSpace(itemName) ? "Equipment slot cleared." : $"{itemName} unequipped.",
+            equipment,
+            inventory = inventory.Select(InventoryPresentationService.ToClientItem).ToList()
+        });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapGet("/game-api/campaigns/{campaignId:guid}/formation", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var formation = await systems.GetFormationStateAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, formation });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/formation", async (
+    Guid campaignId, FormationSaveRequest body, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var formation = await systems.SetFormationAsync(playerId, campaignId, body?.PresetKey ?? "traveling", body?.CustomOffsets);
+        var label = formation.TryGetProperty("presetLabel", out var labelValue) && labelValue.ValueKind == JsonValueKind.String
+            ? labelValue.GetString()
+            : "Formation";
+        return Results.Ok(new { success = true, message = $"{label} formation saved.", formation });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });

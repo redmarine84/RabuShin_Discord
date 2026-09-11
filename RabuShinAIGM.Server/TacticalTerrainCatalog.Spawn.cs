@@ -67,6 +67,42 @@ public static partial class TacticalTerrainCatalog
         return new TacticalSpawnPoint(best.X, best.Y, 0, "open party anchor");
     }
 
+    // RULES BUILD 6.23 - terrain-safe party formation offset.
+    public static TacticalSpawnPoint FindInitialFormationSpawn(
+        string locationKey,
+        int anchorX,
+        int anchorY,
+        int offsetX,
+        int offsetY,
+        IReadOnlyDictionary<int, bool>? doorStates = null,
+        IReadOnlySet<(int X, int Y)>? occupiedSquares = null,
+        bool allowDifficultTerrain = false,
+        bool allowHalfCover = false)
+    {
+        _ = Find(locationKey)
+            ?? throw new InvalidOperationException($"No tactical terrain definition exists for '{locationKey}'.");
+
+        var desiredX = Math.Clamp(anchorX + offsetX, 0, GridColumns - 1);
+        var desiredY = Math.Clamp(anchorY + offsetY, 0, GridRows - 1);
+        var candidates = new List<(int X, int Y, int DesiredDistance, int AnchorDistance)>();
+        for (var y = 0; y < GridRows; y++)
+        {
+            for (var x = 0; x < GridColumns; x++)
+            {
+                if (occupiedSquares?.Contains((x, y)) == true) continue;
+                if (!IsSafeInitialSpawnSquare(locationKey, x, y, doorStates, allowDifficultTerrain, allowHalfCover)) continue;
+                var path = FindPath(locationKey, anchorX, anchorY, x, y, doorStates, null);
+                if (!path.Success) continue;
+                candidates.Add((x, y, Chebyshev(desiredX, desiredY, x, y), path.CostFt));
+            }
+        }
+        if (candidates.Count == 0)
+            throw new InvalidOperationException($"No safe formation square could be found on '{locationKey}'.");
+        var best = candidates.OrderBy(c => c.DesiredDistance).ThenBy(c => c.AnchorDistance).ThenBy(c => c.Y).ThenBy(c => c.X).First();
+        return new TacticalSpawnPoint(best.X, best.Y, best.AnchorDistance,
+            $"party formation offset {offsetX:+#;-#;0},{offsetY:+#;-#;0}; nearest terrain-reachable square");
+    }
+
     public static TacticalSpawnPoint FindInitialSpawnNear(
         string locationKey,
         int targetX,
