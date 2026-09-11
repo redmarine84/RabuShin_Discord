@@ -2819,7 +2819,36 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/combat/death-save", async (
 
         var roll = DeathSaveRulesService.RollD20();
         var result = await service.ResolveDeathSaveAsync(player, campaignId, roll);
+        DeathSaveStateRow? persistedState = null;
+        try
+        {
+            persistedState = await service.GetDeathSaveStateAsync(player, campaignId);
+            if (persistedState is not null &&
+                persistedState.CharacterId == result.CharacterId &&
+                !result.Dead &&
+                !result.Outcome.Equals("natural_20", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Successes = persistedState.Successes;
+                result.Failures = persistedState.Failures;
+                result.Stable = persistedState.Stable;
+            }
+        }
+        catch (Exception verifyError)
+        {
+            Console.Error.WriteLine($"Death-save persistence verification warning: {verifyError.Message}");
+        }
+
         var message = DeathSaveRulesService.Summary(result);
+
+        try
+        {
+            await service.AddMessageAsync(
+                player, campaignId, "gm", "assistant", "RabuShin AI GM", message);
+        }
+        catch (Exception logError)
+        {
+            Console.Error.WriteLine($"Death-save result history warning: {logError.Message}");
+        }
 
         return Results.Ok(new
         {

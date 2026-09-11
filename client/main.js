@@ -2535,7 +2535,25 @@ function updateGmTurnUi() {
     const failures=Math.max(0,Math.min(3,Number(deathSave.failures)||0));
     const successPips=`${'\u25CF'.repeat(successes)}${'\u25CB'.repeat(3-successes)}`;
     const failurePips=`${'\u25CF'.repeat(failures)}${'\u25CB'.repeat(3-failures)}`;
-    const tracker=`<span class="death-save-track"><b>Death Saves</b> <span class="death-save-success">Success ${successPips}</span> <span class="death-save-failure">Failure ${failurePips}</span></span>`;
+    const lastRollRaw=deathSave.lastRoll??deathSave.last_roll??null;
+    const lastResultKey=String(deathSave.lastResult??deathSave.last_result??'').toLowerCase();
+    const lastResultLabels={
+      success:'SUCCESS',
+      failure:'FAILURE',
+      natural_1_failure:'NAT 1 - TWO FAILURES',
+      natural_20:'NAT 20 - 1 HP',
+      stabilized:'STABILIZED',
+      dead:'DEAD',
+      damage_at_zero:'DAMAGE AT 0 HP - FAILURE',
+      damage_at_zero_critical:'CRITICAL DAMAGE AT 0 HP - TWO FAILURES'
+    };
+    const lastResultLabel=lastResultLabels[lastResultKey]||'';
+    const hasLastRoll=lastRollRaw!==null&&lastRollRaw!==undefined&&String(lastRollRaw)!=='';
+    const lastRollNumber=Number(lastRollRaw);
+    const lastSaveMarkup=lastResultLabel
+      ? `<span class="death-save-last">Last: ${hasLastRoll&&Number.isFinite(lastRollNumber)?`d20 ${lastRollNumber} - `:''}${escapeHtml(lastResultLabel)}</span>`
+      : '';
+    const tracker=`<span class="death-save-track"><b>Death Saves</b> <span class="death-save-success">Success ${successPips}</span> <span class="death-save-failure">Failure ${failurePips}</span>${lastSaveMarkup}</span>`;
 
     if(deathSave.stable) {
       status.innerHTML=`${tracker}<span><b>Stable at 0 HP.</b>${combatActive&&deathSaveTurn?' End Turn when ready.':' Awaiting healing or another effect.'}</span>`;
@@ -3704,6 +3722,26 @@ function renderGameMasterTab() {
       if(deathSaveRequired&&deathSaveTurn) {
         const saveResult=await api(`/game-api/campaigns/${currentCampaignId}/combat/death-save`,{method:'POST'});
         const resolved=saveResult?.deathSave||null;
+        if(resolved&&gmCombatTurnState) {
+          const previous=gmCombatTurnState.deathSave||{};
+          const resolvedActive=!resolved.dead&&String(resolved.outcome||'').toLowerCase()!=='natural_20';
+          gmCombatTurnState.deathSave={
+            ...previous,
+            active:resolvedActive,
+            successes:Math.max(0,Math.min(3,Number(resolved.successes)||0)),
+            failures:Math.max(0,Math.min(3,Number(resolved.failures)||0)),
+            stable:!!resolved.stable,
+            lastRoll:resolved.roll??null,
+            lastResult:String(resolved.outcome||''),
+            last_roll:resolved.roll??null,
+            last_result:String(resolved.outcome||''),
+            requiresSave:false,
+            requires_save:false,
+            resolvedThisRound:true,
+            resolved_this_round:true
+          };
+          updateGmTurnUi();
+        }
         if(resolved?.message)showNotice(resolved.message,!!resolved.dead);
 
         if(resolved?.outcome==='natural_20') {
