@@ -91,6 +91,7 @@ function renderFinalSystems(shell, context, state) {
   bindEquipmentPanel(shell, context, state);
   bindCraftingPanel(shell, context, state);
   if (context.isSolo) bindFormationPanel(shell, context, state);
+  hydrateEquipmentPortrait(shell, context);
 }
 
 function renderEquipmentPanel(context, equipment) {
@@ -105,7 +106,7 @@ function renderEquipmentPanel(context, equipment) {
     <div class="rs-system-heading"><div><span class="rs-eyebrow">BUILD 6.22.1</span><h3>Equipment Loadout</h3><p>Equipped gear directly drives Armor Class and available weapon attacks.</p></div><div class="rs-ac-medallion"><span>ARMOR CLASS</span><b>${Number(equipment.armorClass)||10}</b></div></div>
     <div class="rs-loadout-stage">
       <div class="rs-slot-column">${column(leftKeys)}</div>
-      <div class="rs-loadout-core" aria-label="Character equipment crest"><div class="rs-crest-ring"><div class="rs-crest-mark">RS</div></div><strong>${context.escapeHtml(equipment.characterName || context.gameData?.character?.characterName || 'Adventurer')}</strong><small>${context.escapeHtml(equipment.defenseSummary || '')}</small></div>
+      <div class="rs-loadout-core" aria-label="Character equipment crest"><div class="rs-crest-ring" data-rs-equipment-portrait><div class="rs-crest-mark">RS</div><img class="rs-equipment-portrait" alt="${context.escapeHtml(equipment.characterName || context.gameData?.character?.characterName || 'Character')} portrait" hidden></div><strong>${context.escapeHtml(equipment.characterName || context.gameData?.character?.characterName || 'Adventurer')}</strong><small>${context.escapeHtml(equipment.defenseSummary || '')}</small></div>
       <div class="rs-slot-column">${column(rightKeys)}</div>
     </div>
     <div class="rs-attack-strip"><h4>Equipped Attacks</h4>${attacks.length?`<div class="rs-attack-grid">${attacks.map(a=>`<article class="${a.ammunitionReady===false?'unavailable':''}"><b>${context.escapeHtml(a.itemName)}</b><span>Attack ${signed(a.attackBonus)}</span><span>${context.escapeHtml(a.damage)} ${context.escapeHtml(a.damageType||'damage')}</span><small>${context.escapeHtml(a.range||'Melee')}${a.isOffHand?' • Off Hand':''}${a.ammunitionReady===false?` • ${context.escapeHtml(a.availabilityNote||'No ammunition equipped')}`:''}</small></article>`).join('')}</div>`:'<p class="muted">Equip a weapon in Main Hand, Off Hand, or Ranged to make its attack available.</p>'}</div>
@@ -119,6 +120,26 @@ function equipmentSlotCard(context, slot) {
     <span class="rs-slot-copy"><small>${context.escapeHtml(slot.label||humanSlot(slot.slotKey))}</small><b>${context.escapeHtml(slot.itemName||'Empty')}</b></span>
     ${filled?'<span class="rs-slot-remove" title="Unequip">×</span>':''}
   </button>`;
+}
+
+async function hydrateEquipmentPortrait(shell, context) {
+  const ring = shell.querySelector('[data-rs-equipment-portrait]');
+  const image = ring?.querySelector('.rs-equipment-portrait');
+  const character = context.gameData?.character;
+  const characterId = String(character?.characterId || '');
+
+  if (!ring || !image || !characterId || typeof context.loadPortraitObjectUrl !== 'function') return;
+  if (character?.hasPortrait === false) return;
+
+  try {
+    const objectUrl = await context.loadPortraitObjectUrl(characterId);
+    if (!objectUrl || !ring.isConnected || !image.isConnected) return;
+    image.src = objectUrl;
+    image.hidden = false;
+    ring.classList.add('has-portrait');
+  } catch {
+    // Missing/unavailable portrait intentionally leaves the RS crest visible.
+  }
 }
 
 function bindEquipmentPanel(shell, context, state) {

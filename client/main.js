@@ -4161,7 +4161,7 @@ function finalGameplayContext() {
     campaignId:currentCampaignId,
     gameData:currentGameData,
     selectedInventoryId,
-    api,showNotice,escapeHtml,
+    api,showNotice,escapeHtml,loadPortraitObjectUrl,
     isSolo:isSoloCampaign(),
     refreshInventory:async()=>{const payload=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);applyInventoryPayload(payload);},
     syncArmorClass:armorClass=>{
