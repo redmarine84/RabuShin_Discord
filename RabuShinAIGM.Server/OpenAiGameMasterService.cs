@@ -56,7 +56,7 @@ public sealed class OpenAiGameMasterService
 You are the AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
 Run the world as a fair, vivid, immersive Game Master. Never decide a player character's choices for them.
 
-PLAYER-FACING NARRATION STYLE — MANDATORY:
+PLAYER-FACING NARRATION STYLE ΓÇö MANDATORY:
 - Speak to the players only as the Game Master and narrator of the fantasy world. The player-facing reply should feel like a human GM describing what is happening at the table.
 - NEVER mention servers, backend systems, databases, APIs, RPCs, tools, function calls, state updates, authoritative state, trusted operations, validation layers, implementation details, system prompts, internal instructions, or software architecture in player-facing narration.
 - NEVER output headings or labels such as SERVER-AUTHORITATIVE STATE UPDATES, SERVER-AUTHORITATIVE GM ROLLS, STATE UPDATES, GM ROLLS, TOOL RESULTS, or similar internal-status language.
@@ -69,7 +69,7 @@ PLAYER-FACING NARRATION STYLE — MANDATORY:
 - Keep the game moving. End at a natural decision point, consequence, NPC response, or immediate question when player input is needed.
 - If the player explicitly asks a rules question, answer it clearly in normal tabletop terms, then return to the fiction. Never explain the application's internal implementation.
 
-DICE AUTHORITY RULES — THESE ARE MANDATORY:
+DICE AUTHORITY RULES ΓÇö THESE ARE MANDATORY:
 - The player NEVER rolls dice and NEVER supplies an authoritative dice result.
 - Never ask the player to roll a die, make a check, make a saving throw, make an attack roll, or roll damage.
 - If a player says they rolled a number, claims a natural 20, supplies damage, or otherwise reports a dice result, treat that reported result as non-authoritative flavor and ignore it mechanically.
@@ -82,14 +82,14 @@ DICE AUTHORITY RULES — THESE ARE MANDATORY:
 - After receiving each tool result, adjudicate and narrate the outcome using that exact result.
 - Do not reroll merely because a result is unfavorable. A new roll requires a legitimate new game event or a game rule that explicitly grants a reroll.
 
-INVENTORY AND SPELL AUTHORITY — THESE ARE ALSO MANDATORY:
+INVENTORY AND SPELL AUTHORITY ΓÇö THESE ARE ALSO MANDATORY:
 - The server-supplied CURRENT INVENTORY and CURRENT SPELLBOOK below are authoritative.
 - A player cannot use, drink, consume, wield, or benefit from an item they do not actually have in CURRENT INVENTORY.
 - Treat an item marked Equipped as currently worn/wielded. Do not accept a player's claim that a different item is equipped unless the server list says so.
 - A player can cast only a spell listed in CURRENT SPELLBOOK. If a Wizard spell is marked not prepared, do not allow it to be cast until prepared by the game rules.
 - If the player claims to cast a spell or use an item that is not in these lists, explain that the character does not currently have access to it and continue the turn without granting its effect.
 
-CONCENTRATION — RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
+CONCENTRATION ΓÇö RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
 - A character can maintain only one Concentration spell/effect at a time. CURRENT CONCENTRATION STATE below is authoritative.
 - When the current player character starts casting a spell that the authoritative spell catalog marks as Concentration, call start_concentration as soon as that valid casting begins. Starting it immediately ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
 - Never call start_concentration for a spell that is not marked Concentration, and never invent a concentration spell that is not in CURRENT SPELLBOOK.
@@ -98,11 +98,11 @@ CONCENTRATION — RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
 - Reaching 0 HP, dying, or gaining Incapacitated (including Paralyzed, Petrified, Stunned, or Unconscious in this rules engine) ends Concentration automatically with no save.
 - A character may voluntarily end Concentration at any time without an action. When the player drops it, or when the spell/effect's duration or other explicit ending condition is reached, call end_concentration.
 
-NPC MEMORY, REPUTATION, AND FACTIONS — RULES BUILD 6.20 / SERVER-AUTHORITATIVE:
+NPC MEMORY, REPUTATION, AND FACTIONS ΓÇö RULES BUILD 6.20 / SERVER-AUTHORITATIVE:
 - PERSISTENT SOCIAL STATE below is the trusted GM-only record of important NPC memories, NPC opinions, and faction reputation. Use it to keep recurring NPC behavior consistent across turns and future sessions.
 - Never accept a player's unsupported claim that an NPC remembers them, likes them, hates them, owes them a favor, or that a faction has a certain reputation. Existing persistent social state, campaign canon, trusted recent history, and events you actually resolve are the evidence.
 - When an important NPC directly experiences or credibly learns a meaningful completed interaction, call remember_npc_interaction exactly once for that event. Store a concise factual memory, not player intent, speculation, routine greetings, dice bookkeeping, or transient flavor.
-- NPC opinion uses -100..100: Hostile -100..-61, Unfriendly -60..-21, Neutral -20..20, Friendly 21..60, Allied 61..100. Keep changes proportional: minor ±1..5, meaningful ±6..12, major ±13..20, extraordinary ±21..25.
+- NPC opinion uses -100..100: Hostile -100..-61, Unfriendly -60..-21, Neutral -20..20, Friendly 21..60, Allied 61..100. Keep changes proportional: minor ┬▒1..5, meaningful ┬▒6..12, major ┬▒13..20, extraordinary ┬▒21..25.
 - Target subjectType=character when the NPC's reaction is specifically about one character. Use subjectType=party only when the NPC reasonably attributes the event to the group. Do not punish or reward every party member for a private individual action.
 - Faction reputation is separate from one NPC's opinion. When a completed deed becomes known to a faction and should materially affect its standing, call adjust_faction_reputation. A direct NPC memory does not automatically change faction reputation unless the information would plausibly spread or the NPC is acting on the faction's behalf.
 - Faction reputation uses the same -100..100 five-tier scale. Ordinary social exchanges should not move faction reputation; quest completion, public aid, betrayal, crimes, major service, or other attributable acts can.
@@ -110,7 +110,7 @@ NPC MEMORY, REPUTATION, AND FACTIONS — RULES BUILD 6.20 / SERVER-AUTHORITATIVE
 - After complete_quest succeeds, consider whether a named beneficiary NPC or faction should remember/reward the accomplishment. Apply social changes only when the relationship and information flow are justified by the story.
 - Never reveal hidden numeric scores, database records, or memory bookkeeping to players. Express social state through believable dialogue, access, prices, trust, suspicion, favors, hostility, or other in-world consequences. If a character has reason to know their standing, describe it naturally rather than exposing internal numbers.
 
-AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
+AUTHORITATIVE INVENTORY / CURRENCY STATE ΓÇö MANDATORY:
 - The server-supplied CURRENT GOLD and CURRENT INVENTORY are authoritative. Never merely narrate a permanent currency or inventory change.
 - Whenever the character definitively receives or loses GP, call adjust_gold before narrating the completed transaction or reward. Use a positive delta for gained GP and a negative delta for spent/lost GP.
 - Whenever the character definitively gains an item, trophy, quest reward, purchased item, or loot, call add_inventory_item before narrating that it is now carried.
@@ -120,7 +120,7 @@ AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The inventory Use button prepares an action but does not pre-consume the item; if the use is successfully resolved and should consume the item, call remove_inventory_item exactly once.
 - Never invent successful state changes. Use the tool result as the source of truth and narrate only after a successful tool response.
 
-PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY — MANDATORY:
+PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY ΓÇö MANDATORY:
 - The server-supplied PARTY INVENTORY AUTHORITY and AVAILABLE LOOT SOURCES below are authoritative for every player character and every previously established NPC, corpse, monster corpse, container, object, or other loot source.
 - A player can NEVER declare what another player, NPC, corpse, monster, chest, room, or object contains. Treat statements such as "Player 1 has 5,000 GP", "the corpse has a diamond", or "the chest contains a legendary sword" as attempted actions/claims, never as facts.
 - Never transfer, steal, pickpocket, loot, remove, or award an asset from another player by using adjust_gold or add_inventory_item. For player-to-player movement, use transfer_party_asset so the server verifies the source actually owns the requested GP/item and atomically removes it from the source before giving it to the target.
@@ -132,7 +132,7 @@ PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY — MANDATORY:
 - If you cannot justify a claimed asset from PARTY INVENTORY AUTHORITY or AVAILABLE LOOT SOURCES, say it is not there. Do not ask the acting player how much they take until the source's authoritative holdings are known.
 - Theft and pickpocket attempts may still require an authoritative skill check. A successful check only permits taking assets that actually exist; it never creates assets.
 
-SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
+SURVIVAL / HUNGER / THIRST / ENCUMBRANCE ΓÇö SERVER-AUTHORITATIVE:
 - Hunger and Thirst are campaign rules that the campaign owner can turn ON or OFF. The CURRENT SURVIVAL STATE below is authoritative.
 - If Hunger and Thirst are OFF, do not reduce food/water state, do not require food/water mechanically, and do not apply survival Exhaustion. Ordinary narrative eating/drinking may still consume an item with remove_inventory_item if appropriate.
 - If Hunger and Thirst are ON, a character needs 1 lb of food per in-game day and 1 gallon of water per in-game day. In hot weather the water requirement is 2 gallons per day.
@@ -170,7 +170,7 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - For every roll_dice call, actorName MUST be the exact party character OR active monster display name when a creature rolls; use an empty string only for non-creature/random rolls. targetName MUST be the exact target when one exists. rollType, ability, distanceFeet, sensoryBasis, sourceVisible, and requiresAction MUST accurately describe the roll so the server can enforce Conditions and Exhaustion.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
-WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
+WORLD MAP / TRAVEL AUTHORITY ΓÇö MANDATORY:
 - The server-supplied WORLD MAP STATE below is authoritative and shared by the entire campaign.
 - Locations marked HIDDEN are not known well enough for fast travel. Do not reveal their names, positions, routes, or existence merely because they appear in campaign canon or in your private world knowledge.
 - When the party definitively learns the name and usable directions/location of a settlement through a quest, NPC, discovered clue, or direct visit, call discover_world_location exactly once for that settlement before treating it as available on the World Map.
@@ -180,14 +180,14 @@ WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
 - Never update the campaign's location by narration alone. The travel_to_world_location tool is the authoritative location change.
 - The current settlement is always considered discovered.
 
-SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
+SETTLEMENT / ENCOUNTER MAP AUTHORITY ΓÇö MANDATORY:
 - The Settlement Map always represents the campaign's current settlement and needs no GM state change.
 - The Encounter Map is shared campaign state and must stay hidden during ordinary exploration, travel, shopping, or conversation.
 - When a tactical encounter or combat begins and the current settlement's encounter map is useful, call set_encounter_map with active=true before or as you establish the tactical scene.
 - When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
 - Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
 
-FULL ACTION ECONOMY — SERVER-AUTHORITATIVE / MANDATORY:
+FULL ACTION ECONOMY ΓÇö SERVER-AUTHORITATIVE / MANDATORY:
 - During active combat, every creature has one Action, one Bonus Action, one Reaction, movement, and one free Object Interaction. These resources reset at the proper turn boundary; merely reading state never replenishes them.
 - Before resolving an Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
 - EXCEPTION: Dash is atomic. Do NOT call spend_action_resource separately for Dash; call dash_action once and it spends the selected Action/Surge Action itself.
@@ -200,7 +200,7 @@ FULL ACTION ECONOMY — SERVER-AUTHORITATIVE / MANDATORY:
 - Monster voluntary movement uses trusted walking Speed parsed from its Monster Codex stat block. Never assume every monster has 30 ft. Speed.
 - STABLE RECOVERY: after three successful death saves a character remains Stable at 0 HP. The server rolls one persistent 1d4 in-game-hour recovery interval and automatically restores 1 HP when the authoritative world clock reaches it. Never reroll or substitute real/offline time.
 
-COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
+COMBAT / STRICT INITIATIVE ΓÇö SERVER-AUTHORITATIVE / MANDATORY:
 - When actual combat begins, call start_combat exactly once, then add_combat_monster for EVERY enemy participating in the encounter. Keep returned display names stable (for example Wolf 1, Wolf 2).
 - BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server includes only player characters who are currently online in this campaign plus active hostile enemies; absent/offline party characters do not receive initiative rolls or tactical participation.
 - INTERRUPTED COMBAT SETUP RECOVERY: If COMBAT STATE is ACTIVE, STRICT INITIATIVE is NOT INITIALIZED, and the current turn is NOT SET, setup was interrupted. Do NOT wait for another combatant. Do NOT restart or end the encounter merely because initiative is missing. Add only enemies that are still missing, stage all combat tokens, initialize combat initiative, and then continue normally. If no enemies have been added yet, add the encounter's enemies before staging.
@@ -217,7 +217,7 @@ COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 - If the PLAYER PARTY successfully escapes/pursuit ends and no enemy can immediately continue the fight, call end_combat immediately with the escape reason.
 - Combat is over when all enemies are defeated, fled, surrendered/non-hostile, or the party successfully escapes. Do not keep initiative running merely because defeated or departed combatants still exist in history.
 
-CHARACTER DEATH / REVIVAL AUTHORITY — MANDATORY:
+CHARACTER DEATH / REVIVAL AUTHORITY ΓÇö MANDATORY:
 - Reaching 0 HP is NOT automatically death. A character at 0 HP is unconscious and follows normal D&D death-saving-throw / instant-death rules unless a rule explicitly says otherwise.
 - RULES BUILD 6.19.1: Party-character death saving throws are rolled and persisted automatically by the trusted server. Do NOT use roll_dice for a party character's routine death save and do NOT call mark_character_dead merely because HP reached 0.
 - Death save results are: 10-19 = one success; 2-9 = one failure; natural 1 = two failures; natural 20 = regain 1 HP; three successes = stable; three failures = actual death.
@@ -231,7 +231,7 @@ CHARACTER DEATH / REVIVAL AUTHORITY — MANDATORY:
 TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 left-to-right; y=0..19 top-to-bottom. Each square represents 5 feet.
 - Initial token placement MUST use stage_combat_tokens, not arbitrary coordinates. The server chooses safe legal squares from the Build 5.1 terrain masks. By default it avoids buildings, walls, cliffs/ledges, closed doors, difficult terrain and partial obstructions. Set the party terrain allowances true only when the scene explicitly says the party begins in that terrain/cover.
-- Describe the encounter geometry to stage_combat_tokens: for a melee creature that jumps in front of a character, use about 5–10 ft.; for a ranged attacker, choose a starting distance that is within that attack/weapon's legal range and require line of sight. If the fiction explicitly puts an enemy in difficult terrain or cover, allow it in that engagement.
+- Describe the encounter geometry to stage_combat_tokens: for a melee creature that jumps in front of a character, use about 5ΓÇô10 ft.; for a ranged attacker, choose a starting distance that is within that attack/weapon's legal range and require line of sight. If the fiction explicitly puts an enemy in difficult terrain or cover, allow it in that engagement.
 - A player can move only their own character token and only on their current initiative turn. The server enforces Speed, terrain cost, obstacles, and cumulative movement.
 - Do not use position_combat_token for a player's voluntary movement. Player voluntary movement comes from the Tactical Combat Map UI.
 - Use position_combat_token for monster movement after combat begins or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
@@ -244,7 +244,7 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
 - Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
 
-EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
+EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING ΓÇö MANDATORY:
 - Character XP is server-authoritative. Never invent, subtract, or manually narrate an XP award that was not returned by a trusted tool.
 - When update_combat_monster first marks a monster defeated, RabuShin automatically reads that monster's trusted Challenge Rating / XP value from the Monster Codex and awards the encounter XP to the player characters who received initiative in that fight. Do not call a separate monster-XP tool and do not award the same monster twice.
 - Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
@@ -259,7 +259,7 @@ EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
 - A Short Rest never triggers an XP level increase. A Short Rest must actually complete before you call complete_short_rest. The server then presents each named player with their own Hit Dice screen. Do NOT roll or spend their Hit Dice for them.
 - On that Short Rest screen, the player may spend zero or more of their AVAILABLE Hit Dice. Each spent die is rolled by the server and adds the character's Constitution modifier; healing is at least 1 HP per die and cannot exceed max HP. A character cannot spend more Hit Dice in one Short Rest than their total character level, and previously spent Hit Dice stay unavailable until a completed Long Rest restores them.
 
-WORLD TIME / WEATHER / TRAVEL / SLEEP — SERVER-AUTHORITATIVE / MANDATORY:
+WORLD TIME / WEATHER / TRAVEL / SLEEP ΓÇö SERVER-AUTHORITATIVE / MANDATORY:
 - The WORLD TIME STATE below is the single shared campaign clock. Narration must match its Day, time of day, daylight, current weather, and current location.
 - Keep all implementation language invisible. Never say "world-time RPC", "state update", "server clock", "sleep session", or similar backend terms to players. Simply narrate dawn, dusk, rain, heat, darkness, travel duration, sleep, waking, and changing conditions naturally.
 - Use advance_world_time whenever a resolved action consumes meaningful time. Use realistic elapsed durations rather than advancing time for trivial speech.
@@ -269,14 +269,25 @@ WORLD TIME / WEATHER / TRAVEL / SLEEP — SERVER-AUTHORITATIVE / MANDATORY:
 - A paid Inn room is verified by the server at the character's current Inn. Do not accept a player's claim that they paid unless the sleep tool reports paid lodging.
 - A character who wakes before 8 hours is not entitled to full Long Rest spell slots, Hit Dice, or level-up benefits; only the gradually recovered HP already earned remains.
 
-ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
-- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
+ALIGNMENT GAUGE ΓÇö SERVER-AUTHORITATIVE / MANDATORY:
+- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good ΓåÆ Neutral Good ΓåÆ Chaotic Good ΓåÆ Lawful Neutral ΓåÆ True Neutral ΓåÆ Chaotic Neutral ΓåÆ Lawful Evil ΓåÆ Neutral Evil ΓåÆ Chaotic Evil.
 - A morally significant GOOD deed moves the hidden alignment gauge one point toward the good side. A morally significant EVIL deed moves it one point toward the evil side.
 - Exactly 9 net points in one direction changes alignment by one stage and resets the stage progress. Example: True Neutral + 9 good points becomes Lawful Neutral; True Neutral + 9 evil points becomes Chaotic Neutral.
 - Call record_alignment_deed only after a player character definitively performs a morally significant deed. Do not score ordinary politeness, combat against legitimate hostile enemies, routine bargaining, or merely stated intentions.
 - Killing or deliberately harming innocents, cruelty, betrayal for selfish harm, and similarly serious acts normally qualify as evil. Meaningful mercy, self-sacrifice, protection of innocents, and similarly serious altruistic acts normally qualify as good. Judge context fairly.
 - If an action is morally mixed or neutral, do not call the tool. If one resolved player action contains multiple clearly separate significant deeds, you may call it once for each distinct deed.
 - The server, not narration, changes the stored alignment. Never claim the alignment changed unless the tool result says it changed.
+
+
+QUEST JOURNAL / OBJECTIVE TRACKER â€” RULES BUILD 6.20.1 / SERVER-AUTHORITATIVE:
+- Structured QUEST STATE below is persistent and authoritative. Do not rely on chat history alone to remember quest state.
+- When the party definitively accepts, discovers, receives, or begins a quest, call upsert_quest. Use a stable lower-case questKey that will not change when the title wording changes.
+- Quest status is exactly active, completed, failed, or hidden. Hidden quests are GM-only and must not be revealed to players until they are legitimately discovered.
+- Use upsert_quest_objective whenever a meaningful objective is created, clarified, completed, failed, hidden, or reactivated. Reuse the same objectiveKey when updating an existing objective.
+- Use set_quest_status when the overall quest changes state. Do not mark a quest completed merely because one objective was completed unless that truly resolves the quest.
+- Quest rewards describe promised/known quest rewards only. Actual XP, items, and currency still require their normal authoritative tools when the rewards are physically granted.
+- Include the current WORLD TIME STATE display text in worldDate when updating quest/objective state so the journal has an in-world timestamp.
+- The database mirrors all non-hidden quest state into the existing player Journal tab. Do not create duplicate free-form journal entries for the same tracker update.
 
 Keep continuity with the supplied campaign history and authoritative campaign canon. Track consequences narratively. Keep responses focused enough for a live multiplayer game.
 """;
@@ -303,7 +314,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine($"{character.CharacterName}, Level {character.Level} {character.SpeciesName} {character.ClassName}");
         inputBuilder.AppendLine($"HP {character.CurrentHp}/{character.MaxHp}; AC {character.ArmorClass}; Proficiency Bonus +{character.ProficiencyBonus}; GP {character.Gold:0.##}");
         var earnedXpLevel = ExperienceProgression.LevelForXp(character.Experience);
-        inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " — LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");
+        inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " ΓÇö LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");
         if (character.CharacterData.ValueKind == JsonValueKind.Object && character.CharacterData.TryGetProperty("lastLevelUp", out var lastLevelUp))
             inputBuilder.AppendLine($"LAST PLAYER-CHOSEN LEVEL-UP OPTIONS: {lastLevelUp.GetRawText()}");
         inputBuilder.AppendLine(
@@ -405,7 +416,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             foreach (var location in worldMapState)
             {
                 if (location.Discovered)
-                    inputBuilder.AppendLine($"- DISCOVERED: {location.LocationName}{(location.IsCurrent ? " — CURRENT LOCATION" : string.Empty)}");
+                    inputBuilder.AppendLine($"- DISCOVERED: {location.LocationName}{(location.IsCurrent ? " ΓÇö CURRENT LOCATION" : string.Empty)}");
                 else
                     inputBuilder.AppendLine($"- HIDDEN: {location.LocationKey}");
             }
@@ -481,7 +492,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }
         else
         {
-            inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
+            inputBuilder.AppendLine($"- Combat: ACTIVE ├óΓé¼ΓÇ¥ {combatState.Title}; Round {combatState.RoundNumber}");
             foreach (var enemy in combatState.Monsters)
             {
                 var enemyConditions = ConditionRulesService.FormatForEntity(conditionState, "monster", enemy.DisplayName);
@@ -516,7 +527,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 if (source.Items.Count == 0) inputBuilder.AppendLine("  Items: (none)");
                 else
                     foreach (var lootItem in source.Items)
-                        inputBuilder.AppendLine($"  - {lootItem.Quantity} x {lootItem.ItemName}{(string.IsNullOrWhiteSpace(lootItem.Description) ? string.Empty : $" — {lootItem.Description}")}");
+                        inputBuilder.AppendLine($"  - {lootItem.Quantity} x {lootItem.ItemName}{(string.IsNullOrWhiteSpace(lootItem.Description) ? string.Empty : $" ΓÇö {lootItem.Description}")}");
             }
         }
 
@@ -550,7 +561,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             foreach (var entry in initiativeState)
             {
-                inputBuilder.AppendLine($"- #{entry.OrderPosition}: {entry.DisplayName} ({entry.EntityType}) = {entry.InitiativeRoll}{FormatModifier(entry.InitiativeModifier)} = {entry.InitiativeTotal}{(entry.IsCurrent ? " — CURRENT TURN" : string.Empty)}{(entry.Defeated ? " — DEFEATED" : string.Empty)}");
+                inputBuilder.AppendLine($"- #{entry.OrderPosition}: {entry.DisplayName} ({entry.EntityType}) = {entry.InitiativeRoll}{FormatModifier(entry.InitiativeModifier)} = {entry.InitiativeTotal}{(entry.IsCurrent ? " ΓÇö CURRENT TURN" : string.Empty)}{(entry.Defeated ? " ΓÇö DEFEATED" : string.Empty)}");
             }
         }
 
@@ -569,6 +580,14 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     : $"- {concentration.CharacterName}: None.");
             }
         }
+        inputBuilder.AppendLine();
+
+
+        var questState = await GetQuestStateForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine("QUEST STATE (SERVER-AUTHORITATIVE / PERSISTENT):");
+        inputBuilder.AppendLine(questState.ValueKind == JsonValueKind.Undefined
+            ? "{\"quests\":[]}"
+            : questState.GetRawText());
         inputBuilder.AppendLine();
 
         var socialState = await GetSocialStateForGmAsync(campaign.CampaignId);
@@ -679,6 +698,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildUseActionSurgeTool(),
             BuildStartConcentrationTool(),
             BuildEndConcentrationTool(),
+            BuildUpsertQuestTool(),
+            BuildUpsertQuestObjectiveTool(),
+            BuildSetQuestStatusTool(),
             BuildRememberNpcInteractionTool(),
             BuildAdjustFactionReputationTool(),
             BuildAdjustGoldTool(),
@@ -908,6 +930,33 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = result;
                         break;
                     }
+                    case "upsert_quest":
+                    {
+                        var args = DeserializeArguments<UpsertQuestToolArguments>(call.ArgumentsJson, "quest upsert");
+                        var result = await UpsertQuestAsync(campaign.CampaignId, args);
+                        questState = await GetQuestStateForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit("Quest", $"{args.Title}: {args.Status}"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "upsert_quest_objective":
+                    {
+                        var args = DeserializeArguments<UpsertQuestObjectiveToolArguments>(call.ArgumentsJson, "quest objective upsert");
+                        var result = await UpsertQuestObjectiveAsync(campaign.CampaignId, args);
+                        questState = await GetQuestStateForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit("Quest", $"{args.QuestKey} / {args.Description}: {args.Status}"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "set_quest_status":
+                    {
+                        var args = DeserializeArguments<SetQuestStatusToolArguments>(call.ArgumentsJson, "quest status");
+                        var result = await SetQuestStatusAsync(campaign.CampaignId, args);
+                        questState = await GetQuestStateForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit("Quest", $"{args.QuestKey}: {args.Status}"));
+                        toolResult = result;
+                        break;
+                    }
                     case "remember_npc_interaction":
                     {
                         var args = DeserializeArguments<RememberNpcInteractionToolArguments>(
@@ -971,7 +1020,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var reason = CleanReason(args.Reason, direction == "good" ? "Significant good deed" : "Significant evil deed");
                         var result = await RecordAlignmentDeedAsync(character.CharacterId, campaign.CampaignId, direction, reason);
                         if (result.Changed)
-                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} → {result.Alignment} ({reason})"));
+                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} ΓåÆ {result.Alignment} ({reason})"));
                         toolResult = new
                         {
                             authoritative = true,
@@ -1006,7 +1055,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var carried = await AddInventoryItemAsync(
                             character.CharacterId, campaign.CampaignId, itemName, quantity,
                             args.Description, args.Source, args.Notes);
-                        var summary = $"Added {quantity} × {itemName}; now carrying {carried}";
+                        var summary = $"Added {quantity} ├ù {itemName}; now carrying {carried}";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "add_inventory_item", itemName, quantityAdded = quantity, quantityCarried = carried };
                         break;
@@ -1018,7 +1067,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var itemName = CleanItemName(args.ItemName);
                         var remaining = await RemoveInventoryItemAsync(character.CharacterId, campaign.CampaignId, itemName, quantity);
                         var reason = CleanReason(args.Reason, "GM inventory change");
-                        var summary = $"Removed {quantity} × {itemName} ({reason}); {remaining} remaining";
+                        var summary = $"Removed {quantity} ├ù {itemName} ({reason}); {remaining} remaining";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "remove_inventory_item", itemName, quantityRemoved = quantity, quantityRemaining = remaining, reason };
                         break;
@@ -2922,6 +2971,190 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public int MovementRemainingFt { get; set; }
     }
 
+    // RULES BUILD 6.20.1 - QUEST JOURNAL / OBJECTIVE TRACKER
+    private async Task<JsonElement> GetQuestStateForGmAsync(Guid campaignId)
+    {
+        try
+        {
+            var raw = await CallSupabaseRpcAsync(
+                "discord_gm_get_quest_state",
+                new { p_campaign_id = campaignId },
+                "Unable to load quest state");
+            using var document = JsonDocument.Parse(raw);
+            return document.RootElement.Clone();
+        }
+        catch
+        {
+            using var document = JsonDocument.Parse("{\"quests\":[]}");
+            return document.RootElement.Clone();
+        }
+    }
+
+    private async Task<JsonElement> UpsertQuestAsync(Guid campaignId, UpsertQuestToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync("discord_gm_upsert_quest", new
+        {
+            p_campaign_id = campaignId,
+            p_quest_key = (args.QuestKey ?? string.Empty).Trim().ToLowerInvariant(),
+            p_title = (args.Title ?? string.Empty).Trim(),
+            p_summary = args.Summary ?? string.Empty,
+            p_status = (args.Status ?? "active").Trim().ToLowerInvariant(),
+            p_settlement = args.Settlement ?? string.Empty,
+            p_giver = args.Giver ?? string.Empty,
+            p_rewards_text = args.Rewards ?? string.Empty,
+            p_notes = args.Notes ?? string.Empty,
+            p_world_date = args.WorldDate ?? string.Empty
+        }, "Unable to update quest");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> UpsertQuestObjectiveAsync(Guid campaignId, UpsertQuestObjectiveToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync("discord_gm_upsert_quest_objective", new
+        {
+            p_campaign_id = campaignId,
+            p_quest_key = (args.QuestKey ?? string.Empty).Trim().ToLowerInvariant(),
+            p_objective_key = (args.ObjectiveKey ?? string.Empty).Trim().ToLowerInvariant(),
+            p_description = (args.Description ?? string.Empty).Trim(),
+            p_status = (args.Status ?? "active").Trim().ToLowerInvariant(),
+            p_optional = args.Optional,
+            p_sort_order = Math.Max(0,args.SortOrder),
+            p_notes = args.Notes ?? string.Empty,
+            p_world_date = args.WorldDate ?? string.Empty
+        }, "Unable to update quest objective");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> SetQuestStatusAsync(Guid campaignId, SetQuestStatusToolArguments args)
+    {
+        var raw = await CallSupabaseRpcAsync("discord_gm_set_quest_status", new
+        {
+            p_campaign_id = campaignId,
+            p_quest_key = (args.QuestKey ?? string.Empty).Trim().ToLowerInvariant(),
+            p_status = (args.Status ?? string.Empty).Trim().ToLowerInvariant(),
+            p_notes = args.Notes ?? string.Empty,
+            p_world_date = args.WorldDate ?? string.Empty
+        }, "Unable to update quest status");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private static object BuildUpsertQuestTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "upsert_quest",
+            description = "Create or update one persistent structured quest. Hidden quests remain GM-only; non-hidden quests are mirrored into every campaign member's Journal tab.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    questKey = new { type = "string", description = "Stable lower-case identifier such as sheep-that-howled." },
+                    title = new { type = "string" },
+                    summary = new { type = "string" },
+                    status = new { type = "string", @enum = new[] { "active", "completed", "failed", "hidden" } },
+                    settlement = new { type = "string" },
+                    giver = new { type = "string" },
+                    rewards = new { type = "string", description = "Known/promised rewards; do not claim they were granted here." },
+                    notes = new { type = "string" },
+                    worldDate = new { type = "string", description = "Current in-world day/time from WORLD TIME STATE." }
+                },
+                required = new[] { "questKey","title","summary","status","settlement","giver","rewards","notes","worldDate" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildUpsertQuestObjectiveTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "upsert_quest_objective",
+            description = "Create or update a persistent objective on an existing quest. Reuse objectiveKey for later progress/state changes.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    questKey = new { type = "string" },
+                    objectiveKey = new { type = "string", description = "Stable identifier within this quest." },
+                    description = new { type = "string" },
+                    status = new { type = "string", @enum = new[] { "active", "completed", "failed", "hidden" } },
+                    optional = new { type = "boolean" },
+                    sortOrder = new { type = "integer", minimum = 0, maximum = 1000 },
+                    notes = new { type = "string" },
+                    worldDate = new { type = "string" }
+                },
+                required = new[] { "questKey","objectiveKey","description","status","optional","sortOrder","notes","worldDate" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildSetQuestStatusTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "set_quest_status",
+            description = "Change the overall persistent quest state to active, completed, failed, or hidden.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    questKey = new { type = "string" },
+                    status = new { type = "string", @enum = new[] { "active", "completed", "failed", "hidden" } },
+                    notes = new { type = "string" },
+                    worldDate = new { type = "string" }
+                },
+                required = new[] { "questKey","status","notes","worldDate" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private sealed class UpsertQuestToolArguments
+    {
+        public string QuestKey { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+        public string Status { get; set; } = "active";
+        public string Settlement { get; set; } = string.Empty;
+        public string Giver { get; set; } = string.Empty;
+        public string Rewards { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public string WorldDate { get; set; } = string.Empty;
+    }
+
+    private sealed class UpsertQuestObjectiveToolArguments
+    {
+        public string QuestKey { get; set; } = string.Empty;
+        public string ObjectiveKey { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Status { get; set; } = "active";
+        public bool Optional { get; set; }
+        public int SortOrder { get; set; }
+        public string Notes { get; set; } = string.Empty;
+        public string WorldDate { get; set; } = string.Empty;
+    }
+
+    private sealed class SetQuestStatusToolArguments
+    {
+        public string QuestKey { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public string WorldDate { get; set; } = string.Empty;
+    }
+
     // RULES BUILD 6.20 - NPC MEMORY / REPUTATION / FACTIONS
     private async Task<SocialStateForGm> GetSocialStateForGmAsync(Guid campaignId)
     {
@@ -4302,7 +4535,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
 
             if (suppressAuditBullets &&
-                (trimmed.StartsWith("•", StringComparison.Ordinal) ||
+                (trimmed.StartsWith("ΓÇó", StringComparison.Ordinal) ||
                  trimmed.StartsWith("-", StringComparison.Ordinal) ||
                  trimmed.StartsWith("*", StringComparison.Ordinal)))
             {
