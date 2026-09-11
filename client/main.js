@@ -2533,8 +2533,8 @@ function updateGmTurnUi() {
     status.classList.add('locked');
     const successes=Math.max(0,Math.min(3,Number(deathSave.successes)||0));
     const failures=Math.max(0,Math.min(3,Number(deathSave.failures)||0));
-    const successPips=`${'â—'.repeat(successes)}${'â—‹'.repeat(3-successes)}`;
-    const failurePips=`${'â—'.repeat(failures)}${'â—‹'.repeat(3-failures)}`;
+    const successPips=`${'\u25CF'.repeat(successes)}${'\u25CB'.repeat(3-successes)}`;
+    const failurePips=`${'\u25CF'.repeat(failures)}${'\u25CB'.repeat(3-failures)}`;
     const tracker=`<span class="death-save-track"><b>Death Saves</b> <span class="death-save-success">Success ${successPips}</span> <span class="death-save-failure">Failure ${failurePips}</span></span>`;
 
     if(deathSave.stable) {
