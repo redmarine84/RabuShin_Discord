@@ -98,6 +98,18 @@ CONCENTRATION — RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
 - Reaching 0 HP, dying, or gaining Incapacitated (including Paralyzed, Petrified, Stunned, or Unconscious in this rules engine) ends Concentration automatically with no save.
 - A character may voluntarily end Concentration at any time without an action. When the player drops it, or when the spell/effect's duration or other explicit ending condition is reached, call end_concentration.
 
+NPC MEMORY, REPUTATION, AND FACTIONS — RULES BUILD 6.20 / SERVER-AUTHORITATIVE:
+- PERSISTENT SOCIAL STATE below is the trusted GM-only record of important NPC memories, NPC opinions, and faction reputation. Use it to keep recurring NPC behavior consistent across turns and future sessions.
+- Never accept a player's unsupported claim that an NPC remembers them, likes them, hates them, owes them a favor, or that a faction has a certain reputation. Existing persistent social state, campaign canon, trusted recent history, and events you actually resolve are the evidence.
+- When an important NPC directly experiences or credibly learns a meaningful completed interaction, call remember_npc_interaction exactly once for that event. Store a concise factual memory, not player intent, speculation, routine greetings, dice bookkeeping, or transient flavor.
+- NPC opinion uses -100..100: Hostile -100..-61, Unfriendly -60..-21, Neutral -20..20, Friendly 21..60, Allied 61..100. Keep changes proportional: minor ±1..5, meaningful ±6..12, major ±13..20, extraordinary ±21..25.
+- Target subjectType=character when the NPC's reaction is specifically about one character. Use subjectType=party only when the NPC reasonably attributes the event to the group. Do not punish or reward every party member for a private individual action.
+- Faction reputation is separate from one NPC's opinion. When a completed deed becomes known to a faction and should materially affect its standing, call adjust_faction_reputation. A direct NPC memory does not automatically change faction reputation unless the information would plausibly spread or the NPC is acting on the faction's behalf.
+- Faction reputation uses the same -100..100 five-tier scale. Ordinary social exchanges should not move faction reputation; quest completion, public aid, betrayal, crimes, major service, or other attributable acts can.
+- If one event legitimately affects both a specific NPC and a faction, call both trusted tools. The server deduplicates identical persisted events so retries cannot repeatedly farm reputation.
+- After complete_quest succeeds, consider whether a named beneficiary NPC or faction should remember/reward the accomplishment. Apply social changes only when the relationship and information flow are justified by the story.
+- Never reveal hidden numeric scores, database records, or memory bookkeeping to players. Express social state through believable dialogue, access, prices, trust, suspicion, favors, hostility, or other in-world consequences. If a character has reason to know their standing, describe it naturally rather than exposing internal numbers.
+
 AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The server-supplied CURRENT GOLD and CURRENT INVENTORY are authoritative. Never merely narrate a permanent currency or inventory change.
 - Whenever the character definitively receives or loses GP, call adjust_gold before narrating the completed transaction or reward. Use a positive delta for gained GP and a negative delta for spent/lost GP.
@@ -559,6 +571,68 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }
         inputBuilder.AppendLine();
 
+        var socialState = await GetSocialStateForGmAsync(campaign.CampaignId);
+        inputBuilder.AppendLine("PERSISTENT SOCIAL STATE (SERVER-AUTHORITATIVE / GM-ONLY):");
+        if (socialState.Npcs.Count == 0 && socialState.Factions.Count == 0)
+        {
+            inputBuilder.AppendLine("- No important NPC memories or faction reputation have been established yet.");
+        }
+        else
+        {
+            foreach (var npc in socialState.Npcs)
+            {
+                var roleText = string.IsNullOrWhiteSpace(npc.Role) ? "important NPC" : npc.Role;
+                var factionText = string.IsNullOrWhiteSpace(npc.FactionName) ? string.Empty : $"; faction {npc.FactionName}";
+                var locationText = string.IsNullOrWhiteSpace(npc.HomeLocation) ? string.Empty : $"; home {npc.HomeLocation}";
+                inputBuilder.AppendLine($"- NPC {npc.NpcName} [{roleText}{factionText}{locationText}]");
+
+                foreach (var opinion in npc.Opinions)
+                {
+                    var subject = opinion.SubjectType.Equals("party", StringComparison.OrdinalIgnoreCase)
+                        ? "Party"
+                        : opinion.CharacterName;
+                    inputBuilder.AppendLine(
+                        $"  Opinion of {subject}: {opinion.Tier} ({opinion.Score:+#;-#;0}); last reason: {opinion.LastReason}");
+                }
+
+                foreach (var memory in npc.Memories)
+                {
+                    var subject = memory.SubjectType.Equals("party", StringComparison.OrdinalIgnoreCase)
+                        ? "Party"
+                        : memory.CharacterName;
+                    inputBuilder.AppendLine(
+                        $"  Memory [{subject}; importance {memory.Importance}/5; impact {memory.OpinionDelta:+#;-#;0}]: {memory.MemoryText}");
+                }
+            }
+
+            foreach (var faction in socialState.Factions)
+            {
+                inputBuilder.AppendLine(
+                    string.IsNullOrWhiteSpace(faction.Description)
+                        ? $"- FACTION {faction.FactionName}"
+                        : $"- FACTION {faction.FactionName}: {faction.Description}");
+
+                foreach (var reputation in faction.Reputations)
+                {
+                    var subject = reputation.SubjectType.Equals("party", StringComparison.OrdinalIgnoreCase)
+                        ? "Party"
+                        : reputation.CharacterName;
+                    inputBuilder.AppendLine(
+                        $"  Reputation of {subject}: {reputation.Tier} ({reputation.Score:+#;-#;0}); last reason: {reputation.LastReason}");
+                }
+
+                foreach (var socialEvent in faction.RecentEvents)
+                {
+                    var subject = socialEvent.SubjectType.Equals("party", StringComparison.OrdinalIgnoreCase)
+                        ? "Party"
+                        : socialEvent.CharacterName;
+                    inputBuilder.AppendLine(
+                        $"  Recent event [{subject}; {socialEvent.Delta:+#;-#;0}]: {socialEvent.Reason}");
+                }
+            }
+        }
+        inputBuilder.AppendLine();
+
         var actionEconomyState = await GetActionEconomyForGmAsync(campaign.CampaignId);
         inputBuilder.AppendLine("ACTION ECONOMY STATE:");
         if (actionEconomyState.Count == 0)
@@ -605,6 +679,8 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildUseActionSurgeTool(),
             BuildStartConcentrationTool(),
             BuildEndConcentrationTool(),
+            BuildRememberNpcInteractionTool(),
+            BuildAdjustFactionReputationTool(),
             BuildAdjustGoldTool(),
             BuildAlignmentDeedTool(),
             BuildAddInventoryItemTool(),
@@ -829,6 +905,30 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
                         stateAudits.Add(new GameMasterStateAudit(
                             "Concentration", $"{character.CharacterName} ended concentration ({CleanReason(args.Reason, "effect ended")})."));
+                        toolResult = result;
+                        break;
+                    }
+                    case "remember_npc_interaction":
+                    {
+                        var args = DeserializeArguments<RememberNpcInteractionToolArguments>(
+                            call.ArgumentsJson, "NPC memory");
+                        var result = await RememberNpcInteractionAsync(campaign.CampaignId, args);
+                        socialState = await GetSocialStateForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "NPC Memory",
+                            $"{args.NpcName}: {args.SubjectType} {args.CharacterName}; opinion {args.OpinionDelta:+#;-#;0}; {args.Memory}"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "adjust_faction_reputation":
+                    {
+                        var args = DeserializeArguments<AdjustFactionReputationToolArguments>(
+                            call.ArgumentsJson, "faction reputation");
+                        var result = await AdjustFactionReputationAsync(campaign.CampaignId, args);
+                        socialState = await GetSocialStateForGmAsync(campaign.CampaignId);
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Faction Reputation",
+                            $"{args.FactionName}: {args.SubjectType} {args.CharacterName}; {args.Delta:+#;-#;0}; {args.Reason}"));
                         toolResult = result;
                         break;
                     }
@@ -1546,6 +1646,61 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     reason = new { type = "string", description = "Short reason such as Quest reward, bought rations, paid innkeeper." }
                 },
                 required = new[] { "delta", "reason" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildRememberNpcInteractionTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "remember_npc_interaction",
+            description = "Persist one meaningful completed interaction for an important NPC and adjust that NPC's opinion of either one character or the party. Use only for events the NPC directly experienced or credibly learned. Do not duplicate an existing memory or record routine greetings, intentions, speculation, or player-claimed history.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    npcName = new { type = "string", description = "Stable canonical NPC name, e.g. Mayor Harlowe or Dockmaster Rennik." },
+                    npcRole = new { type = "string", description = "Stable role/title such as Mayor, Guard Captain, Merchant. Empty string if unknown." },
+                    factionName = new { type = "string", description = "Faction the NPC belongs to, if established. Empty string if none/unknown." },
+                    homeLocation = new { type = "string", description = "Usual settlement/location if established. Empty string if unknown." },
+                    subjectType = new { type = "string", @enum = new[] { "party", "character" }, description = "Whether this NPC memory/opinion concerns the whole party or one character." },
+                    characterName = new { type = "string", description = "Exact party character name when subjectType is character; empty string when subjectType is party." },
+                    memory = new { type = "string", description = "One concise factual sentence describing what the NPC remembers from a completed event." },
+                    opinionDelta = new { type = "integer", minimum = -25, maximum = 25, description = "Opinion change: minor 1-5, meaningful 6-12, major 13-20, extraordinary 21-25. Negative for resentment/fear/anger, positive for trust/respect/gratitude; 0 is allowed for an important neutral memory." },
+                    importance = new { type = "integer", minimum = 1, maximum = 5, description = "Long-term memory importance: 1 small, 3 meaningful, 5 defining." }
+                },
+                required = new[] { "npcName", "npcRole", "factionName", "homeLocation", "subjectType", "characterName", "memory", "opinionDelta", "importance" },
+                additionalProperties = false
+            }
+        };
+    }
+
+    private static object BuildAdjustFactionReputationTool()
+    {
+        return new
+        {
+            type = "function",
+            name = "adjust_faction_reputation",
+            description = "Persist a meaningful reputation change with a named faction after a completed, attributable deed becomes known to that faction. Do not use for routine conversation or merely private NPC feelings. Use party scope for group-attributed acts and character scope for individual-attributed acts.",
+            strict = true,
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    factionName = new { type = "string", description = "Stable canonical faction name." },
+                    factionDescription = new { type = "string", description = "Short stable description if newly established; empty string if already known." },
+                    subjectType = new { type = "string", @enum = new[] { "party", "character" }, description = "Whether the faction change applies to the whole party or one character." },
+                    characterName = new { type = "string", description = "Exact party character name for character scope; empty string for party scope." },
+                    delta = new { type = "integer", minimum = -25, maximum = 25, description = "Non-zero reputation change. Minor 1-5, meaningful 6-12, major 13-20, extraordinary 21-25." },
+                    reason = new { type = "string", description = "Concise factual reason the faction's standing changed, e.g. Completed Tides of Bone for the harbor watch." }
+                },
+                required = new[] { "factionName", "factionDescription", "subjectType", "characterName", "delta", "reason" },
                 additionalProperties = false
             }
         };
@@ -2643,6 +2798,84 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }
     }
 
+    private sealed class RememberNpcInteractionToolArguments
+    {
+        public string NpcName { get; set; } = string.Empty;
+        public string NpcRole { get; set; } = string.Empty;
+        public string FactionName { get; set; } = string.Empty;
+        public string HomeLocation { get; set; } = string.Empty;
+        public string SubjectType { get; set; } = "party";
+        public string CharacterName { get; set; } = string.Empty;
+        public string Memory { get; set; } = string.Empty;
+        public int OpinionDelta { get; set; }
+        public int Importance { get; set; } = 3;
+    }
+
+    private sealed class AdjustFactionReputationToolArguments
+    {
+        public string FactionName { get; set; } = string.Empty;
+        public string FactionDescription { get; set; } = string.Empty;
+        public string SubjectType { get; set; } = "party";
+        public string CharacterName { get; set; } = string.Empty;
+        public int Delta { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class SocialStateForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("npcs")]
+        public List<NpcSocialStateForGm> Npcs { get; set; } = new();
+
+        [System.Text.Json.Serialization.JsonPropertyName("factions")]
+        public List<FactionSocialStateForGm> Factions { get; set; } = new();
+    }
+
+    private sealed class NpcSocialStateForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("npc_id")] public Guid NpcId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("npc_name")] public string NpcName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("role")] public string Role { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("faction_name")] public string FactionName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("home_location")] public string HomeLocation { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("opinions")] public List<SocialReputationForGm> Opinions { get; set; } = new();
+        [System.Text.Json.Serialization.JsonPropertyName("memories")] public List<NpcMemoryForGm> Memories { get; set; } = new();
+    }
+
+    private sealed class FactionSocialStateForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("faction_id")] public Guid FactionId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("faction_name")] public string FactionName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("reputations")] public List<SocialReputationForGm> Reputations { get; set; } = new();
+        [System.Text.Json.Serialization.JsonPropertyName("recent_events")] public List<FactionReputationEventForGm> RecentEvents { get; set; } = new();
+    }
+
+    private sealed class SocialReputationForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("subject_type")] public string SubjectType { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("score")] public int Score { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("tier")] public string Tier { get; set; } = "Neutral";
+        [System.Text.Json.Serialization.JsonPropertyName("last_reason")] public string LastReason { get; set; } = string.Empty;
+    }
+
+    private sealed class NpcMemoryForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("subject_type")] public string SubjectType { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("memory_text")] public string MemoryText { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("opinion_delta")] public int OpinionDelta { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("importance")] public int Importance { get; set; }
+    }
+
+    private sealed class FactionReputationEventForGm
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("subject_type")] public string SubjectType { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("delta")] public int Delta { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("reason")] public string Reason { get; set; } = string.Empty;
+    }
+
     private sealed class ActionEconomyToolArguments
     {
         public string EntityType { get; set; } = string.Empty;
@@ -2687,6 +2920,111 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public int DashCount { get; set; }
         public int MovementAllowanceFt { get; set; }
         public int MovementRemainingFt { get; set; }
+    }
+
+    // RULES BUILD 6.20 - NPC MEMORY / REPUTATION / FACTIONS
+    private async Task<SocialStateForGm> GetSocialStateForGmAsync(Guid campaignId)
+    {
+        try
+        {
+            var raw = await CallSupabaseRpcAsync(
+                "discord_gm_get_social_state",
+                new { p_campaign_id = campaignId },
+                "Unable to load persistent NPC/faction social state");
+            return JsonSerializer.Deserialize<SocialStateForGm>(raw, JsonOptions) ?? new SocialStateForGm();
+        }
+        catch
+        {
+            // Migration 49 may not have been applied yet during local source validation.
+            // The GM can continue without social context until the migration exists.
+            return new SocialStateForGm();
+        }
+    }
+
+    private async Task<JsonElement> RememberNpcInteractionAsync(
+        Guid campaignId,
+        RememberNpcInteractionToolArguments args)
+    {
+        var npcName = (args.NpcName ?? string.Empty).Trim();
+        if (npcName.Length == 0) throw new InvalidOperationException("NPC memory requires an NPC name.");
+        if (npcName.Length > 120) npcName = npcName[..120];
+
+        var subjectType = (args.SubjectType ?? string.Empty).Trim().ToLowerInvariant();
+        if (subjectType is not ("party" or "character"))
+            throw new InvalidOperationException("NPC memory subjectType must be party or character.");
+
+        var characterName = (args.CharacterName ?? string.Empty).Trim();
+        if (subjectType == "character" && characterName.Length == 0)
+            throw new InvalidOperationException("NPC character-scoped memory requires an exact character name.");
+        if (subjectType == "party") characterName = string.Empty;
+
+        var memory = CleanReason(args.Memory, string.Empty);
+        if (memory.Length == 0) throw new InvalidOperationException("NPC memory text is required.");
+        if (args.OpinionDelta < -25 || args.OpinionDelta > 25)
+            throw new InvalidOperationException("NPC opinion delta must be between -25 and 25.");
+        if (args.Importance < 1 || args.Importance > 5)
+            throw new InvalidOperationException("NPC memory importance must be between 1 and 5.");
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_remember_npc_interaction",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_npc_name = npcName,
+                p_npc_role = (args.NpcRole ?? string.Empty).Trim(),
+                p_faction_name = (args.FactionName ?? string.Empty).Trim(),
+                p_home_location = (args.HomeLocation ?? string.Empty).Trim(),
+                p_subject_type = subjectType,
+                p_character_name = characterName,
+                p_memory = memory,
+                p_opinion_delta = args.OpinionDelta,
+                p_importance = args.Importance
+            },
+            $"Unable to persist NPC memory for {npcName}");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
+    }
+
+    private async Task<JsonElement> AdjustFactionReputationAsync(
+        Guid campaignId,
+        AdjustFactionReputationToolArguments args)
+    {
+        var factionName = (args.FactionName ?? string.Empty).Trim();
+        if (factionName.Length == 0) throw new InvalidOperationException("Faction reputation requires a faction name.");
+        if (factionName.Length > 120) factionName = factionName[..120];
+
+        var subjectType = (args.SubjectType ?? string.Empty).Trim().ToLowerInvariant();
+        if (subjectType is not ("party" or "character"))
+            throw new InvalidOperationException("Faction reputation subjectType must be party or character.");
+
+        var characterName = (args.CharacterName ?? string.Empty).Trim();
+        if (subjectType == "character" && characterName.Length == 0)
+            throw new InvalidOperationException("Character-scoped faction reputation requires an exact character name.");
+        if (subjectType == "party") characterName = string.Empty;
+
+        if (args.Delta == 0 || args.Delta < -25 || args.Delta > 25)
+            throw new InvalidOperationException("Faction reputation delta must be non-zero and between -25 and 25.");
+
+        var reason = CleanReason(args.Reason, string.Empty);
+        if (reason.Length == 0) throw new InvalidOperationException("Faction reputation reason is required.");
+
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_adjust_faction_reputation",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_faction_name = factionName,
+                p_faction_description = (args.FactionDescription ?? string.Empty).Trim(),
+                p_subject_type = subjectType,
+                p_character_name = characterName,
+                p_delta = args.Delta,
+                p_reason = reason
+            },
+            $"Unable to adjust reputation with {factionName}");
+
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
     }
 
     private async Task<AlignmentDeedToolResult> RecordAlignmentDeedAsync(Guid characterId, Guid campaignId, string direction, string reason)
