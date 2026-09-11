@@ -795,6 +795,7 @@ async function showCharacterCreator(campaignId, options={}) {
         <div id="randomCreator" hidden>
           <h3>Random Build</h3><p>Choose species and class. RabuShin generates the base character, then applies any selected racial options.</p>
           <label>Character Name</label><input id="randomName" class="input" placeholder="Leave blank for a generated name">
+          <label>Gender</label><select id="randomGender" class="input"><option value="">Choose Gender</option></select>
           <div class="form-grid">
             <div><label>Species / Race</label><select id="randomSpecies" class="input"></select></div>
             <div id="randomHalfBox" hidden><label>Other Half</label><select id="randomHalf" class="input"></select></div>
@@ -807,6 +808,7 @@ async function showCharacterCreator(campaignId, options={}) {
           <h3>Manual Sheet</h3>
           <div class="form-grid">
             <div><label>Name</label><input id="manualName" class="input"></div>
+            <div><label>Gender</label><select id="manualGender" class="input"><option value="">Choose Gender</option></select></div>
             <div><label>Level</label><input id="manualLevel" class="input" type="number" min="1" max="20" value="1"></div>
             <div><label>Species / Race</label><select id="manualSpecies" class="input"></select></div>
             <div id="manualHalfBox" hidden><label>Other Half</label><select id="manualHalf" class="input"></select></div>
@@ -835,6 +837,10 @@ async function showCharacterCreator(campaignId, options={}) {
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
     populateSelect('#manualSpecies', data.species); populateSelect('#manualClass', data.classes);
     populateSelect('#manualBackground', data.backgrounds); populateSelect('#manualAlignment', data.alignments);
+    const genderOptions=Array.isArray(data.genders)&&data.genders.length?data.genders:['Male','Female','Nonbinary','Other'];
+    const genderHtml='<option value="">Choose Gender</option>'+genderOptions.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    document.querySelector('#randomGender').innerHTML=genderHtml;
+    document.querySelector('#manualGender').innerHTML=genderHtml;
     document.querySelector('#randomSpecies').value = data.species.includes('Human')?'Human':data.species[0]; document.querySelector('#randomClass').value = data.classes.includes('Fighter')?'Fighter':data.classes[0];
     document.querySelector('#manualSpecies').value = data.species.includes('Human')?'Human':data.species[0]; document.querySelector('#manualClass').value = data.classes.includes('Fighter')?'Fighter':data.classes[0];
     if (data.backgrounds.includes('Soldier')) document.querySelector('#manualBackground').value = 'Soldier';
@@ -860,7 +866,7 @@ async function showCharacterCreator(campaignId, options={}) {
         const species=document.querySelector('#randomSpecies').value;
         const racial=collectRacialOptions('random',species);
         const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`,{method:'POST',body:JSON.stringify({
-          characterName:document.querySelector('#randomName').value.trim(),species,
+          characterName:document.querySelector('#randomName').value.trim(),gender:document.querySelector('#randomGender').value,species,
           secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
           className:document.querySelector('#randomClass').value,...racial})});
         await showStartingEquipment(campaignId,result.character);
@@ -875,7 +881,7 @@ async function showCharacterCreator(campaignId, options={}) {
         const species=document.querySelector('#manualSpecies').value;
         const racial=collectRacialOptions('manual',species);
         const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`,{method:'POST',body:JSON.stringify({
-          characterName:name,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
+          characterName:name,gender:document.querySelector('#manualGender').value,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
           appearance:document.querySelector('#mAppearance').value.trim(),personality:document.querySelector('#mPersonality').value.trim(),backstory:document.querySelector('#mBackstory').value.trim(),notes:document.querySelector('#mNotes').value.trim(),...racial
@@ -1117,6 +1123,49 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
   }catch(error){document.querySelector('#spellLoading').textContent='Unable to load spell selection.';document.querySelector('#spellError').textContent=error.message;}
 }
 
+async function showRequiredGenderPrompt(campaignId,character,onSaved){
+  document.querySelector('#genderRequiredOverlay')?.remove();
+  const name=String(character?.characterName||'This character');
+  const overlay=document.createElement('div');
+  overlay.id='genderRequiredOverlay';
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <h3>Choose ${escapeHtml(name)}'s Gender</h3>
+    <p><strong>${escapeHtml(name)}</strong> was created before character gender was added to RabuShinAIGM. Choose a gender before continuing with this character.</p>
+    <label>Gender</label>
+    <select id="requiredGenderSelect" class="input">
+      <option value="">Choose Gender</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+      <option value="Nonbinary">Nonbinary</option>
+      <option value="Other">Other</option>
+    </select>
+    <div id="requiredGenderError" class="error"></div>
+    <div class="modal-actions"><button id="requiredGenderSave" class="button primary">Save Gender</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const select=overlay.querySelector('#requiredGenderSelect');
+  const save=overlay.querySelector('#requiredGenderSave');
+  const error=overlay.querySelector('#requiredGenderError');
+  save.onclick=async()=>{
+    const gender=String(select.value||'').trim();
+    if(!gender){error.textContent='Choose a gender to continue.';return;}
+    save.disabled=true;save.textContent='Saving...';error.textContent='';
+    try{
+      const result=await api(`/game-api/campaigns/${campaignId}/characters/${character.characterId}/gender`,{
+        method:'POST',body:JSON.stringify({gender})
+      });
+      character.gender=result.gender||gender;
+      overlay.remove();
+      showNotice(`${name}'s gender was saved.`);
+      if(typeof onSaved==='function')await onSaved();
+    }catch(ex){
+      error.textContent=ex.message;
+      save.disabled=false;save.textContent='Save Gender';
+    }
+  };
+}
+
 async function enterCampaign(campaignId, initialTab='gm') {
   try {
     currentCampaignId=campaignId;
@@ -1129,6 +1178,10 @@ async function enterCampaign(campaignId, initialTab='gm') {
     gmVoiceBaselineInitialized=false;
     gmVoiceLastSeenMessageKey='';
     currentGameData=await api(`/game-api/campaigns/${campaignId}/bootstrap`);
+    if(!String(currentGameData?.character?.gender||'').trim()){
+      await showRequiredGenderPrompt(campaignId,currentGameData.character,()=>enterCampaign(campaignId,initialTab));
+      return;
+    }
     currentGameData.inventory=mergeInventoryValuations(currentGameData.inventory||[],currentGameData.inventoryValuations||[]);
     renderGameShell();
     renderGameMasterTab();

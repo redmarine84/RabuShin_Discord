@@ -14,6 +14,18 @@ public static class CharacterFeatureRules
         "Lawful Evil", "Neutral Evil", "Chaotic Evil"
     };
 
+    public static readonly string[] Genders = { "Male", "Female", "Nonbinary", "Other" };
+
+    public static string NormalizeGender(string? requested)
+    {
+        var value = (requested ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException("Choose your character's gender.");
+
+        return Genders.FirstOrDefault(g => g.Equals(value, StringComparison.OrdinalIgnoreCase))
+               ?? throw new InvalidOperationException($"Invalid gender '{requested}'. Choose Male, Female, Nonbinary, or Other.");
+    }
+
     public static readonly string[] AbilityNames =
         { "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma" };
 
@@ -826,6 +838,7 @@ public sealed class CharacterFeatureProfile
 public sealed class EnhancedManualCharacterRequest
 {
     public string CharacterName { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
     public string Species { get; set; } = string.Empty;
     public string? SecondaryHeritage { get; set; }
     public string ClassName { get; set; } = string.Empty;
@@ -865,6 +878,7 @@ public sealed class EnhancedManualCharacterRequest
 public sealed class EnhancedRandomCharacterRequest
 {
     public string? CharacterName { get; set; }
+    public string Gender { get; set; } = string.Empty;
     public string Species { get; set; } = string.Empty;
     public string? SecondaryHeritage { get; set; }
     public string ClassName { get; set; } = string.Empty;
@@ -886,6 +900,11 @@ public sealed class EnhancedRandomCharacterRequest
     public string? SecondaryTortleSize { get; set; }
     public string? SecondaryTortleNatureSkill { get; set; }
     public string? SecondaryTortleLanguage { get; set; }
+}
+
+public sealed class CharacterGenderRequest
+{
+    public string Gender { get; set; } = string.Empty;
 }
 
 public sealed class CharacterDetailsUpdateRequest

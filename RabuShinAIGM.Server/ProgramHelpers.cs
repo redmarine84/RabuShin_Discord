@@ -6,6 +6,7 @@ public static class ProgramHelpers
     {
         characterId = c.CharacterId,
         campaignId = c.CampaignId,
+        gender = c.Gender,
         characterName = c.CharacterName,
         speciesName = c.SpeciesName,
         className = c.ClassName,

@@ -183,6 +183,7 @@ app.MapGet("/game-api/character-options", () => Results.Ok(new
     classes = CharacterGenerationService.Classes,
     backgrounds = CharacterGenerationService.Backgrounds,
     alignments = CharacterFeatureRules.AlignmentLadder,
+    genders = CharacterFeatureRules.Genders,
     racialRules = CharacterFeatureRules.GetClientRules()
 }));
 
@@ -409,6 +410,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
+        var gender = CharacterFeatureRules.NormalizeGender(body.Gender);
         var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
@@ -441,6 +443,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/random", async (
             body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
             string.Empty, string.Empty, string.Empty, string.Empty);
+        await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
     }
@@ -457,6 +460,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
         if (await service.GetCharacterAsync(playerId, campaignId) is not null)
             return Results.BadRequest(new { success = false, error = "You already have a character in this campaign." });
 
+        var gender = CharacterFeatureRules.NormalizeGender(body.Gender);
         var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
@@ -500,6 +504,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
 
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
+        await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
     }
@@ -545,6 +550,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random"
         if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
         if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
 
+        var gender = CharacterFeatureRules.NormalizeGender(body.Gender);
         var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         var className = CharacterGenerationService.Classes.FirstOrDefault(v => v.Equals(body.ClassName, StringComparison.OrdinalIgnoreCase));
@@ -576,6 +582,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/random"
             body.SecondaryTortleSize, body.SecondaryTortleNatureSkill, body.SecondaryTortleLanguage);
         var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, generated, species, scores, profile,
             string.Empty, string.Empty, string.Empty, string.Empty);
+        await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, generated) : ProgramHelpers.ToClientCharacter(saved) });
     }
@@ -593,6 +600,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/manual"
         if (!soloState.IsSolo) return Results.BadRequest(new { success = false, error = "Add Party Member is available only in Solo Play." });
         if (!soloState.CanAdd) return Results.BadRequest(new { success = false, error = "Solo Play supports a maximum of 5 party characters." });
 
+        var gender = CharacterFeatureRules.NormalizeGender(body.Gender);
         var validSpecies = CharacterFeatureRules.WithTortleSpecies(CharacterGenerationService.Species);
         var species = validSpecies.FirstOrDefault(v => v.Equals(body.Species, StringComparison.OrdinalIgnoreCase));
         if (species is null) return Results.BadRequest(new { success = false, error = "Invalid species." });
@@ -636,10 +644,38 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/manual"
 
         var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
+        await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/{characterId:guid}/gender", async (
+    Guid campaignId, Guid characterId, CharacterGenderRequest body, HttpRequest request, DiscordSupabaseService service) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var gender = CharacterFeatureRules.NormalizeGender(body.Gender);
+        await service.SetCharacterGenderAsync(playerId, campaignId, characterId, gender);
+        return Results.Ok(new
+        {
+            success = true,
+            characterId,
+            gender,
+            message = $"Gender saved as {gender}."
+        });
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Json(new { success = false, error = ex.Message }, statusCode: 403);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
 });
 
 app.MapPost("/game-api/campaigns/{campaignId:guid}/character/portrait", async (

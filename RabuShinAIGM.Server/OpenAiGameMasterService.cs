@@ -369,6 +369,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("PLAYER CHARACTER:");
         inputBuilder.AppendLine($"{character.CharacterName}, Level {character.Level} {character.SpeciesName} {character.ClassName}");
+        inputBuilder.AppendLine($"Gender: {(string.IsNullOrWhiteSpace(character.Gender) ? "Unspecified" : character.Gender)}");
         inputBuilder.AppendLine($"HP {character.CurrentHp}/{character.MaxHp}; AC {character.ArmorClass}; Proficiency Bonus +{character.ProficiencyBonus}; GP {character.Gold:0.##}");
         var earnedXpLevel = ExperienceProgression.LevelForXp(character.Experience);
         inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " â€” LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");

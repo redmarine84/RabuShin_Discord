@@ -587,6 +587,17 @@ public sealed class DiscordSupabaseService
         return document.RootElement.Clone();
     }
 
+    public async Task SetCharacterGenderAsync(Guid playerId, Guid campaignId, Guid characterId, string gender)
+    {
+        using var response = await CallRpcAsync("discord_set_character_gender", new
+        {
+            p_player_id = playerId,
+            p_campaign_id = campaignId,
+            p_character_id = characterId,
+            p_gender = gender
+        });
+    }
+
     public async Task UpdateCharacterDetailsAsync(
         Guid playerId, Guid campaignId, string background, string appearance,
         string personality, string backstory, string notes)
@@ -1856,6 +1867,7 @@ public sealed class DiscordCharacterInfo
 {
     [JsonPropertyName("character_id")] public Guid CharacterId { get; set; }
     [JsonPropertyName("campaign_id")] public Guid CampaignId { get; set; }
+    [JsonPropertyName("gender")] public string Gender { get; set; } = string.Empty;
     [JsonPropertyName("character_name")] public string CharacterName { get; set; } = string.Empty;
     [JsonPropertyName("species_name")] public string SpeciesName { get; set; } = string.Empty;
     [JsonPropertyName("class_name")] public string ClassName { get; set; } = string.Empty;
