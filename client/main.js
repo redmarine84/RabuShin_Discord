@@ -2994,6 +2994,7 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
       <span id="localMapZoomLabel">100%</span>
       <button id="localMapZoomIn" class="button small">+</button>
       <button id="localMapFit" class="button small">Fit to Screen</button>
+      <button id="closeLocalMapMobile" class="button small" style="display:none" aria-label="Close Settlement Map">×</button>
     </div>
     <div id="localMapViewport" class="local-map-viewport">
       <div id="localMapStage" class="local-map-stage">
@@ -3014,6 +3015,7 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
   overlay.querySelector('#localMapZoomIn').onclick=()=>{zoom=Math.min(3,Math.round((zoom+.25)*100)/100);applyZoom();};
   overlay.querySelector('#localMapFit').onclick=()=>{zoom=1;applyZoom();overlay.querySelector('#localMapViewport').scrollTo(0,0);};
   overlay.querySelector('#closeLocalMap').onclick=()=>overlay.remove();
+  overlay.querySelector('#closeLocalMapMobile')?.addEventListener('click',()=>overlay.remove());
   overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
   overlay.querySelectorAll('.settlement-poi-hotspot').forEach(button=>button.onclick=async event=>{
     event.stopPropagation();

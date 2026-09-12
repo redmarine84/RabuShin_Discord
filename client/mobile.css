@@ -1048,3 +1048,48 @@ html.rs-mobile .world-map-modal img {
   max-width: 100%;
   height: auto;
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.4 v2
+   Direct mobile Settlement Map close button.
+
+   Desktop keeps its original header X.
+   Mobile gets a second X directly in the map toolbar.
+   ============================================================ */
+
+html.rs-mobile .local-map-header #closeLocalMap {
+  display: none !important;
+}
+
+html.rs-mobile #closeLocalMapMobile {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 52px;
+  min-width: 52px !important;
+  min-height: 44px !important;
+  margin-left: auto !important;
+  padding: 0 14px !important;
+  border: 1px solid #8f3f49 !important;
+  border-radius: 7px !important;
+  background: linear-gradient(180deg,#71303A,#4B1F25) !important;
+  color: #FFD8DB !important;
+  font-size: 22px !important;
+  font-weight: 700;
+  line-height: 1 !important;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+html.rs-mobile #closeLocalMapMobile:active {
+  transform: translateY(1px);
+}
+
+html.rs-mobile .local-map-toolbar {
+  width: 100%;
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}

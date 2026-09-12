@@ -262,7 +262,7 @@
   }
 
   function relocateMapCloseButtons() {
-    const localClose = document.querySelector('#closeLocalMap');
+    const localClose = document.querySelector('#closeLocalMapMobile') ? null : document.querySelector('#closeLocalMap');
     const localFit = document.querySelector('#localMapFit');
     if (localClose && localFit && localClose.dataset.rsRelocated !== 'true') {
       localClose.dataset.rsRelocated = 'true';
