@@ -3238,29 +3238,29 @@ function renderDynamicEconomyShop(shop,initialMode='buy') {
         <div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>${escapeHtml(item.scarcityLabel||'Available')}</span></div>
         <h4>${escapeHtml(item.itemName)}</h4>
         <p>${escapeHtml(item.description||'')}</p>
-        <small class="economy-stock-line">Stock ${available}/${Number(item.targetQuantity)||0}${condition<100?` â€¢ Condition ${condition}%`:''} â€¢ Base ${formatShopGp(item.basePriceGp||item.priceGp)}</small>
+        <small class="economy-stock-line">Stock ${available}/${Number(item.targetQuantity)||0}${condition<100?` \u2022 Condition ${condition}%`:''} \u2022 Base ${formatShopGp(item.basePriceGp||item.priceGp)}</small>
       </div>
       <div class="shop-item-buy"><b>${formatShopGp(item.priceGp)}</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="${Math.max(1,Math.min(20,available))}" value="1" ${available<=0?'disabled':''}></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}" ${available<=0?'disabled':''}>${available<=0?'Out of Stock':'Buy'}</button></div>
     </article>`;
   }).join('')}</div></section>`).join('');
 
   const sellCatalog=(shop.sellItems||[]).length?(shop.sellItems||[]).map(item=>{
-    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' â€¢ ');
+    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' \u2022 ');
     const maxQty=Math.max(0,Math.min(Number(item.quantity)||0,Number(item.maxMerchantQuantity)||0));
     const canSell=item.canSell&&maxQty>0;
     const controls=canSell
       ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${maxQty}" value="1"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
       : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item right now.')}</div>`;
-    return `<article class="shop-item-card shop-sell-card ${canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Condition ${Number(item.conditionPercent??100)}%</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} â€¢ Carried: ${Number(item.quantity)||0}${status?` â€¢ ${escapeHtml(status)}`:''}</p><small class="economy-stock-line">Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}${Number(item.demandMultiplier)>1?` â€¢ Demand Ã—${Number(item.demandMultiplier).toFixed(2)}`:''}</small></div>${controls}</article>`;
+    return `<article class="shop-item-card shop-sell-card ${canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Condition ${Number(item.conditionPercent??100)}%</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} \u2022 Carried: ${Number(item.quantity)||0}${status?` \u2022 ${escapeHtml(status)}`:''}</p><small class="economy-stock-line">Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}${Number(item.demandMultiplier)>1?` \u2022 Demand \u00D7${Number(item.demandMultiplier).toFixed(2)}`:''}</small></div>${controls}</article>`;
   }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
 
   const services=shop.services||{};
   const serviceCatalog=services.available?renderEconomyServices(services):'<div class="empty">This merchant does not provide blacksmith services.</div>';
 
   overlay.innerHTML=`<div class="settlement-shop-modal economy-shop-modal">
-    <div class="settlement-shop-header"><div><p class="eyebrow">DYNAMIC ECONOMY â€¢ BUILD 6.29</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} â€¢ Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">Ã—</button></div>
-    <div class="economy-market-strip">Merchant Cash: <b>${formatShopGp(shop.merchantWealthGp||0)}</b> / ${formatShopGp(shop.merchantWealthCapGp||0)} â€¢ Market Ã—${Number(shop.settlementMultiplier||1).toFixed(2)} â€¢ Reputation: <b>${escapeHtml(shop.reputationTier||'Neutral')}</b> â€¢ Restock ${economyRelativeTime(shop.restockAt)}</div>
-    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">â† Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Stock, merchant cash, market conditions and reputation all affect trade.</span></div>
+    <div class="settlement-shop-header"><div><p class="eyebrow">DYNAMIC ECONOMY \u2022 BUILD 6.29</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} \u2022 Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">\u00D7</button></div>
+    <div class="economy-market-strip">Merchant Cash: <b>${formatShopGp(shop.merchantWealthGp||0)}</b> / ${formatShopGp(shop.merchantWealthCapGp||0)} \u2022 Market \u00D7${Number(shop.settlementMultiplier||1).toFixed(2)} \u2022 Reputation: <b>${escapeHtml(shop.reputationTier||'Neutral')}</b> \u2022 Restock ${economyRelativeTime(shop.restockAt)}</div>
+    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">\u2190 Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Stock, merchant cash, market conditions and reputation all affect trade.</span></div>
     <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy">Buy</button><button class="button shop-mode-button" data-shop-mode="sell">Sell</button>${services.available?'<button class="button shop-mode-button" data-shop-mode="services">Blacksmith Services</button>':''}<span class="muted shop-resale-note">Prices are recalculated by the server at transaction time.</span></div>
     <div id="shopError" class="error"></div>
     <div id="shopBuyPane" class="settlement-shop-catalog shop-mode-pane">${buyCatalog||'<div class="empty">This merchant has nothing catalogued.</div>'}</div>
@@ -3294,9 +3294,9 @@ function renderDynamicEconomyShop(shop,initialMode='buy') {
 }
 
 function renderEconomyServices(services) {
-  const repairs=(services.repairs||[]).map(item=>`<article class="economy-service-card"><div><small>REPAIR â€¢ ${Number(item.conditionPercent)||0}% CONDITION</small><h4>${escapeHtml(item.itemName)}</h4><p>Restore this item to 100% condition.</p></div><button class="button primary economy-service-button" data-service-type="repair" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Repair â€¢ ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
-  const improvements=(services.improvements||[]).map(item=>`<article class="economy-service-card"><div><small>MASTERWORK</small><h4>${escapeHtml(item.itemName)}</h4><p>${String(item.itemType||'').toLowerCase().includes('weapon')?'+1 attack and +1 damage.':'+1 Armor Class.'} One Build 6.29 improvement maximum.</p></div><button class="button primary economy-service-button" data-service-type="improve" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Improve â€¢ ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
-  const commissions=(services.commissions||[]).map(item=>`<article class="economy-service-card"><div><small>COMMISSION â€¢ ~20 MIN</small><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'Commission this item even when ordinary stock is unavailable.')}</p></div><button class="button economy-service-button" data-service-type="commission" data-stock-id="${escapeHtml(item.stockId)}">Commission â€¢ ${formatShopGp(item.commissionPriceGp)}</button></article>`).join('');
+  const repairs=(services.repairs||[]).map(item=>`<article class="economy-service-card"><div><small>REPAIR \u2022 ${Number(item.conditionPercent)||0}% CONDITION</small><h4>${escapeHtml(item.itemName)}</h4><p>Restore this item to 100% condition.</p></div><button class="button primary economy-service-button" data-service-type="repair" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Repair \u2022 ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
+  const improvements=(services.improvements||[]).map(item=>`<article class="economy-service-card"><div><small>MASTERWORK</small><h4>${escapeHtml(item.itemName)}</h4><p>${String(item.itemType||'').toLowerCase().includes('weapon')?'+1 attack and +1 damage.':'+1 Armor Class.'} One Build 6.29 improvement maximum.</p></div><button class="button primary economy-service-button" data-service-type="improve" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Improve \u2022 ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
+  const commissions=(services.commissions||[]).map(item=>`<article class="economy-service-card"><div><small>COMMISSION \u2022 ~20 MIN</small><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'Commission this item even when ordinary stock is unavailable.')}</p></div><button class="button economy-service-button" data-service-type="commission" data-stock-id="${escapeHtml(item.stockId)}">Commission \u2022 ${formatShopGp(item.commissionPriceGp)}</button></article>`).join('');
   const orders=(services.orders||[]).map(order=>`<article class="economy-order-card"><div><small>${escapeHtml(String(order.status||'pending').toUpperCase())}</small><h4>${escapeHtml(order.itemName)}</h4><p>${order.canClaim?'Ready for pickup.':`Ready ${economyRelativeTime(order.readyAt)}`}</p></div><button class="button ${order.canClaim?'primary':''} economy-claim-button" data-order-id="${escapeHtml(order.orderId)}" ${order.canClaim?'':'disabled'}>${order.canClaim?'Claim':'Waiting'}</button></article>`).join('');
   return `<section class="economy-service-section"><h3>Repair</h3>${repairs||'<p class="muted">No carried smithable equipment currently needs repair.</p>'}</section><section class="economy-service-section"><h3>Masterwork Improvement</h3>${improvements||'<p class="muted">No eligible unimproved equipment is available.</p>'}</section><section class="economy-service-section"><h3>Commission Equipment</h3><p class="muted">Commissioned catalog items cost a premium and take about 20 real minutes.</p><div class="economy-service-grid">${commissions}</div></section><section class="economy-service-section"><h3>Active Orders</h3>${orders||'<p class="muted">No active commissions.</p>'}</section>`;
 }
@@ -3467,8 +3467,8 @@ function conditionListMarkup(data,entityType,id,emptyText='No conditions'){
     const key=String(row.conditionName||'').toLowerCase();
     if(seen.has(key))return;seen.add(key);
     const label=key==='exhaustion'&&Number(row.exhaustionLevel)>0?`Exhaustion ${Number(row.exhaustionLevel)}`:conditionTitle(key);
-    const source=row.sourceName?` â€¢ ${escapeHtml(row.sourceName)}`:'';
-    const notes=row.notes?` â€¢ ${escapeHtml(row.notes)}`:'';
+    const source=row.sourceName?` \u2022 ${escapeHtml(row.sourceName)}`:'';
+    const notes=row.notes?` \u2022 ${escapeHtml(row.notes)}`:'';
     badges.push(`<span class="condition-badge condition-${escapeHtml(key)}" title="${escapeHtml(label)}${source}${notes}">${escapeHtml(label)}</span>`);
   });
   return badges.length?`<div class="condition-badges">${badges.join('')}</div>`:`<span class="condition-none muted">${escapeHtml(emptyText)}</span>`;
@@ -4730,7 +4730,7 @@ function renderSettingsTab(){
         <p>This Play with Friends campaign will become a Solo Play campaign. The existing campaign join code will be disabled, no other Discord players will be able to join, and your existing character will become the first character in your Solo party.</p>
         <p><strong>Are you sure you want to permanently convert this campaign to Solo Play?</strong></p>
       </div>`,
-      'Yes â€” Convert Permanently',
+      'Yes \u2014 Convert Permanently',
       async()=>{
         const confirmButton=document.querySelector('#modalConfirm');
         if(confirmButton){confirmButton.disabled=true;confirmButton.textContent='Converting...';}
