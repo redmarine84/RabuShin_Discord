@@ -1,22 +1,98 @@
-/* RabuShinAIGM Build 6.30 - Discord Mobile Support
-   Loaded on every platform but activates only on Android/iOS/iPadOS.
-   Desktop Discord is intentionally left untouched. */
+/* RabuShinAIGM Build 6.30.2 - Discord Mobile Support
+   Desktop Discord remains untouched.
+
+   Discord mobile WebViews do not always expose Android/iOS in userAgent.
+   Detection therefore uses several independent signals:
+   - Android/iOS user agent
+   - userAgentData.mobile
+   - iPadOS touch-desktop signature
+   - touch/coarse-pointer + non-Windows/non-desktop-Mac mobile-sized display
+*/
 
 (() => {
   'use strict';
 
   const ua = navigator.userAgent || '';
-  const isAppleTouchDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-  const isAndroid = /Android/i.test(ua);
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) || isAppleTouchDesktop;
-  const isDiscordMobile = isAndroid || isIOS;
+  const platform = navigator.platform || '';
+  const uaDataMobile = navigator.userAgentData?.mobile === true;
 
-  if (!isDiscordMobile) return;
+  const isAppleTouchDesktop =
+    platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
+
+  const isAndroidUa = /Android/i.test(ua);
+  const isIOSUa = /iPhone|iPad|iPod/i.test(ua) || isAppleTouchDesktop;
+
+  const isWindowsDesktop =
+    /Windows/i.test(ua) || /Win32|Win64|WinCE/i.test(platform);
+
+  const isMacDesktop =
+    !isAppleTouchDesktop &&
+    (/Macintosh/i.test(ua) || /MacIntel|MacPPC|Mac68K/i.test(platform));
+
+  const coarsePointer =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches;
+
+  const touchCapable =
+    Number(navigator.maxTouchPoints || 0) > 0 || coarsePointer;
+
+  const sw = Number(window.screen?.width || window.innerWidth || 0);
+  const sh = Number(window.screen?.height || window.innerHeight || 0);
+  const shortSide = Math.min(sw || 99999, sh || 99999);
+  const viewportShortSide = Math.min(
+    Number(window.innerWidth || 99999),
+    Number(window.innerHeight || 99999)
+  );
+
+  /*
+     This fallback is specifically for Discord mobile WebViews that report
+     a desktop-style UA. Explicitly exclude normal Windows/macOS desktops.
+     A phone/tablet is touch-capable and has a mobile-sized short dimension.
+  */
+  const isMobileByCapabilities =
+    !isWindowsDesktop &&
+    !isMacDesktop &&
+    touchCapable &&
+    Math.min(shortSide, viewportShortSide) <= 1100;
+
+  const isDiscordMobile =
+    isAndroidUa ||
+    isIOSUa ||
+    uaDataMobile ||
+    isMobileByCapabilities;
+
+  if (!isDiscordMobile) {
+    console.info('[RabuShin Mobile] Desktop mode retained.', {
+      ua,
+      platform,
+      maxTouchPoints: navigator.maxTouchPoints,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    return;
+  }
 
   const root = document.documentElement;
+
   root.classList.add('rs-mobile');
-  if (isAndroid) root.classList.add('rs-mobile-android');
-  if (isIOS) root.classList.add('rs-mobile-ios');
+
+  const detectedAndroid =
+    isAndroidUa ||
+    (!isIOSUa && !isAppleTouchDesktop && /Linux/i.test(platform + ' ' + ua));
+
+  if (detectedAndroid) root.classList.add('rs-mobile-android');
+  if (isIOSUa || isAppleTouchDesktop) root.classList.add('rs-mobile-ios');
+  if (isMobileByCapabilities) root.classList.add('rs-mobile-capability-detected');
+
+  root.dataset.rsMobileDetection =
+    isAndroidUa ? 'android-ua' :
+    isIOSUa ? 'ios-ua' :
+    uaDataMobile ? 'ua-data-mobile' :
+    'touch-capabilities';
+
+  console.info(
+    `[RabuShin Mobile] Activated (${root.dataset.rsMobileDetection}).`
+  );
 
   const mobileLabels = {
     gm: 'GM',
@@ -43,7 +119,10 @@
     root.style.setProperty('--rs-vvh', `${Math.max(1, height)}px`);
     root.style.setProperty('--rs-vvw', `${Math.max(1, width)}px`);
 
-    const keyboardLikelyOpen = baselineViewportHeight > 0 && height < baselineViewportHeight - 140;
+    const keyboardLikelyOpen =
+      baselineViewportHeight > 0 &&
+      height < baselineViewportHeight - 140;
+
     root.classList.toggle('rs-keyboard-open', keyboardLikelyOpen);
   }
 
@@ -71,7 +150,11 @@
       control.addEventListener('focus', () => {
         setTimeout(() => {
           updateViewportMetrics();
-          control.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+          control.scrollIntoView({
+            block: 'center',
+            inline: 'nearest',
+            behavior: 'smooth',
+          });
         }, 220);
       });
 
@@ -111,12 +194,14 @@
     viewport.addEventListener('touchmove', (event) => {
       if (event.touches.length === 2) {
         const nextDistance = distance(event.touches);
+
         if (!pinchDistance) {
           pinchDistance = nextDistance;
           return;
         }
 
         const ratio = nextDistance / pinchDistance;
+
         if (ratio >= 1.16) {
           document.querySelector('#tacticalZoomIn')?.click();
           pinchDistance = nextDistance;
@@ -132,6 +217,7 @@
       if (event.touches.length === 1 && oneFingerStart) {
         const dx = event.touches[0].clientX - oneFingerStart.x;
         const dy = event.touches[0].clientY - oneFingerStart.y;
+
         if (Math.hypot(dx, dy) > 12) {
           suppressClickUntil = Date.now() + 180;
         }
@@ -156,7 +242,11 @@
     if (!viewport) return;
 
     bindTacticalTouch(viewport);
-    viewport.setAttribute('aria-label', 'Encounter map. Drag to pan, pinch or use the zoom buttons to zoom, and tap tokens or map squares to interact.');
+
+    viewport.setAttribute(
+      'aria-label',
+      'Encounter map. Drag to pan, pinch or use the zoom buttons to zoom, and tap tokens or map squares to interact.'
+    );
 
     const zoomOut = document.querySelector('#tacticalZoomOut');
     const zoomIn = document.querySelector('#tacticalZoomIn');
@@ -184,6 +274,7 @@
 
   function scheduleEnhance() {
     if (enhancementFrame) return;
+
     enhancementFrame = requestAnimationFrame(() => {
       enhancementFrame = 0;
       enhance();
@@ -191,11 +282,16 @@
   }
 
   const observer = new MutationObserver(scheduleEnhance);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 
   window.addEventListener('resize', updateViewportMetrics, { passive: true });
+
   window.addEventListener('orientationchange', () => {
     baselineViewportHeight = 0;
+
     setTimeout(() => {
       updateViewportMetrics();
       scheduleEnhance();
@@ -203,8 +299,17 @@
   }, { passive: true });
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', updateViewportMetrics, { passive: true });
-    window.visualViewport.addEventListener('scroll', updateViewportMetrics, { passive: true });
+    window.visualViewport.addEventListener(
+      'resize',
+      updateViewportMetrics,
+      { passive: true }
+    );
+
+    window.visualViewport.addEventListener(
+      'scroll',
+      updateViewportMetrics,
+      { passive: true }
+    );
   }
 
   document.addEventListener('visibilitychange', () => {

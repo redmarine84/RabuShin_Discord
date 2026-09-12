@@ -822,3 +822,87 @@ html.rs-mobile #closeMonsterStats {
     --rs-discord-mobile-toolbar-clearance: 52px;
   }
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.2
+   Discord mobile Activity toolbar clearance.
+   MOBILE ONLY: every rule requires html.rs-mobile.
+   ============================================================ */
+
+html.rs-mobile {
+  --rs-discord-mobile-toolbar-clearance: 64px;
+}
+
+/*
+   Discord's Android/iOS Activity toolbar is app chrome layered on top of
+   the iframe. It is not part of the CSS env() safe-area inset, so reserve
+   additional space below it.
+*/
+html.rs-mobile body {
+  padding-top: calc(
+    var(--rs-sait) + var(--rs-discord-mobile-toolbar-clearance)
+  ) !important;
+}
+
+html.rs-mobile .app-shell {
+  min-height: calc(
+    var(--rs-vvh)
+    - var(--rs-sait)
+    - var(--rs-saib)
+    - var(--rs-discord-mobile-toolbar-clearance)
+  ) !important;
+}
+
+html.rs-mobile .topbar {
+  top: calc(
+    var(--rs-sait) + var(--rs-discord-mobile-toolbar-clearance)
+  ) !important;
+}
+
+/* Fixed overlays ignore body padding and need their own clearance. */
+html.rs-mobile .modal-overlay,
+html.rs-mobile .monster-stat-overlay,
+html.rs-mobile .world-map-overlay,
+html.rs-mobile .local-map-overlay,
+html.rs-mobile .rs-slot-overlay,
+html.rs-mobile #worldMapOverlay,
+html.rs-mobile #localMapOverlay,
+html.rs-mobile #modalOverlay {
+  padding-top: calc(
+    var(--rs-sait)
+    + var(--rs-discord-mobile-toolbar-clearance)
+    + 10px
+  ) !important;
+}
+
+html.rs-mobile .modal,
+html.rs-mobile .world-map-modal,
+html.rs-mobile .local-map-modal,
+html.rs-mobile .monster-stat-modal,
+html.rs-mobile .character-details-modal,
+html.rs-mobile .rs-slot-modal {
+  max-height: calc(
+    var(--rs-vvh)
+    - var(--rs-sait)
+    - var(--rs-saib)
+    - var(--rs-discord-mobile-toolbar-clearance)
+    - 18px
+  ) !important;
+}
+
+html.rs-mobile .modal-close,
+html.rs-mobile #closeWorldMap,
+html.rs-mobile #closeLocalMap,
+html.rs-mobile #closeMonsterStats {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  flex: 0 0 44px;
+  touch-action: manipulation;
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  html.rs-mobile {
+    --rs-discord-mobile-toolbar-clearance: 52px;
+  }
+}
