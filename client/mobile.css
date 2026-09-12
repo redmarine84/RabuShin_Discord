@@ -732,3 +732,93 @@ html.rs-mobile .modal-actions .button {
     max-height: calc(var(--rs-vvh) - var(--rs-sait) - var(--rs-saib) - var(--rs-mobile-nav-height) - 92px);
   }
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.1
+   Discord mobile Activity toolbar clearance
+
+   Discord's Android/iOS Activity chrome floats over the top of
+   the embedded app. Reserve a protected strip so app titles,
+   modal headers, and X/close buttons are never placed beneath
+   Discord's Leave Activity control.
+
+   MOBILE ONLY. Desktop Discord receives none of these rules.
+   ============================================================ */
+
+html.rs-mobile {
+  --rs-discord-mobile-toolbar-clearance: 64px;
+}
+
+/* Normal RabuShin screens start below Discord's floating Activity bar. */
+html.rs-mobile body {
+  padding-top: calc(var(--rs-sait) + var(--rs-discord-mobile-toolbar-clearance));
+}
+
+html.rs-mobile .app-shell {
+  min-height: calc(
+    var(--rs-vvh)
+    - var(--rs-sait)
+    - var(--rs-saib)
+    - var(--rs-discord-mobile-toolbar-clearance)
+  );
+}
+
+/* The sticky RabuShin header must also stop below Discord's toolbar. */
+html.rs-mobile .topbar {
+  top: calc(var(--rs-sait) + var(--rs-discord-mobile-toolbar-clearance));
+}
+
+/*
+   Fixed overlays ignore body padding, so explicitly move every modal/map
+   down far enough that Discord's Leave Activity button cannot cover the
+   RabuShin close control.
+*/
+html.rs-mobile .modal-overlay,
+html.rs-mobile .monster-stat-overlay,
+html.rs-mobile .world-map-overlay,
+html.rs-mobile .local-map-overlay,
+html.rs-mobile .rs-slot-overlay,
+html.rs-mobile #worldMapOverlay,
+html.rs-mobile #localMapOverlay,
+html.rs-mobile #modalOverlay {
+  padding-top: calc(
+    var(--rs-sait)
+    + var(--rs-discord-mobile-toolbar-clearance)
+    + 10px
+  ) !important;
+}
+
+/* Keep full-screen dialogs inside the remaining usable mobile height. */
+html.rs-mobile .modal,
+html.rs-mobile .world-map-modal,
+html.rs-mobile .local-map-modal,
+html.rs-mobile .monster-stat-modal,
+html.rs-mobile .character-details-modal,
+html.rs-mobile .rs-slot-modal {
+  max-height: calc(
+    var(--rs-vvh)
+    - var(--rs-sait)
+    - var(--rs-saib)
+    - var(--rs-discord-mobile-toolbar-clearance)
+    - 18px
+  ) !important;
+}
+
+/* Close controls remain comfortably tappable once moved below Discord chrome. */
+html.rs-mobile .modal-close,
+html.rs-mobile #closeWorldMap,
+html.rs-mobile #closeLocalMap,
+html.rs-mobile #closeMonsterStats {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  flex: 0 0 44px;
+  touch-action: manipulation;
+}
+
+/* Landscape uses a slightly smaller reserved bar to preserve map space. */
+@media (orientation: landscape) and (max-height: 620px) {
+  html.rs-mobile {
+    --rs-discord-mobile-toolbar-clearance: 52px;
+  }
+}
