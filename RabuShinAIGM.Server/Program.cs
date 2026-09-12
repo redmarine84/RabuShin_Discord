@@ -12,6 +12,7 @@ Environment.SetEnvironmentVariable("DOTNET_USE_POLLING_FILE_WATCHER", "1");
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient<DiscordSupabaseService>();
 builder.Services.AddHttpClient<FinalGameplaySystemsService>();
+builder.Services.AddHttpClient<EconomyService>();
 builder.Services.AddHttpClient<DiscordOAuthService>();
 builder.Services.AddHttpClient<OpenAiGameMasterService>();
 builder.Services.AddSingleton<ApiKeyEncryptionService>();
@@ -2160,6 +2161,143 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
                 overCapacity = encumbrance.OverCapacity
             }
         });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+// RULES BUILD 6.29 - ECONOMY, MERCHANTS & DYNAMIC SHOPS
+app.MapGet("/game-api/campaigns/{campaignId:guid}/settlement/economy/shop", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service, EconomyService economy) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var location = await service.GetPlayerSettlementLocationAsync(playerId, campaignId);
+        if (location is null)
+            return Results.BadRequest(new { success = false, error = "Your character is not currently at a settlement shop." });
+
+        var settlement = SettlementInteractionCatalog.FindByLocation(location.SettlementKey);
+        var poi = SettlementInteractionCatalog.FindPoi(location.SettlementKey, location.PoiKey);
+        if (settlement is null || poi is null || !poi.IsShop)
+            return Results.BadRequest(new { success = false, error = "Your character is not currently at a recognized shop." });
+
+        var hospitality = string.Equals(poi.ShopKind, "inn", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(poi.ShopKind, "tavern", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(poi.ShopKind, "inn-tavern", StringComparison.OrdinalIgnoreCase);
+        if (hospitality)
+            return Results.Ok(new
+            {
+                success = true,
+                dynamicEconomy = false,
+                useLegacyHospitality = true,
+                settlementName = settlement.SettlementName,
+                shopName = poi.Name,
+                shopKind = poi.ShopKind
+            });
+
+        var catalog = SettlementInteractionCatalog.GetShopItems(campaignId, settlement, poi);
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var shop = await economy.GetShopAsync(playerId, campaignId, settlement, poi, catalog, inventory);
+        return Results.Ok(shop);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/economy/shop/buy", async (
+    Guid campaignId, EconomyBuyRequest body, HttpRequest request,
+    DiscordSupabaseService service, EconomyService economy) =>
+{
+    try
+    {
+        if (body is null || body.StockId == Guid.Empty)
+            return Results.BadRequest(new { success = false, error = "Choose a shop stock item." });
+
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await economy.BuyAsync(playerId, campaignId, body.StockId, Math.Clamp(body.Quantity, 1, 100));
+        return Results.Ok(result);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/economy/shop/sell", async (
+    Guid campaignId, EconomySellRequest body, HttpRequest request,
+    DiscordSupabaseService service, EconomyService economy) =>
+{
+    try
+    {
+        if (body is null || body.InventoryItemId == Guid.Empty)
+            return Results.BadRequest(new { success = false, error = "Choose an inventory item to sell." });
+
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var location = await service.GetPlayerSettlementLocationAsync(playerId, campaignId)
+            ?? throw new InvalidOperationException("Your character is not currently at a settlement shop.");
+        var poi = SettlementInteractionCatalog.FindPoi(location.SettlementKey, location.PoiKey)
+            ?? throw new InvalidOperationException("Current shop could not be found.");
+
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+        var rawItem = inventory.FirstOrDefault(x => x.InventoryItemId == body.InventoryItemId)
+            ?? throw new InvalidOperationException("Inventory item could not be found.");
+        var sellSeed = EconomyRulesService.BuildSellItem(poi, rawItem);
+        if (!sellSeed.CanSell)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(sellSeed.Reason)
+                ? "This merchant will not buy that item."
+                : sellSeed.Reason);
+
+        var result = await economy.SellAsync(
+            playerId, campaignId, sellSeed, Math.Clamp(body.Quantity, 1, 1000));
+        return Results.Ok(result);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/economy/shop/service", async (
+    Guid campaignId, EconomyBlacksmithServiceRequest body, HttpRequest request,
+    DiscordSupabaseService service, EconomyService economy) =>
+{
+    try
+    {
+        if (body is null)
+            return Results.BadRequest(new { success = false, error = "Blacksmith service request is required." });
+
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var inventory = await service.GetInventoryAsync(playerId, campaignId);
+
+        EconomyServiceSeedItem? itemSeed = null;
+        if (body.InventoryItemId.HasValue && body.InventoryItemId.Value != Guid.Empty)
+        {
+            itemSeed = EconomyRulesService.BuildServiceCatalog(inventory)
+                .FirstOrDefault(x => x.InventoryItemId == body.InventoryItemId.Value)
+                ?? throw new InvalidOperationException("That item cannot receive a blacksmith service.");
+        }
+
+        var result = await economy.BlacksmithServiceAsync(
+            playerId,
+            campaignId,
+            body.ServiceType ?? string.Empty,
+            itemSeed,
+            body.StockId);
+        return Results.Ok(result);
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/settlement/economy/shop/order/claim", async (
+    Guid campaignId, EconomyClaimOrderRequest body, HttpRequest request,
+    DiscordSupabaseService service, EconomyService economy) =>
+{
+    try
+    {
+        if (body is null || body.OrderId == Guid.Empty)
+            return Results.BadRequest(new { success = false, error = "Commission order is required." });
+
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var result = await economy.ClaimOrderAsync(playerId, campaignId, body.OrderId);
+        return Results.Ok(result);
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });

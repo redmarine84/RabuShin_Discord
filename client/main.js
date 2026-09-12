@@ -3124,8 +3124,13 @@ async function continueSettlementNarrative(poiName,settlementName) {
 
 async function openSettlementShop() {
   try {
-    const shop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
-    renderSettlementShop(shop);
+    const economyShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/economy/shop`);
+    if(economyShop?.useLegacyHospitality) {
+      const legacyShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+      renderSettlementShop(legacyShop);
+      return;
+    }
+    renderSettlementShop(economyShop);
   } catch(error) {
     showNotice(error.message,true);
   }
@@ -3136,6 +3141,10 @@ function formatShopGp(value) {
 }
 
 function renderSettlementShop(shop,initialMode='buy') {
+  if(shop?.dynamicEconomy===true) {
+    renderDynamicEconomyShop(shop,initialMode);
+    return;
+  }
   document.querySelector('#settlementShopOverlay')?.remove();
   document.querySelector('#localMapOverlay')?.remove();
   const overlay=document.createElement('div');
@@ -3207,6 +3216,143 @@ function renderSettlementShop(shop,initialMode='buy') {
   overlay.querySelectorAll('.shop-sell-button').forEach(button=>button.onclick=()=>sellSettlementShopItem(button,shop));
 }
 
+function renderDynamicEconomyShop(shop,initialMode='buy') {
+  document.querySelector('#settlementShopOverlay')?.remove();
+  document.querySelector('#localMapOverlay')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='settlementShopOverlay';
+  overlay.className='modal-overlay settlement-shop-overlay economy-shop-overlay';
+
+  const groups=new Map();
+  (shop.items||[]).forEach(item=>{
+    const category=item.category||'Goods';
+    if(!groups.has(category))groups.set(category,[]);
+    groups.get(category).push(item);
+  });
+
+  const buyCatalog=[...groups.entries()].map(([category,items])=>`<section class="shop-category"><h3>${escapeHtml(category)}</h3><div class="shop-item-grid">${items.map(item=>{
+    const available=Math.max(0,Number(item.quantityAvailable)||0);
+    const condition=Math.max(0,Math.min(100,Number(item.conditionPercent??100)));
+    return `<article class="shop-item-card ${available<=0?'disabled':''}" data-shop-item="${escapeHtml(item.itemKey)}">
+      <div class="shop-item-copy">
+        <div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>${escapeHtml(item.scarcityLabel||'Available')}</span></div>
+        <h4>${escapeHtml(item.itemName)}</h4>
+        <p>${escapeHtml(item.description||'')}</p>
+        <small class="economy-stock-line">Stock ${available}/${Number(item.targetQuantity)||0}${condition<100?` â€¢ Condition ${condition}%`:''} â€¢ Base ${formatShopGp(item.basePriceGp||item.priceGp)}</small>
+      </div>
+      <div class="shop-item-buy"><b>${formatShopGp(item.priceGp)}</b><label>Qty <input class="input shop-quantity" type="number" min="1" max="${Math.max(1,Math.min(20,available))}" value="1" ${available<=0?'disabled':''}></label><button class="button primary shop-buy-button" data-item-key="${escapeHtml(item.itemKey)}" ${available<=0?'disabled':''}>${available<=0?'Out of Stock':'Buy'}</button></div>
+    </article>`;
+  }).join('')}</div></section>`).join('');
+
+  const sellCatalog=(shop.sellItems||[]).length?(shop.sellItems||[]).map(item=>{
+    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' â€¢ ');
+    const maxQty=Math.max(0,Math.min(Number(item.quantity)||0,Number(item.maxMerchantQuantity)||0));
+    const canSell=item.canSell&&maxQty>0;
+    const controls=canSell
+      ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${maxQty}" value="1"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
+      : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item right now.')}</div>`;
+    return `<article class="shop-item-card shop-sell-card ${canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Condition ${Number(item.conditionPercent??100)}%</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} â€¢ Carried: ${Number(item.quantity)||0}${status?` â€¢ ${escapeHtml(status)}`:''}</p><small class="economy-stock-line">Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}${Number(item.demandMultiplier)>1?` â€¢ Demand Ã—${Number(item.demandMultiplier).toFixed(2)}`:''}</small></div>${controls}</article>`;
+  }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
+
+  const services=shop.services||{};
+  const serviceCatalog=services.available?renderEconomyServices(services):'<div class="empty">This merchant does not provide blacksmith services.</div>';
+
+  overlay.innerHTML=`<div class="settlement-shop-modal economy-shop-modal">
+    <div class="settlement-shop-header"><div><p class="eyebrow">DYNAMIC ECONOMY â€¢ BUILD 6.29</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} â€¢ Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">Ã—</button></div>
+    <div class="economy-market-strip">Merchant Cash: <b>${formatShopGp(shop.merchantWealthGp||0)}</b> / ${formatShopGp(shop.merchantWealthCapGp||0)} â€¢ Market Ã—${Number(shop.settlementMultiplier||1).toFixed(2)} â€¢ Reputation: <b>${escapeHtml(shop.reputationTier||'Neutral')}</b> â€¢ Restock ${economyRelativeTime(shop.restockAt)}</div>
+    <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">â† Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Stock, merchant cash, market conditions and reputation all affect trade.</span></div>
+    <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy">Buy</button><button class="button shop-mode-button" data-shop-mode="sell">Sell</button>${services.available?'<button class="button shop-mode-button" data-shop-mode="services">Blacksmith Services</button>':''}<span class="muted shop-resale-note">Prices are recalculated by the server at transaction time.</span></div>
+    <div id="shopError" class="error"></div>
+    <div id="shopBuyPane" class="settlement-shop-catalog shop-mode-pane">${buyCatalog||'<div class="empty">This merchant has nothing catalogued.</div>'}</div>
+    <div id="shopSellPane" class="settlement-shop-catalog shop-mode-pane" hidden>${sellCatalog}</div>
+    <div id="shopServicesPane" class="settlement-shop-catalog shop-mode-pane economy-services-pane" hidden>${serviceCatalog}</div>
+  </div>`;
+
+  document.body.appendChild(overlay);
+  const setMode=mode=>{
+    const normalized=mode==='sell'?'sell':mode==='services'&&services.available?'services':'buy';
+    overlay.querySelector('#shopBuyPane').hidden=normalized!=='buy';
+    overlay.querySelector('#shopSellPane').hidden=normalized!=='sell';
+    const servicePane=overlay.querySelector('#shopServicesPane');
+    if(servicePane)servicePane.hidden=normalized!=='services';
+    overlay.querySelectorAll('.shop-mode-button').forEach(button=>{
+      button.classList.toggle('primary',button.dataset.shopMode===normalized);
+      button.setAttribute('aria-selected',button.dataset.shopMode===normalized?'true':'false');
+    });
+  };
+
+  overlay.querySelector('#closeSettlementShop').onclick=()=>overlay.remove();
+  overlay.querySelector('#shopBackToMap').onclick=async()=>{overlay.remove();await openLocalMap();};
+  overlay.querySelector('#shopOpenInventory').onclick=()=>{overlay.remove();switchGameTab('party');};
+  overlay.querySelectorAll('.shop-mode-button').forEach(button=>button.onclick=()=>setMode(button.dataset.shopMode));
+  overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
+  overlay.querySelectorAll('.shop-buy-button').forEach(button=>button.onclick=()=>buySettlementShopItem(button,shop));
+  overlay.querySelectorAll('.shop-sell-button').forEach(button=>button.onclick=()=>sellSettlementShopItem(button,shop));
+  overlay.querySelectorAll('.economy-service-button').forEach(button=>button.onclick=()=>runEconomyBlacksmithService(button));
+  overlay.querySelectorAll('.economy-claim-button').forEach(button=>button.onclick=()=>claimEconomyCommission(button));
+  setMode(initialMode);
+}
+
+function renderEconomyServices(services) {
+  const repairs=(services.repairs||[]).map(item=>`<article class="economy-service-card"><div><small>REPAIR â€¢ ${Number(item.conditionPercent)||0}% CONDITION</small><h4>${escapeHtml(item.itemName)}</h4><p>Restore this item to 100% condition.</p></div><button class="button primary economy-service-button" data-service-type="repair" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Repair â€¢ ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
+  const improvements=(services.improvements||[]).map(item=>`<article class="economy-service-card"><div><small>MASTERWORK</small><h4>${escapeHtml(item.itemName)}</h4><p>${String(item.itemType||'').toLowerCase().includes('weapon')?'+1 attack and +1 damage.':'+1 Armor Class.'} One Build 6.29 improvement maximum.</p></div><button class="button primary economy-service-button" data-service-type="improve" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Improve â€¢ ${formatShopGp(item.servicePriceGp)}</button></article>`).join('');
+  const commissions=(services.commissions||[]).map(item=>`<article class="economy-service-card"><div><small>COMMISSION â€¢ ~20 MIN</small><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.description||'Commission this item even when ordinary stock is unavailable.')}</p></div><button class="button economy-service-button" data-service-type="commission" data-stock-id="${escapeHtml(item.stockId)}">Commission â€¢ ${formatShopGp(item.commissionPriceGp)}</button></article>`).join('');
+  const orders=(services.orders||[]).map(order=>`<article class="economy-order-card"><div><small>${escapeHtml(String(order.status||'pending').toUpperCase())}</small><h4>${escapeHtml(order.itemName)}</h4><p>${order.canClaim?'Ready for pickup.':`Ready ${economyRelativeTime(order.readyAt)}`}</p></div><button class="button ${order.canClaim?'primary':''} economy-claim-button" data-order-id="${escapeHtml(order.orderId)}" ${order.canClaim?'':'disabled'}>${order.canClaim?'Claim':'Waiting'}</button></article>`).join('');
+  return `<section class="economy-service-section"><h3>Repair</h3>${repairs||'<p class="muted">No carried smithable equipment currently needs repair.</p>'}</section><section class="economy-service-section"><h3>Masterwork Improvement</h3>${improvements||'<p class="muted">No eligible unimproved equipment is available.</p>'}</section><section class="economy-service-section"><h3>Commission Equipment</h3><p class="muted">Commissioned catalog items cost a premium and take about 20 real minutes.</p><div class="economy-service-grid">${commissions}</div></section><section class="economy-service-section"><h3>Active Orders</h3>${orders||'<p class="muted">No active commissions.</p>'}</section>`;
+}
+
+function economyRelativeTime(value) {
+  if(!value)return 'later';
+  const ms=new Date(value).getTime()-Date.now();
+  if(!Number.isFinite(ms))return 'later';
+  if(ms<=0)return 'now';
+  return `in ~${Math.max(1,Math.ceil(ms/60000))} min`;
+}
+
+async function refreshEconomyInventory() {
+  const inv=await api(`/game-api/campaigns/${currentCampaignId}/inventory`);
+  applyInventoryPayload(inv);
+  updateLiveGoldDisplay();
+}
+
+async function runEconomyBlacksmithService(button) {
+  if(!button||button.disabled)return;
+  const errorBox=document.querySelector('#shopError');
+  if(errorBox)errorBox.textContent='';
+  button.disabled=true;
+  try {
+    const payload={serviceType:button.dataset.serviceType};
+    if(button.dataset.inventoryItemId)payload.inventoryItemId=button.dataset.inventoryItemId;
+    if(button.dataset.stockId)payload.stockId=button.dataset.stockId;
+    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/economy/shop/service`,{method:'POST',body:JSON.stringify(payload)});
+    if(currentGameData?.character&&result.remainingGold!==undefined)currentGameData.character.gold=result.remainingGold;
+    await refreshEconomyInventory();
+    showNotice(result.message||'Blacksmith service completed.');
+    const fresh=await api(`/game-api/campaigns/${currentCampaignId}/settlement/economy/shop`);
+    renderSettlementShop(fresh,'services');
+  } catch(error) {
+    if(errorBox)errorBox.textContent=error.message;
+    button.disabled=false;
+  }
+}
+
+async function claimEconomyCommission(button) {
+  if(!button||button.disabled)return;
+  const errorBox=document.querySelector('#shopError');
+  if(errorBox)errorBox.textContent='';
+  button.disabled=true;
+  try {
+    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/economy/shop/order/claim`,{method:'POST',body:JSON.stringify({orderId:button.dataset.orderId})});
+    await refreshEconomyInventory();
+    showNotice(result.message||'Commission claimed.');
+    const fresh=await api(`/game-api/campaigns/${currentCampaignId}/settlement/economy/shop`);
+    renderSettlementShop(fresh,'services');
+  } catch(error) {
+    if(errorBox)errorBox.textContent=error.message;
+    button.disabled=false;
+  }
+}
+
 async function buySettlementShopItem(button,shop) {
   if(!button||button.disabled)return;
   const card=button.closest('.shop-item-card');
@@ -3215,9 +3361,15 @@ async function buySettlementShopItem(button,shop) {
   if(errorBox)errorBox.textContent='';
   button.disabled=true;
   try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop/buy`,{
+    const dynamicShop=shop?.dynamicEconomy===true;
+    const buyUrl=dynamicShop
+      ? `/game-api/campaigns/${currentCampaignId}/settlement/economy/shop/buy`
+      : `/game-api/campaigns/${currentCampaignId}/settlement/shop/buy`;
+    const result=await api(buyUrl,{
       method:'POST',
-      body:JSON.stringify({itemKey:button.dataset.itemKey,quantity})
+      body:JSON.stringify(dynamicShop
+        ? {stockId:button.dataset.itemKey,quantity}
+        : {itemKey:button.dataset.itemKey,quantity})
     });
     if(currentGameData?.character&&result.remainingGold!==undefined) {
       currentGameData.character.gold=result.remainingGold;
@@ -3236,7 +3388,9 @@ async function buySettlementShopItem(button,shop) {
     const hospitalityShop=['inn','tavern','inn-tavern'].includes(String(shop?.shopKind||'').toLowerCase());
     if(!hospitalityShop) {
       try {
-        const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+        const freshShop=await api(shop?.dynamicEconomy===true
+          ? `/game-api/campaigns/${currentCampaignId}/settlement/economy/shop`
+          : `/game-api/campaigns/${currentCampaignId}/settlement/shop`);
         renderSettlementShop(freshShop,'buy');
       } catch(shopRefreshError) {
         console.warn('Shop refresh after purchase failed:',shopRefreshError);
@@ -3259,7 +3413,10 @@ async function sellSettlementShopItem(button,shop) {
   if(errorBox)errorBox.textContent='';
   button.disabled=true;
   try {
-    const result=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop/sell`,{
+    const sellUrl=shop?.dynamicEconomy===true
+      ? `/game-api/campaigns/${currentCampaignId}/settlement/economy/shop/sell`
+      : `/game-api/campaigns/${currentCampaignId}/settlement/shop/sell`;
+    const result=await api(sellUrl,{
       method:'POST',
       body:JSON.stringify({inventoryItemId:button.dataset.inventoryItemId,quantity})
     });
@@ -3275,7 +3432,9 @@ async function sellSettlementShopItem(button,shop) {
       console.warn('Inventory refresh after shop sale failed:',refreshError);
     }
     try {
-      const freshShop=await api(`/game-api/campaigns/${currentCampaignId}/settlement/shop`);
+      const freshShop=await api(shop?.dynamicEconomy===true
+        ? `/game-api/campaigns/${currentCampaignId}/settlement/economy/shop`
+        : `/game-api/campaigns/${currentCampaignId}/settlement/shop`);
       renderSettlementShop(freshShop,'sell');
     } catch(shopRefreshError) {
       console.warn('Shop refresh after sale failed:',shopRefreshError);

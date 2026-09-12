@@ -46,6 +46,7 @@ public static class InventoryPresentationService
 
         var itemType = InferDiscordItemType(item);
         item.ItemType = itemType;
+        ApplyEconomyImprovement(item, info.ItemData);
 
         if (string.IsNullOrWhiteSpace(item.EquipmentSlot))
             item.EquipmentSlot = InferDiscordSlot(itemType, item.ItemName);
@@ -105,7 +106,34 @@ public static class InventoryPresentationService
         var item = BuildInventoryItem(info);
         EquipmentReferenceService.ApplyStandardDefaults(item, false);
         item.ItemType = InferDiscordItemType(item);
+        ApplyEconomyImprovement(item, info.ItemData);
         return EquipmentReferenceService.BuildGameplaySummary(item);
+    }
+
+    private static void ApplyEconomyImprovement(InventoryItem item, JsonElement data)
+    {
+        if (data.ValueKind != JsonValueKind.Object
+            || !data.TryGetProperty("economy_improvement_level", out var levelValue))
+            return;
+
+        var level = 0;
+        if (levelValue.ValueKind == JsonValueKind.Number) levelValue.TryGetInt32(out level);
+        else if (levelValue.ValueKind == JsonValueKind.String) int.TryParse(levelValue.GetString(), out level);
+
+        level = Math.Clamp(level, 0, 1);
+        if (level <= 0) return;
+
+        var type = (item.ItemType ?? string.Empty).Trim().ToLowerInvariant();
+        if (type.Contains("weapon"))
+        {
+            item.AttackBonus += level;
+            item.DamageBonus += level;
+        }
+        else if (type.Contains("armor") || type.Contains("armour")
+                 || type.Contains("shield") || type.Contains("helmet"))
+        {
+            item.ArmorClassBonus += level;
+        }
     }
 
     public static bool CanEquip(DiscordInventoryInfo info)

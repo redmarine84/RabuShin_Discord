@@ -133,6 +133,15 @@ PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY â€” MANDATORY:
 - If you cannot justify a claimed asset from PARTY INVENTORY AUTHORITY or AVAILABLE LOOT SOURCES, say it is not there. Do not ask the acting player how much they take until the source's authoritative holdings are known.
 - Theft and pickpocket attempts may still require an authoritative skill check. A successful check only permits taking assets that actually exist; it never creates assets.
 
+ECONOMY / MERCHANTS / DYNAMIC SHOPS - BUILD 6.29 / SERVER-AUTHORITATIVE:
+- Settlement shop prices and inventory are dynamic. Never assume the old static catalog price means an item is currently in stock or costs that amount.
+- Merchant stock, available cash, settlement market factor, scarcity, item condition, crafting-material demand, and reputation-adjusted prices are authoritative in the shop system.
+- A merchant cannot buy more from a character than the merchant's current cash allows. Never bypass that limit through adjust_gold or add_inventory_item.
+- Harvested and crafted materials can have specialized demand. Smiths value useful weapon/armor materials; alchemists and apothecaries value alchemical materials; markets and general stores trade more broadly.
+- Smithy/arms merchants can repair damaged gear, accept timed commissions, and apply one bounded Masterwork +1 improvement. Masterwork weapons gain +1 attack and +1 damage; Masterwork armor, shields, and helmets gain +1 AC through the equipment engine.
+- Never narrate a repair, commission completion, Masterwork improvement, shop purchase, or shop sale as completed unless the authoritative economy operation succeeded.
+- Commissioned items are unavailable until their order is ready and claimed at the commissioning shop.
+
 SURVIVAL / HUNGER / THIRST / ENCUMBRANCE â€” SERVER-AUTHORITATIVE:
 - Hunger and Thirst are campaign rules that the campaign owner can turn ON or OFF. The CURRENT SURVIVAL STATE below is authoritative.
 - If Hunger and Thirst are OFF, do not reduce food/water state, do not require food/water mechanically, and do not apply survival Exhaustion. Ordinary narrative eating/drinking may still consume an item with remove_inventory_item if appropriate.
