@@ -1093,3 +1093,25 @@ html.rs-mobile .local-map-toolbar {
   gap: 7px;
   flex-wrap: wrap;
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.5
+   Mobile textual Close Map button.
+   ============================================================ */
+
+html.rs-mobile #closeLocalMapMobile {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  min-width: 108px !important;
+  min-height: 44px !important;
+  width: auto !important;
+  margin-left: 0 !important;
+  padding: 0 14px !important;
+  white-space: nowrap;
+  font-size: 14px !important;
+  font-weight: 700;
+  line-height: 1 !important;
+}

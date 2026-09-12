@@ -2994,7 +2994,7 @@ function renderCampaignLocalMap(map,kind,currentLocation) {
       <span id="localMapZoomLabel">100%</span>
       <button id="localMapZoomIn" class="button small">+</button>
       <button id="localMapFit" class="button small">Fit to Screen</button>
-      <button id="closeLocalMapMobile" class="button small" style="display:none" aria-label="Close Settlement Map">×</button>
+      <button id="closeLocalMapMobile" class="button small" style="display:none" aria-label="Close Map">Close Map</button>
     </div>
     <div id="localMapViewport" class="local-map-viewport">
       <div id="localMapStage" class="local-map-stage">
