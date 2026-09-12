@@ -7,7 +7,7 @@ public static class EquipmentLoadoutRulesService
     private static readonly SlotDefinition[] SlotDefinitions =
     {
         new("armor", "Armor", "🛡"),
-        new("shield", "Shield", "◈"),
+        new("shield", "Shield / Off Hand", "◈"),
         new("main_hand", "Main Hand", "⚔"),
         new("off_hand", "Off Hand", "†"),
         new("ranged", "Ranged", "➶"),
@@ -18,8 +18,8 @@ public static class EquipmentLoadoutRulesService
         new("feet", "Feet", "⌂"),
         new("ring_left", "Left Ring", "○"),
         new("ring_right", "Right Ring", "○"),
-        new("accessory_1", "Accessory I", "✧"),
-        new("accessory_2", "Accessory II", "✧")
+        new("accessory_1", "Accessory 1", "✧"),
+        new("accessory_2", "Accessory 2", "✧")
     };
 
     public static EquipmentLoadoutView Build(DiscordCharacterInfo character, IReadOnlyList<DiscordInventoryInfo> inventory, IReadOnlyList<EquipmentSlotRow> slotRows)
@@ -67,13 +67,55 @@ public static class EquipmentLoadoutRulesService
     {
         var slot = NormalizeSlot(slotKey);
         if (slot.Length == 0) return false;
+
         var type = (item.ItemType ?? string.Empty).Trim().ToLowerInvariant();
         var name = (item.ItemName ?? string.Empty).Trim().ToLowerInvariant();
         var equipmentSlot = (item.EquipmentSlot ?? string.Empty).Trim().ToLowerInvariant();
         var properties = (item.WeaponProperties ?? string.Empty).Trim().ToLowerInvariant();
-        var ranged = name.Contains("bow") || name.Contains("crossbow") || name.Contains("sling") || name.Contains("blowgun") || properties.Contains("ammunition") || properties.Contains("ranged");
-        var ammo = type == "ammunition" || name.Contains("arrow") || name.Contains("bolt") || name.Contains("bullet") || name.Contains("needle") || name.Contains("ammunition");
+
+        var javelin = name.Contains("javelin");
+        var dedicatedRanged =
+            name.Contains("bow") ||
+            name.Contains("crossbow") ||
+            name.Contains("sling") ||
+            name.Contains("blowgun") ||
+            equipmentSlot.Contains("ranged") ||
+            properties.Contains("ammunition") ||
+            properties.Contains("ranged");
+
+        var rangedEligible = dedicatedRanged || javelin;
+
+        var ammo =
+            type == "ammunition" ||
+            name.Contains("arrow") ||
+            name.Contains("bolt") ||
+            name.Contains("bullet") ||
+            name.Contains("needle") ||
+            name.Contains("ammunition");
+
         var shield = type == "shield" || name.Contains("shield");
+
+        var weapon =
+            type == "weapon" ||
+            name.Contains("sword") ||
+            name.Contains("dagger") ||
+            name.Contains("axe") ||
+            name.Contains("mace") ||
+            name.Contains("hammer") ||
+            name.Contains("spear") ||
+            name.Contains("javelin") ||
+            name.Contains("staff") ||
+            name.Contains("club") ||
+            name.Contains("flail") ||
+            name.Contains("rapier") ||
+            name.Contains("scimitar") ||
+            name.Contains("trident") ||
+            name.Contains("whip") ||
+            name.Contains("bow") ||
+            name.Contains("crossbow") ||
+            name.Contains("sling") ||
+            name.Contains("blowgun");
+
         var ring = name.Contains("ring");
         var neck = name.Contains("necklace") || name.Contains("amulet") || name.Contains("pendant") || name.Contains("brooch");
         var hands = equipmentSlot.Contains("hand") || equipmentSlot.Contains("arm") || name.Contains("glove") || name.Contains("gauntlet") || name.Contains("bracer");
@@ -84,16 +126,16 @@ public static class EquipmentLoadoutRulesService
         {
             "armor" => type == "armor" && !shield && !head && !hands && !feet,
             "shield" => shield,
-            "main_hand" => type == "weapon" && !ranged,
-            "off_hand" => type == "weapon" && !ranged,
-            "ranged" => type == "weapon" && ranged,
+            "main_hand" => weapon && !dedicatedRanged,
+            "off_hand" => shield || (weapon && !dedicatedRanged),
+            "ranged" => weapon && rangedEligible,
             "ammunition" => ammo,
             "head" => head,
             "hands" => hands,
             "feet" => feet,
             "neck" => neck || (type == "accessory" && !ring),
             "ring_left" or "ring_right" => ring,
-            "accessory_1" or "accessory_2" => type == "accessory" && !ring && !neck,
+            "accessory_1" or "accessory_2" => true,
             _ => false
         };
     }
@@ -124,8 +166,18 @@ public static class EquipmentLoadoutRulesService
         out string summary)
     {
         var dexterityModifier = AbilityModifier(character.Dexterity);
+
+        var shieldItems = new[]
+        {
+            ItemForSlot("shield", slots, items),
+            ItemForSlot("off_hand", slots, items)
+        }
+        .Where(IsShieldItem)
+        .Cast<InventoryClientItem>()
+        .ToArray();
+
+        var shieldEquipped = shieldItems.Length > 0;
         var unarmored = 10 + dexterityModifier;
-        var shieldEquipped = ItemForSlot("shield", slots, items) is not null;
         if (character.ClassName.Equals("Barbarian", StringComparison.OrdinalIgnoreCase))
             unarmored = Math.Max(unarmored, 10 + dexterityModifier + AbilityModifier(character.Constitution));
         if (character.ClassName.Equals("Monk", StringComparison.OrdinalIgnoreCase) && !shieldEquipped)
@@ -152,12 +204,27 @@ public static class EquipmentLoadoutRulesService
         }
 
         var bonusParts = new List<string>();
-        foreach (var slot in new[] { "shield", "head", "neck", "hands", "feet", "ring_left", "ring_right", "accessory_1", "accessory_2" })
+
+        if (shieldItems.Length > 0)
+        {
+            var activeShield = shieldItems
+                .OrderByDescending(x => x.ArmorClassBonus > 0 ? x.ArmorClassBonus : 2)
+                .First();
+            var shieldBonus = activeShield.ArmorClassBonus > 0 ? activeShield.ArmorClassBonus : 2;
+            armorClass += shieldBonus;
+            bonusParts.Add($"{activeShield.ItemName} +{shieldBonus}");
+        }
+
+        foreach (var slot in new[] { "head", "neck", "hands", "feet", "ring_left", "ring_right", "accessory_1", "accessory_2" })
         {
             var item = ItemForSlot(slot, slots, items);
             if (item is null) continue;
+
+            if ((slot == "accessory_1" || slot == "accessory_2") &&
+                !item.ItemType.Equals("Accessory", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var bonus = item.ArmorClassBonus;
-            if (slot == "shield" && bonus <= 0) bonus = 2;
             if (bonus <= 0) continue;
             armorClass += bonus;
             bonusParts.Add($"{item.ItemName} +{bonus}");
@@ -187,7 +254,8 @@ public static class EquipmentLoadoutRulesService
             var requiresAmmunition = properties.Contains("Ammunition", StringComparison.OrdinalIgnoreCase);
             var ammunitionReady = !requiresAmmunition || IsCompatibleAmmunition(item, ammunition);
             var finesse = properties.Contains("Finesse", StringComparison.OrdinalIgnoreCase);
-            var abilityModifier = ranged ? AbilityModifier(character.Dexterity) : AbilityModifier(character.Strength);
+            var usesDexterity = ranged && !name.Contains("javelin", StringComparison.OrdinalIgnoreCase);
+            var abilityModifier = usesDexterity ? AbilityModifier(character.Dexterity) : AbilityModifier(character.Strength);
             if (finesse) abilityModifier = Math.Max(AbilityModifier(character.Strength), AbilityModifier(character.Dexterity));
             var attackBonus = abilityModifier + Math.Max(0, character.ProficiencyBonus) + item.AttackBonus;
             var damageBonus = abilityModifier + item.DamageBonus;
@@ -214,6 +282,11 @@ public static class EquipmentLoadoutRulesService
         return attacks;
     }
 
+
+    private static bool IsShieldItem(InventoryClientItem? item)
+        => item is not null &&
+           (item.ItemType.Equals("Shield", StringComparison.OrdinalIgnoreCase) ||
+            (item.ItemName ?? string.Empty).Contains("shield", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsCompatibleAmmunition(InventoryClientItem weapon, InventoryClientItem? ammunition)
     {

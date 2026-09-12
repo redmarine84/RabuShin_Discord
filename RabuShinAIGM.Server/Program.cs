@@ -2404,7 +2404,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/equipment/equip", async (
         var rawItem = inventory.FirstOrDefault(x => x.InventoryItemId == body.InventoryItemId)
             ?? throw new InvalidOperationException("Inventory item could not be found.");
         var item = InventoryPresentationService.ToClientItem(rawItem);
-        if (!item.CanEquip) throw new InvalidOperationException($"{item.ItemName} is not equippable.");
         if (!EquipmentLoadoutRulesService.IsSlotEligible(item, body.SlotKey))
             throw new InvalidOperationException($"{item.ItemName} cannot be equipped in {body.SlotKey}.");
         await systems.SetEquipmentSlotAsync(playerId, campaignId, body.InventoryItemId, body.SlotKey, EquipmentLoadoutRulesService.MechanicsFor(item));

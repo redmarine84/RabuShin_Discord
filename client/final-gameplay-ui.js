@@ -39,7 +39,7 @@ export async function mountFinalGameplayInventoryPanels(context) {
 }
 
 export async function handleFinalEquipmentToggle(context, item) {
-  if (!context?.campaignId || !item?.inventoryItemId || !item.canEquip) return false;
+  if (!context?.campaignId || !item?.inventoryItemId) return false;
   try {
     let state = stateCache.get(String(context.campaignId));
     if (!state?.equipment) {
@@ -337,18 +337,64 @@ function eligibleSlotsForItem(item) {
   const name=String(item.itemName||'').toLowerCase();
   const equipmentSlot=String(item.equipmentSlot||'').toLowerCase();
   const properties=String(item.weaponProperties||item.itemData?.weapon_properties||'').toLowerCase();
-  const ranged=name.includes('bow')||name.includes('crossbow')||name.includes('sling')||name.includes('blowgun')||properties.includes('ammunition')||properties.includes('ranged');
-  if(type==='ammunition'||name.includes('arrow')||name.includes(' bolt')||name.startsWith('bolt')||name.includes('bullet')||name.includes('needle')||name.includes('ammunition'))return ['ammunition'];
-  if(type==='shield'||name.includes('shield'))return ['shield'];
-  if(name.includes('helmet')||name.includes('helm')||name.includes('circlet')||equipmentSlot.includes('head'))return ['head'];
-  if(name.includes('glove')||name.includes('gauntlet')||name.includes('bracer')||equipmentSlot.includes('hand')||equipmentSlot.includes('arm'))return ['hands'];
-  if(name.includes('boot')||name.includes('greave')||equipmentSlot.includes('feet'))return ['feet'];
-  if(name.includes('ring'))return ['ring_left','ring_right'];
-  if(name.includes('necklace')||name.includes('amulet')||name.includes('pendant')||name.includes('brooch'))return ['neck'];
-  if(type==='accessory')return ['accessory_1','accessory_2'];
-  if(type==='armor')return ['armor'];
-  if(type==='weapon')return ranged?['ranged']:['main_hand','off_hand'];
-  return [];
+  const accessorySlots=['accessory_1','accessory_2'];
+  const slots=[];
+
+  const javelin=name.includes('javelin');
+  const dedicatedRanged=
+    name.includes('bow')||
+    name.includes('crossbow')||
+    name.includes('sling')||
+    name.includes('blowgun')||
+    equipmentSlot.includes('ranged')||
+    properties.includes('ammunition')||
+    properties.includes('ranged');
+
+  const ammunition=
+    type==='ammunition'||
+    name.includes('arrow')||
+    name.includes('bolt')||
+    name.includes('bullet')||
+    name.includes('needle')||
+    name.includes('ammunition');
+
+  const shield=type==='shield'||name.includes('shield');
+  const weapon=
+    type==='weapon'||
+    name.includes('sword')||
+    name.includes('dagger')||
+    name.includes('axe')||
+    name.includes('mace')||
+    name.includes('hammer')||
+    name.includes('spear')||
+    name.includes('javelin')||
+    name.includes('staff')||
+    name.includes('club')||
+    name.includes('flail')||
+    name.includes('rapier')||
+    name.includes('scimitar')||
+    name.includes('trident')||
+    name.includes('whip')||
+    name.includes('bow')||
+    name.includes('crossbow')||
+    name.includes('sling')||
+    name.includes('blowgun');
+
+  if(ammunition)slots.push('ammunition');
+  else if(shield)slots.push('shield','off_hand');
+  else if(name.includes('helmet')||name.includes('helm')||name.includes('circlet')||equipmentSlot.includes('head'))slots.push('head');
+  else if(name.includes('glove')||name.includes('gauntlet')||name.includes('bracer')||equipmentSlot.includes('hand')||equipmentSlot.includes('arm'))slots.push('hands');
+  else if(name.includes('boot')||name.includes('greave')||equipmentSlot.includes('feet'))slots.push('feet');
+  else if(name.includes('ring'))slots.push('ring_left','ring_right');
+  else if(name.includes('necklace')||name.includes('amulet')||name.includes('pendant')||name.includes('brooch'))slots.push('neck');
+  else if(type==='armor')slots.push('armor');
+  else if(weapon) {
+    if(javelin)slots.push('main_hand','off_hand','ranged');
+    else if(dedicatedRanged)slots.push('ranged');
+    else slots.push('main_hand','off_hand');
+  }
+
+  return [...new Set([...slots,...accessorySlots])];
 }
 
 function choosePreferredSlot(eligible,currentSlots){
@@ -370,7 +416,10 @@ function chooseEquipmentSlot(context,item,eligible,preferred){
   });
 }
 
-function humanSlot(key){return String(key||'').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase());}
+function humanSlot(key){
+  const labels={shield:'Shield / Off Hand',accessory_1:'Accessory 1',accessory_2:'Accessory 2'};
+  return labels[key]||String(key||'').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase());
+}
 function humanPreset(key){return String(key||'traveling').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase());}
 function slotIcon(key){return ({armor:'🛡',shield:'◈',main_hand:'⚔',off_hand:'†',ranged:'➶',ammunition:'⌁',head:'⛨',neck:'◇',hands:'✦',feet:'⌂',ring_left:'○',ring_right:'○',accessory_1:'✧',accessory_2:'✧'})[key]||'•';}
 function signed(value){const n=Number(value)||0;return n>=0?`+${n}`:`${n}`;}

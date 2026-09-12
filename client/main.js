@@ -4389,7 +4389,7 @@ function inventoryDetailHtml(item) {
     ${item.rulesSummary?`<div class="inventory-rules"><b>Equipment Details</b><div>${escapeHtml(item.rulesSummary).replaceAll('\n','<br>')}</div></div>`:''}
     ${item.notes?`<div class="inventory-notes"><b>Notes:</b> ${escapeHtml(item.notes)}</div>`:''}
     <div class="inventory-actions">
-      ${item.canEquip?`<button id="inventoryEquip" class="button primary">${item.equipped?'Unequip':'Equip'}</button>`:''}
+      <button id="inventoryEquip" class="button primary">${item.equipped?'Remove from Loadout':'Add to Loadout'}</button>
       ${item.canUse?'<button id="inventoryUse" class="button primary">Use</button>':''}
       ${item.ration?`<button id="inventoryEatRation" class="button primary" ${item.ration.canEat?'':'disabled'}>Eat Portion</button>`:''}
       ${item.waterskin?`<button id="inventoryDrink" class="button primary" ${item.waterskin.canDrink?'':'disabled'}>Drink</button>`:''}
