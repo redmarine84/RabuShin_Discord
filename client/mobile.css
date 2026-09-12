@@ -1,0 +1,734 @@
+/* RabuShinAIGM Build 6.30 - Discord Android/iOS responsive layer.
+   Every rule is gated by html.rs-mobile so the Desktop Discord UI remains unchanged. */
+
+:root {
+  --rs-sait: var(--discord-safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --rs-saib: var(--discord-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --rs-sail: var(--discord-safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --rs-sair: var(--discord-safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --rs-mobile-nav-height: 58px;
+  --rs-vvh: 100svh;
+  --rs-vvw: 100vw;
+}
+
+html.rs-mobile,
+html.rs-mobile body,
+html.rs-mobile #app {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+html.rs-mobile body {
+  min-height: var(--rs-vvh);
+  padding-top: var(--rs-sait);
+  padding-right: var(--rs-sair);
+  padding-bottom: var(--rs-saib);
+  padding-left: var(--rs-sail);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: contain;
+}
+
+html.rs-mobile .app-shell {
+  min-height: calc(var(--rs-vvh) - var(--rs-sait) - var(--rs-saib));
+  min-width: 0;
+}
+
+html.rs-mobile .topbar {
+  top: var(--rs-sait);
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px;
+  z-index: 70;
+}
+
+html.rs-mobile .topbar > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+html.rs-mobile .topbar h1 {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.rs-mobile .subtitle,
+html.rs-mobile .status,
+html.rs-mobile .identity span,
+html.rs-mobile .identity small {
+  display: none !important;
+}
+
+html.rs-mobile .topbar-right {
+  min-width: 0;
+  flex: 0 1 auto;
+  gap: 4px;
+}
+
+html.rs-mobile .identity {
+  max-width: 34vw;
+  min-width: 0;
+  overflow: hidden;
+  align-items: flex-end;
+}
+
+html.rs-mobile .identity strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.rs-mobile .content {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 12px 10px calc(var(--rs-mobile-nav-height) + var(--rs-saib) + 28px);
+}
+
+html.rs-mobile .panel,
+html.rs-mobile .game-view,
+html.rs-mobile .side-card,
+html.rs-mobile .selection-summary,
+html.rs-mobile .inventory-list-panel,
+html.rs-mobile .inventory-detail-panel,
+html.rs-mobile .rs-system-panel {
+  min-width: 0;
+}
+
+html.rs-mobile .panel {
+  padding: 14px;
+}
+
+html.rs-mobile .panel-header,
+html.rs-mobile .section-title,
+html.rs-mobile .view-heading,
+html.rs-mobile .game-header {
+  min-width: 0;
+}
+
+html.rs-mobile .panel-header,
+html.rs-mobile .section-title {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+html.rs-mobile .button,
+html.rs-mobile .tab,
+html.rs-mobile .game-tab,
+html.rs-mobile button:not(.tactical-token) {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+html.rs-mobile input,
+html.rs-mobile select,
+html.rs-mobile textarea,
+html.rs-mobile .input {
+  max-width: 100%;
+  min-width: 0;
+  font-size: 16px;
+}
+
+html.rs-mobile textarea,
+html.rs-mobile .textarea {
+  resize: vertical;
+}
+
+/* Campaign launcher and creation screens */
+html.rs-mobile .launcher,
+html.rs-mobile .creator {
+  gap: 12px;
+}
+
+html.rs-mobile .welcome h2 {
+  font-size: clamp(24px, 7vw, 32px);
+}
+
+html.rs-mobile .launcher-actions,
+html.rs-mobile .form-grid,
+html.rs-mobile .spell-grid,
+html.rs-mobile .spellbook-list,
+html.rs-mobile .two-col,
+html.rs-mobile .gm-layout,
+html.rs-mobile .inventory-layout,
+html.rs-mobile .character-detail-sections {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+html.rs-mobile .campaign-card {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 12px;
+}
+
+html.rs-mobile .campaign-actions {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+html.rs-mobile .campaign-actions .button {
+  flex: 1 1 130px;
+}
+
+html.rs-mobile .ability-entry-grid,
+html.rs-mobile .stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+html.rs-mobile .vitals {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* Main game shell */
+html.rs-mobile .game {
+  min-width: 0;
+  gap: 10px;
+}
+
+html.rs-mobile .game-header {
+  width: 100%;
+  gap: 12px;
+  align-items: stretch !important;
+  flex-direction: column !important;
+}
+
+html.rs-mobile .game-header > div {
+  width: 100%;
+  min-width: 0;
+}
+
+html.rs-mobile .game-header h2 {
+  margin-top: 10px;
+  max-width: 100%;
+  font-size: clamp(25px, 7vw, 38px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+html.rs-mobile .game-header p {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+html.rs-mobile .game-header-vitals {
+  display: grid !important;
+  width: 100%;
+  min-width: 0;
+  gap: 9px;
+}
+
+html.rs-mobile #worldClockHost,
+html.rs-mobile #survivalMetersHost {
+  width: 100%;
+  min-width: 0;
+}
+
+html.rs-mobile .world-clock-chip {
+  width: 100%;
+  max-width: none;
+}
+
+html.rs-mobile .quick-vitals {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+html.rs-mobile .quick-vitals span {
+  min-width: 0;
+  padding: 9px 10px;
+  overflow-wrap: anywhere;
+}
+
+html.rs-mobile .quick-vitals span:last-child {
+  grid-column: 1 / -1;
+}
+
+html.rs-mobile .game-view {
+  width: 100%;
+  min-height: 0;
+  padding: 10px;
+  overflow: visible;
+}
+
+/* Keep the existing nav/buttons and handlers, but make the same nav touch-friendly. */
+html.rs-mobile .game-nav {
+  position: fixed;
+  z-index: 80;
+  right: var(--rs-sair);
+  bottom: var(--rs-saib);
+  left: var(--rs-sail);
+  width: auto;
+  max-width: none;
+  min-height: var(--rs-mobile-nav-height);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: rgba(9, 14, 21, .98);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, .42);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+html.rs-mobile .game-nav::-webkit-scrollbar {
+  display: none;
+}
+
+html.rs-mobile .game-tab {
+  position: relative;
+  flex: 1 0 72px;
+  min-width: 72px;
+  min-height: var(--rs-mobile-nav-height);
+  padding: 8px 7px;
+  border-right: 1px solid #2f3c4d;
+  font-size: 0 !important;
+  line-height: 1.1;
+  text-align: center;
+}
+
+html.rs-mobile .game-tab::after {
+  content: attr(data-mobile-label);
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+html.rs-mobile .game-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 10px;
+  left: 10px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: currentColor;
+}
+
+html.rs-mobile.rs-keyboard-open .game-nav {
+  display: none;
+}
+
+html.rs-mobile.rs-keyboard-open .content {
+  padding-bottom: 18px;
+}
+
+/* AI Game Master / Campaign Chat */
+html.rs-mobile .gm-layout {
+  display: grid;
+  gap: 10px;
+}
+
+html.rs-mobile .view-heading {
+  width: 100%;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+html.rs-mobile .view-heading > div {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+html.rs-mobile .view-heading h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.15;
+}
+
+html.rs-mobile .view-heading > .button,
+html.rs-mobile #refreshGm {
+  flex: 0 0 auto;
+}
+
+html.rs-mobile .timeline,
+html.rs-mobile .timeline.chat {
+  width: 100%;
+  height: clamp(300px, 52svh, 560px);
+  max-height: none;
+  padding: 9px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+html.rs-mobile .message {
+  max-width: 100%;
+  margin: 8px 0;
+  padding: 10px 11px;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+html.rs-mobile .composer,
+html.rs-mobile .gm-combat-composer {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px;
+  align-items: stretch;
+}
+
+html.rs-mobile .composer textarea,
+html.rs-mobile .gm-combat-composer textarea {
+  min-height: 76px;
+  margin: 0;
+}
+
+html.rs-mobile .composer .button,
+html.rs-mobile .gm-combat-composer .button {
+  min-width: 84px;
+  margin: 0;
+}
+
+html.rs-mobile .gm-combat-composer #endCombatTurn,
+html.rs-mobile .gm-combat-composer #resumeEnemyTurns {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+html.rs-mobile .gm-turn-status {
+  min-width: 0;
+  gap: 6px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+html.rs-mobile .side-card {
+  padding: 12px;
+}
+
+html.rs-mobile .side-card h4 {
+  font-size: 18px;
+}
+
+/* Character, inventory, spells, journal, crafting/equipment */
+html.rs-mobile .inventory-layout {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
+
+html.rs-mobile .inventory-list-panel {
+  max-height: 38svh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.rs-mobile .inventory-detail-panel {
+  padding: 14px;
+}
+
+html.rs-mobile .inventory-list-item {
+  min-height: 52px;
+  padding: 11px;
+}
+
+html.rs-mobile .spellbook-list,
+html.rs-mobile .spell-grid {
+  gap: 8px;
+  max-height: none;
+}
+
+html.rs-mobile .table {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.rs-mobile .table-head,
+html.rs-mobile .table-row {
+  min-width: 500px;
+}
+
+html.rs-mobile .rs-system-panel {
+  padding: 12px;
+  border-radius: 13px;
+}
+
+html.rs-mobile .rs-system-heading {
+  display: grid;
+  gap: 10px;
+}
+
+html.rs-mobile .rs-ac-medallion {
+  justify-self: start;
+}
+
+html.rs-mobile .rs-loadout-stage {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px;
+  padding: 8px;
+}
+
+html.rs-mobile .rs-loadout-core {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  min-height: 170px;
+}
+
+html.rs-mobile .rs-preset-grid,
+html.rs-mobile .rs-recipe-grid,
+html.rs-mobile .rs-harvest-entry-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+html.rs-mobile .rs-formation-preview {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+html.rs-mobile .rs-formation-board {
+  max-width: 100%;
+  overflow: auto;
+}
+
+html.rs-mobile .rs-offset-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+/* Encounter / tactical combat */
+html.rs-mobile .tactical-combat-panel {
+  margin-bottom: 10px;
+  padding: 8px;
+}
+
+html.rs-mobile .tactical-combat-heading {
+  gap: 6px;
+  flex-direction: column;
+}
+
+html.rs-mobile .tactical-combat-heading h3 {
+  font-size: 20px;
+}
+
+html.rs-mobile .tactical-movement-status {
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html.rs-mobile .tactical-toolbar {
+  gap: 7px;
+}
+
+html.rs-mobile .tactical-toolbar .button {
+  min-width: 48px;
+  min-height: 44px;
+}
+
+html.rs-mobile .tactical-toolbar #tacticalMoveHint,
+html.rs-mobile .tactical-terrain-legend {
+  width: 100%;
+  margin-left: 0;
+  overflow-wrap: anywhere;
+}
+
+html.rs-mobile .tactical-viewport {
+  width: 100%;
+  max-height: 60svh;
+  overflow: auto;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.rs-mobile .tactical-stage,
+html.rs-mobile .tactical-map-image {
+  -webkit-touch-callout: none;
+}
+
+html.rs-mobile .tactical-token {
+  width: 48px;
+  height: 48px;
+  border-width: 2px;
+  touch-action: manipulation;
+}
+
+html.rs-mobile .tactical-token-name {
+  max-width: 100px;
+  font-size: 9px;
+}
+
+html.rs-mobile .tactical-token-hp {
+  font-size: 9px;
+}
+
+html.rs-mobile .combat-monster-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+html.rs-mobile .combat-monster-card {
+  min-width: 0;
+}
+
+/* World/local maps and all modal overlays */
+html.rs-mobile .modal-overlay,
+html.rs-mobile .monster-stat-overlay,
+html.rs-mobile .world-map-overlay,
+html.rs-mobile .local-map-overlay,
+html.rs-mobile .rs-slot-overlay {
+  padding-top: max(8px, var(--rs-sait));
+  padding-right: max(8px, var(--rs-sair));
+  padding-bottom: max(8px, var(--rs-saib));
+  padding-left: max(8px, var(--rs-sail));
+}
+
+html.rs-mobile .modal,
+html.rs-mobile .world-map-modal,
+html.rs-mobile .local-map-modal,
+html.rs-mobile .monster-stat-modal,
+html.rs-mobile .character-details-modal,
+html.rs-mobile .rs-slot-modal {
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(var(--rs-vvh) - var(--rs-sait) - var(--rs-saib) - 16px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.rs-mobile .modal-close {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 28px;
+  touch-action: manipulation;
+}
+
+html.rs-mobile .world-map-header,
+html.rs-mobile .local-map-header,
+html.rs-mobile .monster-stat-header {
+  gap: 8px;
+}
+
+html.rs-mobile .monster-stat-modal {
+  height: auto;
+  min-height: min(88svh, 720px);
+  padding: 9px;
+}
+
+html.rs-mobile .monster-stat-layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+  overflow: auto;
+}
+
+html.rs-mobile .monster-stat-image {
+  max-height: 40svh;
+}
+
+html.rs-mobile .modal-actions {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+html.rs-mobile .modal-actions .button {
+  flex: 1 1 120px;
+}
+
+/* Phone-specific tightening. */
+@media (max-width: 520px) {
+  html.rs-mobile .identity {
+    display: none !important;
+  }
+
+  html.rs-mobile .content {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  html.rs-mobile .topbar h1 {
+    font-size: 16px;
+  }
+
+  html.rs-mobile .game-header h2 {
+    font-size: clamp(23px, 7vw, 30px);
+  }
+
+  html.rs-mobile .quick-vitals,
+  html.rs-mobile .vitals {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html.rs-mobile .quick-vitals span:last-child {
+    grid-column: auto;
+  }
+
+  html.rs-mobile .composer,
+  html.rs-mobile .gm-combat-composer {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html.rs-mobile .composer .button,
+  html.rs-mobile .gm-combat-composer .button {
+    width: 100%;
+  }
+
+  html.rs-mobile .combat-monster-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html.rs-mobile .rs-offset-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  html.rs-mobile .rs-offset-row > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Landscape combat mode: keep general game chrome compact and give the map the screen. */
+@media (orientation: landscape) and (max-height: 620px) {
+  html.rs-mobile .topbar {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  html.rs-mobile .topbar h1 {
+    font-size: 14px;
+  }
+
+  html.rs-mobile .content {
+    padding-top: 7px;
+  }
+
+  html.rs-mobile .game-header {
+    gap: 7px;
+  }
+
+  html.rs-mobile .game-header h2 {
+    margin-top: 5px;
+    font-size: 22px;
+  }
+
+  html.rs-mobile .game-header p {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  html.rs-mobile .timeline,
+  html.rs-mobile .timeline.chat {
+    height: max(180px, calc(var(--rs-vvh) - 190px));
+  }
+
+  html.rs-mobile .tactical-viewport {
+    max-height: calc(var(--rs-vvh) - var(--rs-sait) - var(--rs-saib) - var(--rs-mobile-nav-height) - 92px);
+  }
+}
