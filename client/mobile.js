@@ -1,12 +1,6 @@
-/* RabuShinAIGM Build 6.30.2 - Discord Mobile Support
-   Desktop Discord remains untouched.
-
-   Discord mobile WebViews do not always expose Android/iOS in userAgent.
-   Detection therefore uses several independent signals:
-   - Android/iOS user agent
-   - userAgentData.mobile
-   - iPadOS touch-desktop signature
-   - touch/coarse-pointer + non-Windows/non-desktop-Mac mobile-sized display
+/* RabuShinAIGM Build 6.30.3 - Discord Mobile Support
+   Desktop Discord is preserved, but Discord mobile Activities are now
+   detected with a stronger narrow-viewport fallback.
 */
 
 (() => {
@@ -15,9 +9,10 @@
   const ua = navigator.userAgent || '';
   const platform = navigator.platform || '';
   const uaDataMobile = navigator.userAgentData?.mobile === true;
+  const maxTouchPoints = Number(navigator.maxTouchPoints || 0);
 
   const isAppleTouchDesktop =
-    platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
+    platform === 'MacIntel' && maxTouchPoints > 1;
 
   const isAndroidUa = /Android/i.test(ua);
   const isIOSUa = /iPhone|iPad|iPod/i.test(ua) || isAppleTouchDesktop;
@@ -33,47 +28,50 @@
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(pointer: coarse)').matches;
 
-  const touchCapable =
-    Number(navigator.maxTouchPoints || 0) > 0 || coarsePointer;
+  const touchCapable = maxTouchPoints > 0 || coarsePointer;
 
-  const sw = Number(window.screen?.width || window.innerWidth || 0);
-  const sh = Number(window.screen?.height || window.innerHeight || 0);
-  const shortSide = Math.min(sw || 99999, sh || 99999);
-  const viewportShortSide = Math.min(
-    Number(window.innerWidth || 99999),
-    Number(window.innerHeight || 99999)
+  const screenW = Number(window.screen?.width || 0);
+  const screenH = Number(window.screen?.height || 0);
+  const viewW = Number(window.innerWidth || 0);
+  const viewH = Number(window.innerHeight || 0);
+
+  const shortViewport = Math.min(
+    ...( [screenW, screenH, viewW, viewH].filter(v => Number.isFinite(v) && v > 0) )
   );
 
-  /*
-     This fallback is specifically for Discord mobile WebViews that report
-     a desktop-style UA. Explicitly exclude normal Windows/macOS desktops.
-     A phone/tablet is touch-capable and has a mobile-sized short dimension.
-  */
+  const narrowViewport = shortViewport > 0 && shortViewport <= 600;
+  const touchTabletOrPhone = touchCapable && shortViewport > 0 && shortViewport <= 1100;
+
   const isMobileByCapabilities =
     !isWindowsDesktop &&
     !isMacDesktop &&
-    touchCapable &&
-    Math.min(shortSide, viewportShortSide) <= 1100;
+    touchTabletOrPhone;
 
+  const isForcedMobileLayout =
+    narrowViewport || (touchCapable && Math.min(viewW || 99999, viewH || 99999) <= 600);
+
+  /*
+    Final activation rule:
+    - obvious Android/iOS
+    - UAData mobile
+    - capability-based mobile
+    - OR very narrow/touch viewport (Discord mobile iframe fallback)
+  */
   const isDiscordMobile =
     isAndroidUa ||
     isIOSUa ||
     uaDataMobile ||
-    isMobileByCapabilities;
+    isMobileByCapabilities ||
+    isForcedMobileLayout;
 
   if (!isDiscordMobile) {
     console.info('[RabuShin Mobile] Desktop mode retained.', {
-      ua,
-      platform,
-      maxTouchPoints: navigator.maxTouchPoints,
-      width: window.innerWidth,
-      height: window.innerHeight,
+      ua, platform, maxTouchPoints, viewW, viewH, screenW, screenH
     });
     return;
   }
 
   const root = document.documentElement;
-
   root.classList.add('rs-mobile');
 
   const detectedAndroid =
@@ -83,16 +81,16 @@
   if (detectedAndroid) root.classList.add('rs-mobile-android');
   if (isIOSUa || isAppleTouchDesktop) root.classList.add('rs-mobile-ios');
   if (isMobileByCapabilities) root.classList.add('rs-mobile-capability-detected');
+  if (isForcedMobileLayout) root.classList.add('rs-mobile-forced-viewport');
 
   root.dataset.rsMobileDetection =
     isAndroidUa ? 'android-ua' :
     isIOSUa ? 'ios-ua' :
     uaDataMobile ? 'ua-data-mobile' :
-    'touch-capabilities';
+    isMobileByCapabilities ? 'touch-capabilities' :
+    'forced-narrow-viewport';
 
-  console.info(
-    `[RabuShin Mobile] Activated (${root.dataset.rsMobileDetection}).`
-  );
+  console.info(`[RabuShin Mobile] Activated (${root.dataset.rsMobileDetection}).`);
 
   const mobileLabels = {
     gm: 'GM',
@@ -217,7 +215,6 @@
       if (event.touches.length === 1 && oneFingerStart) {
         const dx = event.touches[0].clientX - oneFingerStart.x;
         const dy = event.touches[0].clientY - oneFingerStart.y;
-
         if (Math.hypot(dx, dy) > 12) {
           suppressClickUntil = Date.now() + 180;
         }
@@ -264,17 +261,35 @@
     });
   }
 
+  function relocateMapCloseButtons() {
+    const localClose = document.querySelector('#closeLocalMap');
+    const localFit = document.querySelector('#localMapFit');
+    if (localClose && localFit && localClose.dataset.rsRelocated !== 'true') {
+      localClose.dataset.rsRelocated = 'true';
+      localClose.classList.add('rs-inline-map-close', 'button');
+      localFit.insertAdjacentElement('afterend', localClose);
+    }
+
+    const worldClose = document.querySelector('#closeWorldMap');
+    const worldFit = document.querySelector('#worldMapFit');
+    if (worldClose && worldFit && worldClose.dataset.rsRelocated !== 'true') {
+      worldClose.dataset.rsRelocated = 'true';
+      worldClose.classList.add('rs-inline-map-close', 'button');
+      worldFit.insertAdjacentElement('afterend', worldClose);
+    }
+  }
+
   function enhance() {
     compactGameTabs();
     improveInputs();
     improveTacticalMap();
     improveModalAccessibility();
+    relocateMapCloseButtons();
     updateViewportMetrics();
   }
 
   function scheduleEnhance() {
     if (enhancementFrame) return;
-
     enhancementFrame = requestAnimationFrame(() => {
       enhancementFrame = 0;
       enhance();
@@ -291,7 +306,6 @@
 
   window.addEventListener('orientationchange', () => {
     baselineViewportHeight = 0;
-
     setTimeout(() => {
       updateViewportMetrics();
       scheduleEnhance();
@@ -299,17 +313,8 @@
   }, { passive: true });
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener(
-      'resize',
-      updateViewportMetrics,
-      { passive: true }
-    );
-
-    window.visualViewport.addEventListener(
-      'scroll',
-      updateViewportMetrics,
-      { passive: true }
-    );
+    window.visualViewport.addEventListener('resize', updateViewportMetrics, { passive: true });
+    window.visualViewport.addEventListener('scroll', updateViewportMetrics, { passive: true });
   }
 
   document.addEventListener('visibilitychange', () => {

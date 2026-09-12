@@ -906,3 +906,145 @@ html.rs-mobile #closeMonsterStats {
     --rs-discord-mobile-toolbar-clearance: 52px;
   }
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.3
+   Strong mobile overflow containment + inline map close button.
+   MOBILE ONLY: every rule requires html.rs-mobile.
+   ============================================================ */
+
+html.rs-mobile,
+html.rs-mobile body,
+html.rs-mobile #app,
+html.rs-mobile .app-shell,
+html.rs-mobile .content,
+html.rs-mobile .game,
+html.rs-mobile .game-view,
+html.rs-mobile .gm-layout,
+html.rs-mobile .gm-layout > *,
+html.rs-mobile .side-card,
+html.rs-mobile .panel,
+html.rs-mobile .composer,
+html.rs-mobile .gm-combat-composer,
+html.rs-mobile .view-heading,
+html.rs-mobile .timeline,
+html.rs-mobile .message,
+html.rs-mobile #gmTimeline,
+html.rs-mobile #gmTurnStatus,
+html.rs-mobile #combatInitiativeStatus,
+html.rs-mobile #gmError,
+html.rs-mobile #gmInput,
+html.rs-mobile .input,
+html.rs-mobile textarea,
+html.rs-mobile .local-map-modal,
+html.rs-mobile .world-map-modal,
+html.rs-mobile .monster-stat-modal,
+html.rs-mobile .modal,
+html.rs-mobile .modal * {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+html.rs-mobile body {
+  overflow-x: hidden !important;
+}
+
+html.rs-mobile .content,
+html.rs-mobile .game-view,
+html.rs-mobile .gm-layout,
+html.rs-mobile .gm-layout > div,
+html.rs-mobile .gm-layout > aside,
+html.rs-mobile .side-card,
+html.rs-mobile .panel,
+html.rs-mobile .composer,
+html.rs-mobile .gm-combat-composer,
+html.rs-mobile #gmTurnStatus,
+html.rs-mobile #combatInitiativeStatus,
+html.rs-mobile #gmError,
+html.rs-mobile #gmInput,
+html.rs-mobile .input,
+html.rs-mobile textarea {
+  width: 100% !important;
+}
+
+html.rs-mobile .gm-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+html.rs-mobile .composer,
+html.rs-mobile .gm-combat-composer {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+html.rs-mobile .composer .button,
+html.rs-mobile .gm-combat-composer .button,
+html.rs-mobile #sendGm,
+html.rs-mobile #endCombatTurn,
+html.rs-mobile #resumeEnemyTurns {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+html.rs-mobile #gmTurnStatus,
+html.rs-mobile #combatInitiativeStatus,
+html.rs-mobile #gmError,
+html.rs-mobile .side-card,
+html.rs-mobile .message {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html.rs-mobile .timeline,
+html.rs-mobile #gmTimeline {
+  overflow-x: hidden !important;
+}
+
+html.rs-mobile .local-map-header,
+html.rs-mobile .world-map-header {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+html.rs-mobile .local-map-header .modal-close,
+html.rs-mobile .world-map-header .modal-close {
+  display: none !important;
+}
+
+/* Put the Settlement/World Map close button inline with the zoom row. */
+html.rs-mobile .rs-inline-map-close {
+  min-width: 44px !important;
+  width: auto !important;
+  padding: 0 14px !important;
+  line-height: 1 !important;
+  font-size: 20px !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+
+html.rs-mobile #localMapZoomOut,
+html.rs-mobile #localMapZoomIn,
+html.rs-mobile #localMapFit,
+html.rs-mobile #closeLocalMap,
+html.rs-mobile #worldMapZoomOut,
+html.rs-mobile #worldMapZoomIn,
+html.rs-mobile #worldMapFit,
+html.rs-mobile #closeWorldMap {
+  vertical-align: middle;
+}
+
+html.rs-mobile .local-map-modal,
+html.rs-mobile .world-map-modal {
+  overflow-x: hidden !important;
+}
+
+html.rs-mobile .local-map-modal img,
+html.rs-mobile .world-map-modal img {
+  max-width: 100%;
+  height: auto;
+}
