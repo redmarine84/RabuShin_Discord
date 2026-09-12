@@ -341,6 +341,14 @@ function eligibleSlotsForItem(item) {
   const slots=[];
 
   const javelin=name.includes('javelin');
+  const spear=name.includes('spear');
+  const thrownHandRanged=javelin||spear;
+  const bowCrossbowHandRanged=
+    name.includes('shortbow')||
+    name.includes('longbow')||
+    (name.includes('crossbow')&&(name.includes('light')||name.includes('heavy')));
+  const handRanged=thrownHandRanged||bowCrossbowHandRanged;
+
   const dedicatedRanged=
     name.includes('bow')||
     name.includes('crossbow')||
@@ -389,7 +397,8 @@ function eligibleSlotsForItem(item) {
   else if(name.includes('necklace')||name.includes('amulet')||name.includes('pendant')||name.includes('brooch'))slots.push('neck');
   else if(type==='armor')slots.push('armor');
   else if(weapon) {
-    if(javelin)slots.push('main_hand','off_hand','ranged');
+    if(thrownHandRanged)slots.push('main_hand','off_hand','ranged');
+    else if(bowCrossbowHandRanged)slots.push('main_hand','ranged');
     else if(dedicatedRanged)slots.push('ranged');
     else slots.push('main_hand','off_hand');
   }

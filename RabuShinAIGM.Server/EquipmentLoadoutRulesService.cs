@@ -74,6 +74,15 @@ public static class EquipmentLoadoutRulesService
         var properties = (item.WeaponProperties ?? string.Empty).Trim().ToLowerInvariant();
 
         var javelin = name.Contains("javelin");
+        var spear = name.Contains("spear");
+        var thrownHandRanged = javelin || spear;
+        var bowCrossbowHandRanged =
+            name.Contains("shortbow") ||
+            name.Contains("longbow") ||
+            (name.Contains("crossbow") &&
+             (name.Contains("light") || name.Contains("heavy")));
+        var handRanged = thrownHandRanged || bowCrossbowHandRanged;
+
         var dedicatedRanged =
             name.Contains("bow") ||
             name.Contains("crossbow") ||
@@ -83,7 +92,7 @@ public static class EquipmentLoadoutRulesService
             properties.Contains("ammunition") ||
             properties.Contains("ranged");
 
-        var rangedEligible = dedicatedRanged || javelin;
+        var rangedEligible = dedicatedRanged || thrownHandRanged;
 
         var ammo =
             type == "ammunition" ||
@@ -126,8 +135,8 @@ public static class EquipmentLoadoutRulesService
         {
             "armor" => type == "armor" && !shield && !head && !hands && !feet,
             "shield" => shield,
-            "main_hand" => weapon && !dedicatedRanged,
-            "off_hand" => shield || (weapon && !dedicatedRanged),
+            "main_hand" => weapon && (!dedicatedRanged || handRanged),
+            "off_hand" => shield || (weapon && (!dedicatedRanged || thrownHandRanged)),
             "ranged" => weapon && rangedEligible,
             "ammunition" => ammo,
             "head" => head,
@@ -254,7 +263,10 @@ public static class EquipmentLoadoutRulesService
             var requiresAmmunition = properties.Contains("Ammunition", StringComparison.OrdinalIgnoreCase);
             var ammunitionReady = !requiresAmmunition || IsCompatibleAmmunition(item, ammunition);
             var finesse = properties.Contains("Finesse", StringComparison.OrdinalIgnoreCase);
-            var usesDexterity = ranged && !name.Contains("javelin", StringComparison.OrdinalIgnoreCase);
+            var strengthThrown =
+                name.Contains("javelin", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("spear", StringComparison.OrdinalIgnoreCase);
+            var usesDexterity = ranged && !strengthThrown;
             var abilityModifier = usesDexterity ? AbilityModifier(character.Dexterity) : AbilityModifier(character.Strength);
             if (finesse) abilityModifier = Math.Max(AbilityModifier(character.Strength), AbilityModifier(character.Dexterity));
             var attackBonus = abilityModifier + Math.Max(0, character.ProficiencyBonus) + item.AttackBonus;

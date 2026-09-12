@@ -54,8 +54,15 @@ public static class InventoryPresentationService
         // ApplyStandardDefaults can infer the Windows-app item type. Re-apply the
         // stricter Discord type so rings/foci/etc. do not accidentally become equipable.
         item.ItemType = InferDiscordItemType(item);
-        if (string.IsNullOrWhiteSpace(item.EquipmentSlot))
+        if (item.ItemType.Equals("Weapon", StringComparison.OrdinalIgnoreCase) &&
+            IsHandOrRangedWeaponName(item.ItemName))
+        {
+            item.EquipmentSlot = "Hand / Ranged";
+        }
+        else if (string.IsNullOrWhiteSpace(item.EquipmentSlot))
+        {
             item.EquipmentSlot = InferDiscordSlot(item.ItemType, item.ItemName);
+        }
 
         var description = GetExplicitDescription(info.ItemData);
         if (string.IsNullOrWhiteSpace(description))
@@ -195,6 +202,17 @@ public static class InventoryPresentationService
         return inferred;
     }
 
+    private static bool IsHandOrRangedWeaponName(string itemName)
+    {
+        var lower = (itemName ?? string.Empty).Trim().ToLowerInvariant();
+        return lower.Contains("shortbow") ||
+               lower.Contains("longbow") ||
+               lower.Contains("javelin") ||
+               lower.Contains("spear") ||
+               (lower.Contains("crossbow") &&
+                (lower.Contains("light") || lower.Contains("heavy")));
+    }
+
     private static string InferDiscordSlot(string itemType, string itemName)
     {
         var lower = (itemName ?? string.Empty).ToLowerInvariant();
@@ -206,7 +224,10 @@ public static class InventoryPresentationService
             return "Accessory";
         }
         if (itemType.Equals("Weapon", StringComparison.OrdinalIgnoreCase))
+        {
+            if (IsHandOrRangedWeaponName(itemName)) return "Hand / Ranged";
             return lower.Contains("bow") || lower.Contains("crossbow") || lower.Contains("sling") ? "Ranged" : "Hand";
+        }
         if (itemType.Equals("Shield", StringComparison.OrdinalIgnoreCase)) return "Off Hand";
         if (itemType.Equals("Helmet", StringComparison.OrdinalIgnoreCase)) return "Head";
         if (itemType.Equals("Clothing", StringComparison.OrdinalIgnoreCase)) return "Body";
