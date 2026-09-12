@@ -1115,3 +1115,174 @@ html.rs-mobile #closeLocalMapMobile {
   font-weight: 700;
   line-height: 1 !important;
 }
+
+
+/* ============================================================
+   RabuShinAIGM Build 6.30.6
+   Phone-width fallback that DOES NOT depend on rs-mobile,
+   Android/iOS detection, userAgent, touch detection, or Discord SDK.
+   ============================================================ */
+
+@media (max-width: 700px) {
+  html,
+  body,
+  #app,
+  .app-shell,
+  .content,
+  .game,
+  .game-view,
+  .gm-layout,
+  .gm-layout > *,
+  .panel,
+  .side-card {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  html,
+  body,
+  #app {
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .content,
+  .game,
+  .game-view,
+  .gm-layout,
+  .gm-layout > div,
+  .gm-layout > aside,
+  .panel,
+  .side-card {
+    width: 100% !important;
+  }
+
+  /* AI Game Master: force a single phone-width column. */
+  .gm-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .view-heading,
+  .gm-turn-status,
+  #gmTurnStatus,
+  #combatInitiativeStatus,
+  .composer,
+  .gm-combat-composer,
+  #gmInput,
+  #gmError,
+  .side-card {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #gmTurnStatus,
+  #combatInitiativeStatus,
+  .side-card,
+  .side-card *,
+  .gm-turn-status,
+  .gm-turn-status * {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .composer,
+  .gm-combat-composer {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .composer textarea,
+  .gm-combat-composer textarea,
+  #gmInput {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .composer .button,
+  .gm-combat-composer .button,
+  #sendGm,
+  #endCombatTurn,
+  #resumeEnemyTurns {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .timeline,
+  #gmTimeline {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .message {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Settlement / Local Map toolbar */
+  .local-map-toolbar {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    gap: 7px !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* This button already exists in main.js. Reveal it by viewport width. */
+  #closeLocalMapMobile {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 104px !important;
+    min-height: 44px !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 13px !important;
+    border: 1px solid #8f3f49 !important;
+    border-radius: 7px !important;
+    background: linear-gradient(180deg,#71303A,#4B1F25) !important;
+    color: #FFD8DB !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+  }
+
+  #localMapZoomOut,
+  #localMapZoomIn,
+  #localMapFit {
+    flex: 0 0 auto !important;
+  }
+
+  .local-map-modal,
+  .local-map-modal *,
+  .local-map-viewport {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+
+  .local-map-modal {
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+}
