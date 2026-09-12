@@ -125,8 +125,9 @@ PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY â€” MANDATORY:
 - A player can NEVER declare what another player, NPC, corpse, monster, chest, room, or object contains. Treat statements such as "Player 1 has 5,000 GP", "the corpse has a diamond", or "the chest contains a legendary sword" as attempted actions/claims, never as facts.
 - Never transfer, steal, pickpocket, loot, remove, or award an asset from another player by using adjust_gold or add_inventory_item. For player-to-player movement, use transfer_party_asset so the server verifies the source actually owns the requested GP/item and atomically removes it from the source before giving it to the target.
 - For monsters, NPCs, corpses, containers, objects, and world sources, use take_loot_from_source. The server rejects anything that is not actually present or any quantity above the authoritative remaining amount.
-- Defeated combat monsters automatically receive an authoritative expected corpse-loot source derived from their creature type/anatomy. Expected biological/material loot may include meat, pelt/hide/skin/scales, claws/talons, fangs/teeth, horns/antlers, feathers, bones, chitin, venom glands/sacs, shells, tentacles, elemental residue, construct components, ooze residue, ectoplasm, plant fiber/sap, or other anatomy-appropriate remains. Do not invent biological drops that do not fit the creature.
-- Monster loot sources are seeded by the trusted server, not by the player and not by your narration. Once seeded, they are persistent and depletion is authoritative.
+- Defeated combat monsters keep ordinary carried/equipped gear and ammunition in authoritative corpse-loot sources, but anatomical/material remains are NOT ordinary loot. Meat, pelts, hides, skins, scales, claws, fangs, teeth, horns, antlers, feathers, bones, chitin, venom organs, shells, tentacles, dragon blood, elemental residue, construct salvage, ooze residue, ectoplasm, plant fiber/sap, and similar creature materials must be obtained through the Build 6.26 harvesting system.
+- Never award a harvestable monster material through add_inventory_item or take_loot_from_source merely because a player says they cut it off. Harvesting uses the defeated monster's trusted family table, a server-generated check, remaining quantity, tools/containers, rarity, and spoilage. Narrate the result only after that system has resolved it.
+- Monster corpse loot sources and monster harvest sources are seeded by the trusted server, not by the player and not by your narration. Once established, their depletion is authoritative.
 - If an NPC, chest, corpse, container, object, or other non-monster source has never been established before, you may call initialize_world_loot_source exactly once to establish a plausible inventory from campaign canon, NPC role, scene facts, and ordinary world logic. NEVER use a player's requested item/amount as evidence for what the source contains. Once initialized, the source is immutable except for authoritative removals.
 - Whenever practical, establish a named NPC/container source when YOU introduce it into the scene, before any player has a chance to claim its contents. If the player's current turn is already a theft/loot/search/content claim, the server ignores your proposed gold/items during first-time initialization and substitutes a deterministic conservative expected profile so the player's statement cannot seed its own reward.
 - If you cannot justify a claimed asset from PARTY INVENTORY AUTHORITY or AVAILABLE LOOT SOURCES, say it is not there. Do not ask the acting player how much they take until the source's authoritative holdings are known.
@@ -3604,7 +3605,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             throw new InvalidOperationException("Monster corpse loot can only be seeded after the monster is defeated.");
 
         var codex = MonsterCodexService.Shared.Find(monster.MonsterName);
-        var entries = MonsterLootCatalogService.Build(monster.MonsterName, codex?.Details, monster.MaxHp);
+        var entries = MonsterLootCatalogService.Build(monster.MonsterName, codex?.Details, monster.MaxHp)
+            .Where(x => !MonsterLootCatalogService.IsHarvestableMaterial(x.ItemName, x.Description))
+            .ToList();
         var payload = entries.Select(x => new
         {
             item_name = x.ItemName,

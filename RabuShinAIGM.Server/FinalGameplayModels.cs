@@ -6,6 +6,19 @@ public sealed class CraftRecipeRequest
     public string RecipeKey { get; set; } = string.Empty;
 }
 
+public sealed class HarvestAttemptRequest
+{
+    public Guid HarvestEntryId { get; set; }
+}
+
+public sealed class HarvestSeedMonsterRow
+{
+    [JsonPropertyName("combat_monster_id")] public Guid CombatMonsterId { get; set; }
+    [JsonPropertyName("monster_name")] public string MonsterName { get; set; } = string.Empty;
+    [JsonPropertyName("display_name")] public string DisplayName { get; set; } = string.Empty;
+    [JsonPropertyName("max_hp")] public int MaxHp { get; set; }
+}
+
 public sealed class EquipmentEquipRequest
 {
     public Guid InventoryItemId { get; set; }

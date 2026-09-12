@@ -18,14 +18,16 @@ export async function mountFinalGameplayInventoryPanels(context) {
   try {
     const requests = [
       context.api(`/game-api/campaigns/${context.campaignId}/equipment`),
-      context.api(`/game-api/campaigns/${context.campaignId}/crafting`)
+      context.api(`/game-api/campaigns/${context.campaignId}/crafting`),
+      context.api(`/game-api/campaigns/${context.campaignId}/harvesting`)
     ];
     if (context.isSolo) requests.push(context.api(`/game-api/campaigns/${context.campaignId}/formation`));
     const responses = await Promise.all(requests);
     const state = {
       equipment: responses[0]?.equipment || null,
       crafting: responses[1]?.crafting || null,
-      formation: context.isSolo ? (responses[2]?.formation || null) : null
+      harvesting: responses[2]?.harvesting || null,
+      formation: context.isSolo ? (responses[3]?.formation || null) : null
     };
     stateCache.set(String(context.campaignId), state);
     if (state.equipment && context.syncArmorClass) context.syncArmorClass(state.equipment.armorClass);
@@ -86,10 +88,12 @@ function renderFinalSystems(shell, context, state) {
   shell.innerHTML = [
     renderEquipmentPanel(context, state.equipment),
     renderCraftingPanel(context, state.crafting),
+    renderHarvestingPanel(context, state.harvesting),
     context.isSolo ? renderFormationPanel(context, state.formation) : ''
   ].join('');
   bindEquipmentPanel(shell, context, state);
   bindCraftingPanel(shell, context, state);
+  bindHarvestingPanel(shell, context, state);
   if (context.isSolo) bindFormationPanel(shell, context, state);
   hydrateEquipmentPortrait(shell, context);
 }
@@ -196,6 +200,66 @@ function bindCraftingPanel(shell, context) {
       context.showNotice(result.message || 'Crafting complete.');
       context.rerender?.();
     } catch (error) { context.showNotice(error.message,true); button.disabled=false; }
+  });
+}
+
+function renderHarvestingPanel(context, harvesting) {
+  if (!harvesting) return '<section class="rs-system-panel"><h3>Monster Harvesting</h3><p class="muted">Harvesting state is unavailable.</p></section>';
+  const sources = harvesting.sources || [];
+  return `<section class="rs-system-panel rs-harvesting-panel">
+    <div class="rs-system-heading"><div><span class="rs-eyebrow">BUILD 6.26</span><h3>Monster Harvesting</h3><p>Defeated creatures now have finite, skill-based harvests instead of automatic anatomy drops.</p></div></div>
+    ${sources.length ? `<div class="rs-harvest-source-grid">${sources.map(source=>harvestSourceCard(context,source)).join('')}</div>` :
+      '<div class="rs-material-shelf"><p class="muted">No defeated monsters currently have recoverable harvesting materials.</p></div>'}
+    <div class="rs-harvest-rules"><small>Checks are rolled by the server. Suitable tools or known skill proficiency can add proficiency; missing recommended tools raise the DC. Fresh materials can spoil.</small></div>
+  </section>`;
+}
+
+function harvestSourceCard(context, source) {
+  const entries = source.entries || [];
+  return `<article class="rs-harvest-source">
+    <header><div><small>DEFEATED CREATURE</small><h4>${context.escapeHtml(source.displayName||source.monsterName||'Monster')}</h4></div><span>${entries.length} material${entries.length===1?'':'s'}</span></header>
+    <div class="rs-harvest-entry-grid">${entries.map(entry=>harvestEntryCard(context,entry)).join('')}</div>
+  </article>`;
+}
+
+function harvestEntryCard(context, entry) {
+  const rarity=String(entry.rarity||'common').replaceAll('_',' ');
+  const spoiled=entry.spoiled===true;
+  const missingContainer=entry.containerAvailable===false;
+  const disabled=spoiled||missingContainer||Number(entry.remainingQuantity)<=0;
+  const skill=`${entry.skillName||'Survival'} (${String(entry.abilityName||'wisdom').slice(0,3).toUpperCase()})`;
+  const toolState=entry.toolAvailable?'Tool ready':entry.toolRequired?'Tool required':'No recommended tool';
+  const containerNote=entry.requiredContainerFamily
+    ? (entry.containerAvailable?`${entry.requiredContainerFamily} ready`:`Needs ${entry.requiredContainerFamily}`)
+    : '';
+  return `<div class="rs-harvest-entry rarity-${context.escapeHtml(String(entry.rarity||'common'))}">
+    <div class="rs-harvest-title"><div><small>${context.escapeHtml(rarity.toUpperCase())}</small><b>${context.escapeHtml(entry.itemName)}</b></div><span>${Number(entry.remainingQuantity)||0}/${Number(entry.maximumQuantity)||0}</span></div>
+    <p>${context.escapeHtml(entry.description||'')}</p>
+    <div class="rs-harvest-meta"><span>${context.escapeHtml(skill)}</span><span>DC ${Number(entry.dc)||10}</span><span>${context.escapeHtml(entry.freshnessLabel||'Durable')}</span></div>
+    <div class="rs-harvest-tool ${entry.toolAvailable?'ready':entry.toolRequired?'missing':''}"><span>${context.escapeHtml(entry.toolLabel||'Suitable harvesting tool')}</span><small>${context.escapeHtml([toolState,containerNote].filter(Boolean).join(' • '))}</small></div>
+    <button class="button ${disabled?'':'primary'} rs-harvest-button" data-harvest-entry="${context.escapeHtml(entry.harvestEntryId||'')}" ${disabled?'disabled':''}>${spoiled?'Spoiled':missingContainer?'Missing Container':'Harvest'}</button>
+  </div>`;
+}
+
+function bindHarvestingPanel(shell, context, state) {
+  shell.querySelectorAll('.rs-harvest-button').forEach(button=>button.onclick=async()=>{
+    if(button.disabled)return;
+    button.disabled=true;
+    const oldText=button.textContent;
+    button.textContent='Harvesting...';
+    try{
+      const result=await context.api(`/game-api/campaigns/${context.campaignId}/harvesting/attempt`,{
+        method:'POST',body:JSON.stringify({harvestEntryId:button.dataset.harvestEntry})
+      });
+      if(result?.harvesting)state.harvesting=result.harvesting;
+      if(context.refreshInventory)await context.refreshInventory();
+      context.showNotice(result.message||'Harvesting attempt resolved.',result?.harvestResult?.success===false);
+      context.rerender?.();
+    }catch(error){
+      context.showNotice(error.message,true);
+      button.disabled=false;
+      button.textContent=oldText;
+    }
   });
 }
 

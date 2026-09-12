@@ -27,6 +27,58 @@ public sealed class FinalGameplaySystemsService
     public async Task<JsonElement> CraftAsync(Guid playerId, Guid campaignId, string recipeKey)
         => await RpcElementAsync("discord_craft_recipe", new { p_player_id = playerId, p_campaign_id = campaignId, p_recipe_key = recipeKey }, "Unable to craft recipe");
 
+    public async Task<JsonElement> GetHarvestingStateAsync(Guid playerId, Guid campaignId)
+    {
+        var raw = await RpcRawAsync(
+            "discord_get_unseeded_defeated_monsters",
+            new { p_campaign_id = campaignId },
+            "Unable to discover defeated monsters for harvesting");
+
+        var monsters = JsonSerializer.Deserialize<List<HarvestSeedMonsterRow>>(raw, JsonOptions)
+                       ?? new List<HarvestSeedMonsterRow>();
+
+        foreach (var monster in monsters)
+        {
+            var codex = MonsterCodexService.Shared.Find(monster.MonsterName);
+            var entries = MonsterLootCatalogService
+                .Build(monster.MonsterName, codex?.Details, monster.MaxHp)
+                .Where(x => MonsterLootCatalogService.IsHarvestableMaterial(x.ItemName, x.Description))
+                .Select(x => MonsterHarvestingRulesService.Describe(monster.MonsterName, x))
+                .ToArray();
+
+            _ = await RpcElementAsync(
+                "discord_seed_monster_harvest_source",
+                new
+                {
+                    p_campaign_id = campaignId,
+                    p_combat_monster_id = monster.CombatMonsterId,
+                    p_entries = entries
+                },
+                $"Unable to register harvesting for {monster.DisplayName}");
+        }
+
+        return await RpcElementAsync(
+            "discord_get_monster_harvest_state",
+            new { p_player_id = playerId, p_campaign_id = campaignId },
+            "Unable to load monster harvesting state");
+    }
+
+    public async Task<JsonElement> AttemptHarvestAsync(
+        Guid playerId,
+        Guid campaignId,
+        Guid harvestEntryId,
+        int d20Roll)
+        => await RpcElementAsync(
+            "discord_attempt_monster_harvest",
+            new
+            {
+                p_player_id = playerId,
+                p_campaign_id = campaignId,
+                p_harvest_entry_id = harvestEntryId,
+                p_d20_roll = d20Roll
+            },
+            "Unable to resolve monster harvesting attempt");
+
     public async Task<List<EquipmentSlotRow>> GetEquipmentSlotsAsync(Guid playerId, Guid campaignId)
     {
         var raw = await RpcRawAsync("discord_get_equipment_slots", new { p_player_id = playerId, p_campaign_id = campaignId }, "Unable to load equipment slots");

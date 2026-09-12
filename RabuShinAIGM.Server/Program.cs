@@ -2164,6 +2164,45 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/inventory", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
+// RULES BUILD 6.26 - MONSTER HARVESTING / CRAFTING EXPANSION
+app.MapGet("/game-api/campaigns/{campaignId:guid}/harvesting", async (
+    Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+        var harvesting = await systems.GetHarvestingStateAsync(playerId, campaignId);
+        return Results.Ok(new { success = true, harvesting });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
+app.MapPost("/game-api/campaigns/{campaignId:guid}/harvesting/attempt", async (
+    Guid campaignId, HarvestAttemptRequest body, HttpRequest request,
+    DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
+{
+    try
+    {
+        if (body is null || body.HarvestEntryId == Guid.Empty)
+            return Results.BadRequest(new { success = false, error = "Choose a harvestable material." });
+
+        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
+        var playerId = await service.GetOrCreatePlayerAsync(user);
+
+        // The client never supplies the roll. Harvest checks are server-generated.
+        var d20Roll = Random.Shared.Next(1, 21);
+        var result = await systems.AttemptHarvestAsync(playerId, campaignId, body.HarvestEntryId, d20Roll);
+        var harvesting = await systems.GetHarvestingStateAsync(playerId, campaignId);
+        var message = result.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String
+            ? messageValue.GetString()
+            : "Harvesting attempt resolved.";
+
+        return Results.Ok(new { success = true, message, harvestResult = result, harvesting });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
+});
+
 // RULES BUILDS 6.22 / 6.22.1 / 6.23 - CRAFTING, EQUIPMENT LOADOUT, SOLO FORMATIONS
 app.MapGet("/game-api/campaigns/{campaignId:guid}/crafting", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>

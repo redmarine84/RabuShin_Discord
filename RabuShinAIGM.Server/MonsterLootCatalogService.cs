@@ -7,6 +7,15 @@ public static class MonsterLootCatalogService
 {
     public sealed record LootEntry(string ItemName, int Quantity, string Description);
 
+    public static bool IsHarvestableMaterial(string? itemName, string? description = null)
+    {
+        var text = $"{itemName} {description}".ToLowerInvariant();
+        return Regex.IsMatch(
+            text,
+            @"\b(meat|flesh|pelt|hide|skin|scale|claw|talon|fang|tooth|teeth|bone|horn|antler|tusk|blood|venom|poison gland|poison sac|chitin|carapace|shell|tentacle|ink sac|feather|beak|plant fiber|sap|seed|spore|ooze|slime|membrane|ectoplasm|elemental essence|cinder core|frost crystal|elemental dust|elemental stone|construct component|arcane scrap|grave dust)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
     public static IReadOnlyList<LootEntry> Build(string monsterName, string? codexDetails, int maxHp)
     {
         var name = (monsterName ?? string.Empty).Trim();
@@ -117,6 +126,7 @@ public static class MonsterLootCatalogService
             Add($"{name} Claw", Math.Max(2, SizeUnits(size) * 2), "Hard claw or talon.");
             Add($"{name} Fang", Math.Max(2, SizeUnits(size) * 2), "Large tooth or fang.");
             Add($"{name} Bone", Math.Max(2, SizeUnits(size) * 3), "Dense draconic bone.");
+            Add($"{name} Blood Vial", Math.Max(1, SizeUnits(size)), "Fresh draconic blood. Harvesting requires a clean vial before the blood can be recovered.");
             return list;
         }
 
