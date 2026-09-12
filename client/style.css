@@ -251,7 +251,7 @@ body.death-modal-open{overflow:hidden!important}
 /* RULES BUILD 6.29 - ECONOMY / MERCHANTS / DYNAMIC SHOPS */
 .economy-shop-modal{width:min(1180px,96vw);max-height:92vh;overflow:auto}
 .economy-market-strip{margin:0 0 12px;padding:10px 12px;border:1px solid rgba(231,196,93,.28);border-radius:10px;background:linear-gradient(90deg,rgba(231,196,93,.09),rgba(255,255,255,.025));font-size:.78rem;color:#c9cfd3}
-.economy-market-strip b{color:#f1d879}.economy-stock-line{display:block;margin-top:7px;color:#929ba2}.economy-services-pane{display:grid;gap:14px}
+.economy-market-strip b{color:#f1d879}.economy-stock-line{display:block;margin-top:7px;color:#929ba2}.shop-mode-pane[hidden]{display:none!important}.economy-services-pane{display:grid;gap:14px}
 .economy-service-section{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;background:rgba(0,0,0,.16)}.economy-service-section h3{margin:0 0 9px}.economy-service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px}
 .economy-service-card,.economy-order-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(231,196,93,.18);border-radius:10px;padding:10px;background:rgba(7,11,14,.66);margin:7px 0}.economy-service-card h4,.economy-order-card h4{margin:2px 0 4px}.economy-service-card p,.economy-order-card p{margin:0;color:#9ca5ab;font-size:.75rem}.economy-service-card small,.economy-order-card small{color:#d8bd62;letter-spacing:.08em;font-size:.58rem}.economy-service-card .button,.economy-order-card .button{flex:0 0 auto}
 @media(max-width:700px){.economy-service-card,.economy-order-card{align-items:stretch;flex-direction:column}.economy-service-card .button,.economy-order-card .button{width:100%}}
