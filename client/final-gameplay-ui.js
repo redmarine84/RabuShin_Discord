@@ -390,18 +390,21 @@ function eligibleSlotsForItem(item) {
 
   if(ammunition)slots.push('ammunition');
   else if(shield)slots.push('shield','off_hand');
+  else if(weapon) {
+    // Weapon routing must happen before wearable hand-slot inference.
+    // Otherwise equipmentSlot "Hand / Ranged" contains "hand" and was
+    // incorrectly classified as the Hands armor/accessory slot.
+    if(thrownHandRanged)slots.push('main_hand','off_hand','ranged');
+    else if(bowCrossbowHandRanged)slots.push('main_hand','ranged');
+    else if(dedicatedRanged)slots.push('ranged');
+    else slots.push('main_hand','off_hand');
+  }
   else if(name.includes('helmet')||name.includes('helm')||name.includes('circlet')||equipmentSlot.includes('head'))slots.push('head');
   else if(name.includes('glove')||name.includes('gauntlet')||name.includes('bracer')||equipmentSlot.includes('hand')||equipmentSlot.includes('arm'))slots.push('hands');
   else if(name.includes('boot')||name.includes('greave')||equipmentSlot.includes('feet'))slots.push('feet');
   else if(name.includes('ring'))slots.push('ring_left','ring_right');
   else if(name.includes('necklace')||name.includes('amulet')||name.includes('pendant')||name.includes('brooch'))slots.push('neck');
   else if(type==='armor')slots.push('armor');
-  else if(weapon) {
-    if(thrownHandRanged)slots.push('main_hand','off_hand','ranged');
-    else if(bowCrossbowHandRanged)slots.push('main_hand','ranged');
-    else if(dedicatedRanged)slots.push('ranged');
-    else slots.push('main_hand','off_hand');
-  }
 
   return [...new Set([...slots,...accessorySlots])];
 }
