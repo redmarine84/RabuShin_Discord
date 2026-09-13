@@ -27,14 +27,6 @@ public sealed class FinalGameplaySystemsService
     public async Task<JsonElement> CraftAsync(Guid playerId, Guid campaignId, string recipeKey)
         => await RpcElementAsync("discord_craft_recipe", new { p_player_id = playerId, p_campaign_id = campaignId, p_recipe_key = recipeKey }, "Unable to craft recipe");
 
-    // BUILD 6.30.10 - COMMON CRAFTING / WOODLAND FORAGING
-    public async Task<JsonElement> ForageWoodedAreaAsync(Guid playerId, Guid campaignId, int d20Roll)
-        => await RpcElementAsync("discord_forage_wooded_area", new
-        {
-            p_player_id = playerId,
-            p_campaign_id = campaignId,
-            p_d20_roll = d20Roll
-        }, "Unable to search the wooded area");
     public async Task<JsonElement> GetHarvestingStateAsync(Guid playerId, Guid campaignId)
     {
         var raw = await RpcRawAsync(

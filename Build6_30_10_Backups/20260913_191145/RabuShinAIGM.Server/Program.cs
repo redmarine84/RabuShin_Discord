@@ -2375,23 +2375,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/crafting/craft", async (
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
 });
 
-// BUILD 6.30.10 - COMMON CRAFTING / WOODLAND FORAGING
-app.MapPost("/game-api/campaigns/{campaignId:guid}/foraging/wooded", async (
-    Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
-{
-    try
-    {
-        var user = await service.VerifyDiscordUserAsync(request.Headers.Authorization.ToString());
-        var playerId = await service.GetOrCreatePlayerAsync(user);
-        var d20Roll = Random.Shared.Next(1, 21);
-        var result = await systems.ForageWoodedAreaAsync(playerId, campaignId, d20Roll);
-        var message = result.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String
-            ? messageValue.GetString()
-            : "Woodland search resolved.";
-        return Results.Ok(new { success = true, message, forageResult = result });
-    }
-    catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
-});
 app.MapGet("/game-api/campaigns/{campaignId:guid}/equipment", async (
     Guid campaignId, HttpRequest request, DiscordSupabaseService service, FinalGameplaySystemsService systems) =>
 {

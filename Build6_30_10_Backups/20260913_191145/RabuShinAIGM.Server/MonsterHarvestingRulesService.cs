@@ -44,21 +44,7 @@ public static class MonsterHarvestingRulesService
             dc = 10;
             spoilage = 60;
         }
-        else if (family == "fat_oz")
-        {
-            dc = 10;
-            rarity = "common";
-            toolLabel = "Knife, dagger, or other suitable harvesting blade";
-            spoilage = 120;
-        }
-        else if (family == "wool_lb")
-        {
-            dc = 8;
-            rarity = "common";
-            toolLabel = "Shears or a clean knife";
-            toolKeywords = new[] { "shears", "knife", "dagger" };
-            spoilage = null;
-        }        else if (family == "pelt_hide")
+        else if (family == "pelt_hide")
         {
             dc = 12;
             rarity = "uncommon";
@@ -203,8 +189,7 @@ public static class MonsterHarvestingRulesService
             name.Contains("claw") || name.Contains("talon") || name.Contains("fang") ||
             name.Contains("tooth") || name.Contains("teeth") || name.Contains("tusk"))
             return "bone_horn";
-        if (name.Contains("fat") && name.Contains("1 oz")) return "fat_oz";
-        if (name.Contains("wool") && name.Contains("1 lb")) return "wool_lb";        if (name.Contains("plant fiber") || name.Contains("sap") || name.Contains("seed") || name.Contains("spore"))
+        if (name.Contains("plant fiber") || name.Contains("sap") || name.Contains("seed") || name.Contains("spore"))
             return "plant_fiber";
         if (name.Contains("ooze") || name.Contains("slime") || name.Contains("membrane"))
             return "ooze_residue";

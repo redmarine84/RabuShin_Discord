@@ -93,7 +93,6 @@ function renderFinalSystems(shell, context, state) {
   ].join('');
   bindEquipmentPanel(shell, context, state);
   bindCraftingPanel(shell, context, state);
-  bindWoodlandForaging(shell, context); // BUILD 6.30.10
   bindHarvestingPanel(shell, context, state);
   if (context.isSolo) bindFormationPanel(shell, context, state);
   hydrateEquipmentPortrait(shell, context);
@@ -181,7 +180,7 @@ function renderCraftingPanel(context, crafting) {
     <div class="rs-system-heading"><div><span class="rs-eyebrow">BUILD 6.22</span><h3>Crafting & Harvesting</h3><p>Monster remains and gathered materials now have a purpose beyond selling.</p></div></div>
     <div class="rs-material-shelf"><h4>Harvested Materials</h4>${materials.length?`<div class="rs-material-chips">${materials.map(m=>`<span><b>${Number(m.quantity)||0}×</b> ${context.escapeHtml(m.itemName)}<small>${context.escapeHtml(m.familyLabel||'Material')}</small></span>`).join('')}</div>`:'<p class="muted">Harvest pelts, scales, meat, herbs, venom, bones, or chitin to begin crafting.</p>'}</div>
     <div class="rs-recipe-grid">${recipes.map(r=>recipeCard(context,r)).join('')||'<p class="muted">No recipes are available.</p>'}</div>
-    <div class="rs-material-shelf rs-forage-shelf"><h4>Woodland Foraging</h4><p class="muted">While the current scene is wooded or forested, search for sticks, seeds, nuts, legumes, and flax. The server rolls a Survival/Nature check.</p><button class="button primary rs-woodland-forage-button" type="button">Search Wooded Area</button></div>  </section>`;
+  </section>`;
 }
 
 function recipeCard(context, recipe) {
@@ -204,23 +203,6 @@ function bindCraftingPanel(shell, context) {
   });
 }
 
-function bindWoodlandForaging(shell, context) {
-  const button=shell.querySelector('.rs-woodland-forage-button');
-  if(!button)return;
-  button.onclick=async()=>{
-    if(button.disabled)return;
-    button.disabled=true;
-    try{
-      const result=await context.api(`/game-api/campaigns/${context.campaignId}/foraging/wooded`,{method:'POST'});
-      if(context.refreshInventory)await context.refreshInventory();
-      context.showNotice(result.message||'Woodland search resolved.',result?.forageResult?.success===false);
-      context.rerender?.();
-    }catch(error){
-      context.showNotice(error.message,true);
-      button.disabled=false;
-    }
-  };
-}
 function renderHarvestingPanel(context, harvesting) {
   if (!harvesting) return '<section class="rs-system-panel"><h3>Monster Harvesting</h3><p class="muted">Harvesting state is unavailable.</p></section>';
   const sources = harvesting.sources || [];

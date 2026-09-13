@@ -189,15 +189,7 @@ public static class SettlementInteractionCatalog
 
     private static readonly IReadOnlyList<SettlementShopItemDefinition> ApothecaryItems = new List<SettlementShopItemDefinition>
     {
-        // BUILD 6.30.10 - common crafting stock. MarketPool already includes ApothecaryItems.
-        I("craft-cloth","Cloth","Crafting Material",0.10m,"One finished cloth unit for repairs, fieldcraft, and torch making."),
-        I("craft-oil-ounce","Oil (1 oz)","Crafting Material",0.05m,"One measured ounce of lamp and crafting oil."),
-        I("craft-seeds-pound","Seeds (1 lb)","Crafting Material",0.40m,"One pound of mixed oil-bearing seeds such as sunflower or pumpkin seeds."),
-        I("craft-nuts-pound","Nuts (1 lb)","Crafting Material",0.50m,"One pound of nuts suitable for food, trade, or pressing into oil."),
-        I("craft-legumes-pound","Legumes (1 lb)","Crafting Material",0.40m,"One pound of beans, peas, peanuts, or similar legumes suitable for food or oil pressing."),
-        I("craft-flax-pound","Flax (1 lb)","Crafting Material",0.50m,"One pound of flax fiber ready to be spun and woven into cloth."),
-        I("craft-wool-pound","Wool (1 lb)","Crafting Material",0.50m,"One pound of cleaned wool ready to be spun and woven into cloth."),
-        I("craft-olives-pound","Olives (1 lb)","Crafting Material",0.40m,"One pound of olives suitable for pressing into oil."),        I("waterskin","Waterskin","Adventuring Gear",1,WaterskinMechanicsService.BasicDescription + " Purchased empty."),
+        I("waterskin","Waterskin","Adventuring Gear",1,WaterskinMechanicsService.BasicDescription + " Purchased empty."),
         new SettlementShopItemDefinition(
             "magic-waterskin",
             "Magic Waterskin",

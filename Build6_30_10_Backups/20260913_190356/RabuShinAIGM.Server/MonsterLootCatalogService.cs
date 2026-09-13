@@ -12,7 +12,7 @@ public static class MonsterLootCatalogService
         var text = $"{itemName} {description}".ToLowerInvariant();
         return Regex.IsMatch(
             text,
-            @"\b(meat|flesh|pelt|hide|skin|scale|claw|talon|fang|tooth|teeth|bone|horn|antler|tusk|blood|venom|poison gland|poison sac|chitin|carapace|shell|tentacle|ink sac|feather|beak|plant fiber|sap|seed|spore|ooze|slime|membrane|ectoplasm|elemental essence|cinder core|frost crystal|elemental dust|elemental stone|construct component|arcane scrap|grave dust|fat|wool)\b",
+            @"\b(meat|flesh|pelt|hide|skin|scale|claw|talon|fang|tooth|teeth|bone|horn|antler|tusk|blood|venom|poison gland|poison sac|chitin|carapace|shell|tentacle|ink sac|feather|beak|plant fiber|sap|seed|spore|ooze|slime|membrane|ectoplasm|elemental essence|cinder core|frost crystal|elemental dust|elemental stone|construct component|arcane scrap|grave dust)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
@@ -118,19 +118,6 @@ public static class MonsterLootCatalogService
             return list;
         }
 
-        // BUILD 6.30.10 - renderable fat and sheep wool.
-        var carriesRenderFat =
-            (Type("beast") && !Has("spider", "scorpion", "centipede", "beetle", "insect", "crab", "lobster")) ||
-            Type("dragon") || Type("monstrosity") || Type("aberration") ||
-            Has("wolf", "bear", "lion", "tiger", "panther", "boar", "horse", "elk", "deer", "mammoth",
-                "sheep", "ram", "lamb", "goat", "snake", "lizard", "crocodile", "dinosaur", "hydra",
-                "eagle", "owl", "hawk", "vulture", "bird", "shark", "fish", "frog", "toad");
-        if (carriesRenderFat)
-            Add("Animal/Monster Fat (1 oz)", Math.Max(2, SizeUnits(size) * 2),
-                "Render-ready animal or monster fat measured in one-ounce crafting portions.");
-        if (Has("sheep", "ram", "lamb"))
-            Add("Wool (1 lb)", Math.Max(1, SizeUnits(size)),
-                "Cleanable wool harvested from the sheep's fleece for spinning and weaving.");
         // Dragons and draconic reptiles always have the classic harvestable anatomy.
         if (Type("dragon") || Has("dragon", "wyvern", "drake"))
         {
