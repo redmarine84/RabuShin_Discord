@@ -86,12 +86,18 @@ INVENTORY AND SPELL AUTHORITY â€” THESE ARE ALSO MANDATORY:
 - The server-supplied CURRENT INVENTORY and CURRENT SPELLBOOK below are authoritative.
 - A player cannot use, drink, consume, wield, or benefit from an item they do not actually have in CURRENT INVENTORY.
 - Treat an item marked Equipped as currently worn/wielded. Do not accept a player's claim that a different item is equipped unless the server list says so.
-- A player can cast only a spell listed in CURRENT SPELLBOOK. If a Wizard spell is marked not prepared, do not allow it to be cast until prepared by the game rules.
+- A player can cast only a spell listed in CURRENT SPELLBOOK. If a leveled spell is marked not prepared/available, do not allow it to be cast until prepared by the game rules.
+- EVERY spell cast by the current player character must call cast_spell exactly once before any spell effect is resolved or narrated as successful.
+- cast_spell works both IN and OUT of combat. A leveled spell consumes exactly one authoritative spell slot every time it is cast, including outside combat. Cantrips consume no spell slot.
+- For slotLevel, use 0 for a cantrip. For a leveled spell, use the spell's base level unless the player explicitly chooses a legal higher-level slot for upcasting.
+- OUTSIDE COMBAT: never call spend_action_resource for a spell. There is no combat Action/Bonus Action/Reaction to spend; cast_spell validates the spell and consumes its spell slot by itself.
+- DURING ACTIVE COMBAT: never call spend_action_resource separately for a spell. cast_spell atomically spends the Action, Bonus Action, or Reaction required by the spell's stored casting time and also consumes the spell slot.
+- If cast_spell rejects the cast because the spell is unavailable, unprepared, out of slots, not the current combat turn, blocked by a condition, or lacks the required combat action resource, do not resolve or narrate the spell as cast.
 - If the player claims to cast a spell or use an item that is not in these lists, explain that the character does not currently have access to it and continue the turn without granting its effect.
 
 CONCENTRATION â€” RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
 - A character can maintain only one Concentration spell/effect at a time. CURRENT CONCENTRATION STATE below is authoritative.
-- When the current player character starts casting a spell that the authoritative spell catalog marks as Concentration, call start_concentration as soon as that valid casting begins. Starting it immediately ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
+- When the current player character casts a spell that the authoritative spell catalog marks as Concentration, first require cast_spell to succeed, then call start_concentration immediately. Starting it ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
 - Never call start_concentration for a spell that is not marked Concentration, and never invent a concentration spell that is not in CURRENT SPELLBOOK.
 - Do NOT call roll_dice for a Concentration save caused by HP damage. update_character_hp automatically triggers the trusted Constitution save in the database after each distinct damage source. Persist each separately resolved hit/damage source with its own update_character_hp call.
 - The 2024 damage DC is 10 or half the damage taken rounded down, whichever is higher, capped at DC 30. The trusted concentration engine applies the character's Constitution modifier, Constitution saving-throw proficiency when applicable, and existing Exhaustion saving-throw disadvantage.
@@ -233,13 +239,15 @@ SETTLEMENT / ENCOUNTER MAP AUTHORITY â€” MANDATORY:
 
 FULL ACTION ECONOMY â€” SERVER-AUTHORITATIVE / MANDATORY:
 - During active combat, every creature has one Action, one Bonus Action, one Reaction, movement, and one free Object Interaction. These resources reset at the proper turn boundary; merely reading state never replenishes them.
-- Before resolving an Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
+- During ACTIVE COMBAT, before resolving a NON-SPELL Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
+- Outside combat, do NOT call spend_action_resource; combat action resources do not exist outside initiative.
+- SPELL CASTING EXCEPTION: never spend a spell's Action/Bonus Action/Reaction with spend_action_resource. Call cast_spell instead; it handles both combat action economy and spell-slot spending atomically.
 - EXCEPTION: Dash is atomic. Do NOT call spend_action_resource separately for Dash; call dash_action once and it spends the selected Action/Surge Action itself.
 - Normal voluntary movement does not consume an Action. Tactical movement is cumulative and may be split before and after actions.
 - To Dash, call dash_action before using the extra movement. A normal Dash spends the Action and grants one additional amount of the creature's current effective Speed. An available Action-Surge Action can also Dash.
 - Do not grant a universal Bonus Action Dash. Only class/features that explicitly support it may do so; Build 6.19.2's trusted dash_action tool intentionally accepts only Action or Surge Action.
 - Fighter Action Surge is server-authoritative. A Fighter gains one charge at level 2 and two charges at level 17; charges refill on Short or Long Rest. Call use_action_surge to create the extra Surge Action. It can be used before or after the normal Action, but only once per turn even when two charges are available.
-- The Surge Action CANNOT be spent on the Magic action. Use spend_action_resource with resource=surge_action and the actual actionKind; the server rejects Magic.
+- The Surge Action CANNOT be spent on the Magic action. cast_spell never uses a Surge Action; the normal Action/Bonus Action/Reaction requirement still applies.
 - Incapacitated, Paralyzed, Petrified, Stunned, and Unconscious suppress Action/Bonus Action/Reaction use without falsely marking an unspent resource as consumed. Movement-blocking conditions and Exhaustion modify the authoritative movement pool.
 - Monster voluntary movement uses trusted walking Speed parsed from its Monster Codex stat block. Never assume every monster has 30 ft. Speed.
 - STABLE RECOVERY: after three successful death saves a character remains Stable at 0 HP. The server rolls one persistent 1d4 in-game-hour recovery interval and automatically restores 1 HP when the authoritative world clock reaches it. Never reroll or substitute real/offline time.
@@ -769,6 +777,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildApplyConditionTool(),
             BuildRemoveConditionTool(),
             BuildAdjustExhaustionTool(),
+            BuildCastSpellTool(),
             BuildSpendActionResourceTool(),
             BuildDashActionTool(),
             BuildUseActionSurgeTool(),
@@ -967,6 +976,42 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         stateAudits.Add(new GameMasterStateAudit(
                             "Condition",
                             $"{args.TargetName}: -{ConditionRulesService.Title(args.ConditionName)} ({CleanReason(args.Reason, "condition ended")})"));
+                        toolResult = result;
+                        break;
+                    }
+                    case "cast_spell":
+                    {
+                        var args = DeserializeArguments<CastSpellToolArguments>(call.ArgumentsJson, "spell cast");
+                        var requestedSpellName = (args.SpellName ?? string.Empty).Trim();
+                        var spell = spells.FirstOrDefault(s =>
+                            s.SpellName.Equals(requestedSpellName, StringComparison.OrdinalIgnoreCase))
+                            ?? throw new InvalidOperationException(
+                                $"{character.CharacterName} does not have {requestedSpellName} in the current spellbook.");
+
+                        if (spell.SpellLevel > 0 && !spell.Prepared)
+                            throw new InvalidOperationException(
+                                $"{spell.SpellName} is not currently prepared/available.");
+
+                        var slotLevel = spell.SpellLevel == 0
+                            ? 0
+                            : args.SlotLevel <= 0 ? spell.SpellLevel : args.SlotLevel;
+
+                        if (spell.SpellLevel > 0 && slotLevel < spell.SpellLevel)
+                            throw new InvalidOperationException(
+                                $"{spell.SpellName} cannot use a level {slotLevel} slot because its base level is {spell.SpellLevel}.");
+
+                        var result = await CastSpellAsync(
+                            campaign.CampaignId,
+                            character.CharacterId,
+                            spell.SpellName,
+                            slotLevel,
+                            args.Reason);
+
+                        stateAudits.Add(new GameMasterStateAudit(
+                            "Spell",
+                            spell.SpellLevel == 0
+                                ? $"{character.CharacterName} cast cantrip {spell.SpellName}."
+                                : $"{character.CharacterName} cast {spell.SpellName} using a level {slotLevel} spell slot."));
                         toolResult = result;
                         break;
                     }
@@ -2501,6 +2546,26 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     };
 
 
+    private static object BuildCastSpellTool() => new
+    {
+        type="function",
+        name="cast_spell",
+        description="Authorize one spell cast for the current player character in or out of combat. Leveled spells consume one authoritative spell slot; cantrips consume none. During active combat this atomically spends the Action, Bonus Action, or Reaction required by the spell's stored casting time. Do not separately call spend_action_resource for the same spell.",
+        strict=true,
+        parameters=new
+        {
+            type="object",
+            properties=new
+            {
+                spellName=new { type="string", description="Exact spell name from CURRENT SPELLBOOK." },
+                slotLevel=new { type="integer", minimum=0, maximum=9, description="0 for a cantrip. For a leveled spell use its base level unless the player explicitly upcasts with a legal higher-level slot." },
+                reason=new { type="string", description="Short in-world reason/context for the cast." }
+            },
+            required=new[]{"spellName","slotLevel","reason"},
+            additionalProperties=false
+        }
+    };
+
     private static object BuildSpendActionResourceTool() => new
     {
         type="function",
@@ -2929,6 +2994,28 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             return new();
         }
+    }
+
+    private async Task<JsonElement> CastSpellAsync(
+        Guid campaignId,
+        Guid characterId,
+        string spellName,
+        int slotLevel,
+        string? reason)
+    {
+        var raw = await CallSupabaseRpcAsync(
+            "discord_gm_cast_spell",
+            new
+            {
+                p_campaign_id = campaignId,
+                p_character_id = characterId,
+                p_spell_name = (spellName ?? string.Empty).Trim(),
+                p_slot_level = Math.Clamp(slotLevel, 0, 9),
+                p_reason = CleanReason(reason, "Spell cast")
+            },
+            "Unable to cast spell");
+        using var document = JsonDocument.Parse(raw);
+        return document.RootElement.Clone();
     }
 
     private async Task<JsonElement> SpendActionResourceAsync(Guid campaignId, ActionEconomyToolArguments args)
@@ -5047,6 +5134,13 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string TargetName { get; set; } = string.Empty;
         public string ConditionName { get; set; } = string.Empty;
         public string SourceName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    private sealed class CastSpellToolArguments
+    {
+        public string SpellName { get; set; } = string.Empty;
+        public int SlotLevel { get; set; }
         public string Reason { get; set; } = string.Empty;
     }
 
