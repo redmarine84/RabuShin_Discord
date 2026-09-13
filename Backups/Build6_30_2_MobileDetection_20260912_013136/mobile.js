@@ -1,0 +1,220 @@
+/* RabuShinAIGM Build 6.30 - Discord Mobile Support
+   Loaded on every platform but activates only on Android/iOS/iPadOS.
+   Desktop Discord is intentionally left untouched. */
+
+(() => {
+  'use strict';
+
+  const ua = navigator.userAgent || '';
+  const isAppleTouchDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || isAppleTouchDesktop;
+  const isDiscordMobile = isAndroid || isIOS;
+
+  if (!isDiscordMobile) return;
+
+  const root = document.documentElement;
+  root.classList.add('rs-mobile');
+  if (isAndroid) root.classList.add('rs-mobile-android');
+  if (isIOS) root.classList.add('rs-mobile-ios');
+
+  const mobileLabels = {
+    gm: 'GM',
+    character: 'Character',
+    inventory: 'Inventory',
+    spells: 'Spells',
+    journal: 'Journal',
+    chat: 'Chat',
+    settings: 'Settings',
+    combat: 'Combat',
+    party: 'Party',
+  };
+
+  let enhancementFrame = 0;
+  let baselineViewportHeight = 0;
+
+  function updateViewportMetrics() {
+    const vv = window.visualViewport;
+    const height = vv?.height || window.innerHeight || 0;
+    const width = vv?.width || window.innerWidth || 0;
+
+    if (height > baselineViewportHeight) baselineViewportHeight = height;
+
+    root.style.setProperty('--rs-vvh', `${Math.max(1, height)}px`);
+    root.style.setProperty('--rs-vvw', `${Math.max(1, width)}px`);
+
+    const keyboardLikelyOpen = baselineViewportHeight > 0 && height < baselineViewportHeight - 140;
+    root.classList.toggle('rs-keyboard-open', keyboardLikelyOpen);
+  }
+
+  function compactGameTabs() {
+    document.querySelectorAll('.game-tab').forEach((button) => {
+      const tab = button.dataset.tab;
+      if (!tab) return;
+
+      if (!button.dataset.desktopLabel) {
+        button.dataset.desktopLabel = button.textContent.trim();
+      }
+
+      const label = mobileLabels[tab] || button.dataset.desktopLabel;
+      button.dataset.mobileLabel = label;
+      button.title = button.dataset.desktopLabel;
+      button.setAttribute('aria-label', button.dataset.desktopLabel);
+    });
+  }
+
+  function improveInputs() {
+    document.querySelectorAll('input, textarea, select').forEach((control) => {
+      if (control.dataset.rsMobileInputBound === 'true') return;
+      control.dataset.rsMobileInputBound = 'true';
+
+      control.addEventListener('focus', () => {
+        setTimeout(() => {
+          updateViewportMetrics();
+          control.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        }, 220);
+      });
+
+      control.addEventListener('blur', () => {
+        setTimeout(updateViewportMetrics, 180);
+      });
+    });
+  }
+
+  function bindTacticalTouch(viewport) {
+    if (!viewport || viewport.dataset.rsMobileTouchBound === 'true') return;
+    viewport.dataset.rsMobileTouchBound = 'true';
+
+    let pinchDistance = 0;
+    let suppressClickUntil = 0;
+    let oneFingerStart = null;
+
+    const distance = (touches) => {
+      if (!touches || touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    viewport.addEventListener('touchstart', (event) => {
+      if (event.touches.length === 2) {
+        pinchDistance = distance(event.touches);
+        oneFingerStart = null;
+      } else if (event.touches.length === 1) {
+        oneFingerStart = {
+          x: event.touches[0].clientX,
+          y: event.touches[0].clientY,
+        };
+      }
+    }, { passive: true });
+
+    viewport.addEventListener('touchmove', (event) => {
+      if (event.touches.length === 2) {
+        const nextDistance = distance(event.touches);
+        if (!pinchDistance) {
+          pinchDistance = nextDistance;
+          return;
+        }
+
+        const ratio = nextDistance / pinchDistance;
+        if (ratio >= 1.16) {
+          document.querySelector('#tacticalZoomIn')?.click();
+          pinchDistance = nextDistance;
+          suppressClickUntil = Date.now() + 450;
+        } else if (ratio <= 0.86) {
+          document.querySelector('#tacticalZoomOut')?.click();
+          pinchDistance = nextDistance;
+          suppressClickUntil = Date.now() + 450;
+        }
+        return;
+      }
+
+      if (event.touches.length === 1 && oneFingerStart) {
+        const dx = event.touches[0].clientX - oneFingerStart.x;
+        const dy = event.touches[0].clientY - oneFingerStart.y;
+        if (Math.hypot(dx, dy) > 12) {
+          suppressClickUntil = Date.now() + 180;
+        }
+      }
+    }, { passive: true });
+
+    viewport.addEventListener('touchend', (event) => {
+      if (event.touches.length < 2) pinchDistance = 0;
+      if (event.touches.length === 0) oneFingerStart = null;
+    }, { passive: true });
+
+    viewport.addEventListener('click', (event) => {
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+  }
+
+  function improveTacticalMap() {
+    const viewport = document.querySelector('#tacticalViewport');
+    if (!viewport) return;
+
+    bindTacticalTouch(viewport);
+    viewport.setAttribute('aria-label', 'Encounter map. Drag to pan, pinch or use the zoom buttons to zoom, and tap tokens or map squares to interact.');
+
+    const zoomOut = document.querySelector('#tacticalZoomOut');
+    const zoomIn = document.querySelector('#tacticalZoomIn');
+    const fit = document.querySelector('#tacticalFit');
+
+    if (zoomOut) zoomOut.setAttribute('aria-label', 'Zoom encounter map out');
+    if (zoomIn) zoomIn.setAttribute('aria-label', 'Zoom encounter map in');
+    if (fit) fit.setAttribute('aria-label', 'Fit encounter map to screen');
+  }
+
+  function improveModalAccessibility() {
+    document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+      if (!overlay.hasAttribute('role')) overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+    });
+  }
+
+  function enhance() {
+    compactGameTabs();
+    improveInputs();
+    improveTacticalMap();
+    improveModalAccessibility();
+    updateViewportMetrics();
+  }
+
+  function scheduleEnhance() {
+    if (enhancementFrame) return;
+    enhancementFrame = requestAnimationFrame(() => {
+      enhancementFrame = 0;
+      enhance();
+    });
+  }
+
+  const observer = new MutationObserver(scheduleEnhance);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  window.addEventListener('resize', updateViewportMetrics, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    baselineViewportHeight = 0;
+    setTimeout(() => {
+      updateViewportMetrics();
+      scheduleEnhance();
+    }, 180);
+  }, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateViewportMetrics, { passive: true });
+    window.visualViewport.addEventListener('scroll', updateViewportMetrics, { passive: true });
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      baselineViewportHeight = 0;
+      updateViewportMetrics();
+      scheduleEnhance();
+    }
+  });
+
+  updateViewportMetrics();
+  scheduleEnhance();
+})();

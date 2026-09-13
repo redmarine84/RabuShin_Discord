@@ -1,0 +1,30 @@
+﻿[
+    {
+        "Path":  "RabuShinAIGM.Server\\Program.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\DiscordSupabaseService.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\OpenAiGameMasterService.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\DeathSaveRulesService.cs",
+        "Existed":  false
+    },
+    {
+        "Path":  "client\\main.js",
+        "Existed":  true
+    },
+    {
+        "Path":  "client\\conditions.css",
+        "Existed":  true
+    },
+    {
+        "Path":  "SUPABASE_SQL\\46_DEATH_SAVING_THROWS.sql",
+        "Existed":  false
+    }
+]

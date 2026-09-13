@@ -1,0 +1,66 @@
+/* RULES BUILD 6.19 - Combat Conditions / Status Effects */
+.condition-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  margin-top:6px;
+}
+.condition-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:3px 8px;
+  border:1px solid rgba(214,168,75,.55);
+  border-radius:999px;
+  background:rgba(11,15,20,.72);
+  color:#F2F4F7;
+  font-size:.76rem;
+  font-weight:700;
+  letter-spacing:.02em;
+  line-height:1.1;
+}
+.condition-badge::before{
+  content:"◆";
+  margin-right:5px;
+  color:#D6A84B;
+  font-size:.62rem;
+}
+.condition-invisible{border-color:rgba(77,163,255,.65)}
+.condition-invisible::before{color:#4DA3FF}
+.condition-poisoned{border-color:rgba(57,217,138,.65)}
+.condition-poisoned::before{color:#39D98A}
+.condition-unconscious,
+.condition-paralyzed,
+.condition-petrified,
+.condition-stunned,
+.condition-exhaustion{border-color:rgba(217,74,74,.7)}
+.condition-unconscious::before,
+.condition-paralyzed::before,
+.condition-petrified::before,
+.condition-stunned::before,
+.condition-exhaustion::before{color:#D94A4A}
+.condition-none{font-size:.76rem}
+.character-conditions-card{
+  margin-top:10px;
+  padding:9px 10px;
+  border:1px solid rgba(110,86,207,.35);
+  border-radius:10px;
+  background:rgba(11,15,20,.45);
+}
+.character-conditions-card::before{
+  content:"Conditions";
+  display:block;
+  margin-bottom:5px;
+  color:#AAB4C3;
+  font-size:.72rem;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.combat-party-vital .condition-badges{
+  max-width:230px;
+}
+.combat-monster-card .condition-badges{
+  justify-content:center;
+}

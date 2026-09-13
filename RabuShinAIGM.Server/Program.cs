@@ -27,6 +27,9 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// BUILD 6.30.9 - Character Library / Leave / Kick / Solo Remove
+app.MapCharacterLibraryEndpoints();
+
 app.MapGet("/api/health", () => Results.Ok(new
 {
     success = true,

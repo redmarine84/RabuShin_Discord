@@ -1,0 +1,30 @@
+﻿[
+    {
+        "Path":  "RabuShinAIGM.Server\\DiscordSupabaseService.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\Program.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\OpenAiGameMasterService.cs",
+        "Existed":  true
+    },
+    {
+        "Path":  "client\\main.js",
+        "Existed":  true
+    },
+    {
+        "Path":  "RabuShinAIGM.Server\\ConditionRulesService.cs",
+        "Existed":  false
+    },
+    {
+        "Path":  "client\\conditions.css",
+        "Existed":  false
+    },
+    {
+        "Path":  "SUPABASE_SQL\\45_COMBAT_CONDITIONS_STATUS_EFFECTS.sql",
+        "Existed":  false
+    }
+]

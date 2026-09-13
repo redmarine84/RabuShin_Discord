@@ -2,6 +2,8 @@ import { DiscordSDK } from '@discord/embedded-app-sdk';
 import './style.css';
 import './conditions.css'; // RULES BUILD 6.19 - condition badges
 import { mountFinalGameplayInventoryPanels, handleFinalEquipmentToggle } from './final-gameplay-ui.js'; // BUILDS 6.22-6.23
+import { configureCharacterLibraryUI, mountCharacterLibraryLauncher } from './character-library.js'; // BUILD 6.30.9
+import './character-library.css'; // BUILD 6.30.9
 
 const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
@@ -327,6 +329,20 @@ async function showCampaignLauncher() {
   document.querySelector('#joinCampaign').onclick = showJoinCampaignDialog;
   document.querySelectorAll('[data-legal]').forEach(button => button.onclick = () => openExternal(legalUrls[button.dataset.legal]));
   await loadCampaigns();
+
+  // BUILD 6.30.9 - Character Library hooks preserve the existing launcher
+  // while adding My Characters, reusable character selection and member tools.
+  configureCharacterLibraryUI({
+    api,
+    showModal,
+    showNotice,
+    escapeHtml,
+    showCharacterCreator,
+    openCampaign,
+    showCampaignLauncher,
+    loadCampaigns
+  });
+  await mountCharacterLibraryLauncher();
 }
 
 async function loadCampaigns() {
@@ -785,10 +801,11 @@ function configureHalfRace(prefix,species,data){
 
 async function showCharacterCreator(campaignId, options={}) {
   const soloPartyMember=options?.soloPartyMember===true;
+  const libraryMode=options?.libraryMode===true;
   const main = document.querySelector('#mainContent');
   main.innerHTML = `
     <div class="creator">
-      <div class="section-title"><div><h2>${soloPartyMember?'Add Party Member':'Create Your Character'}</h2><p>${soloPartyMember?'Create a full additional player-controlled character for your Solo party.':'One character per player in Friends campaigns. Racial bonuses are applied after the base ability scores you enter.'}</p></div><button id="creatorBack" class="button">Back</button></div>
+      <div class="section-title"><div><h2>${libraryMode?'Create Stored Character':(soloPartyMember?'Add Party Member':'Create Your Character')}</h2><p>${libraryMode?'Build a reusable character for My Characters. Starting equipment and spell setup are completed the first time the character enters a campaign.':(soloPartyMember?'Create a full additional player-controlled character for your Solo party.':'One character per player in Friends campaigns. Racial bonuses are applied after the base ability scores you enter.')}</p></div><button id="creatorBack" class="button">Back</button></div>
       <div class="tabs"><button id="randomTab" class="tab active">Random Build</button><button id="manualTab" class="tab">Manual Sheet</button></div>
       <section class="panel creator-panel">
         <div id="creatorLoading" class="loading">Loading character options...</div>
@@ -831,7 +848,7 @@ async function showCharacterCreator(campaignId, options={}) {
       </section>
     </div>`;
 
-  document.querySelector('#creatorBack').onclick = () => soloPartyMember ? enterCampaign(campaignId,'character') : showCampaignLauncher();
+  document.querySelector('#creatorBack').onclick = () => libraryMode ? showCampaignLauncher() : (soloPartyMember ? enterCampaign(campaignId,'character') : showCampaignLauncher());
   try {
     const data = await api('/game-api/character-options');
     populateSelect('#randomSpecies', data.species); populateSelect('#randomClass', data.classes);
@@ -865,10 +882,12 @@ async function showCharacterCreator(campaignId, options={}) {
       try {
         const species=document.querySelector('#randomSpecies').value;
         const racial=collectRacialOptions('random',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`,{method:'POST',body:JSON.stringify({
+        const randomCharacterPath=libraryMode?'/game-api/characters/library/random':`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/random':'characters/random'}`;
+        const result=await api(randomCharacterPath,{method:'POST',body:JSON.stringify({
           characterName:document.querySelector('#randomName').value.trim(),gender:document.querySelector('#randomGender').value,species,
           secondaryHeritage:species.startsWith('Half ')?document.querySelector('#randomHalf').value:'',
           className:document.querySelector('#randomClass').value,...racial})});
+        if(libraryMode){showNotice('Character saved to My Characters.');return showCampaignLauncher();}
         await showStartingEquipment(campaignId,result.character);
       } catch(error){ document.querySelector('#creatorError').textContent=error.message; btn.disabled=false; btn.textContent='Generate Character'; }
     };
@@ -880,12 +899,14 @@ async function showCharacterCreator(campaignId, options={}) {
       try {
         const species=document.querySelector('#manualSpecies').value;
         const racial=collectRacialOptions('manual',species);
-        const result=await api(`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`,{method:'POST',body:JSON.stringify({
+        const manualCharacterPath=libraryMode?'/game-api/characters/library/manual':`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`;
+        const result=await api(manualCharacterPath,{method:'POST',body:JSON.stringify({
           characterName:name,gender:document.querySelector('#manualGender').value,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
           background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
           appearance:document.querySelector('#mAppearance').value.trim(),personality:document.querySelector('#mPersonality').value.trim(),backstory:document.querySelector('#mBackstory').value.trim(),notes:document.querySelector('#mNotes').value.trim(),...racial
         })});
+        if(libraryMode){showNotice('Character saved to My Characters.');return showCampaignLauncher();}
         await showStartingEquipment(campaignId,result.character);
       } catch(error){document.querySelector('#creatorError').textContent=error.message;btn.disabled=false;btn.textContent='Create Character';}
     };
@@ -1201,7 +1222,7 @@ async function enterCampaign(campaignId, initialTab='gm') {
 function isSoloCampaign(){return String(currentGameData?.campaign?.campaignMode||'').toLowerCase()==='solo'||currentGameData?.soloParty?.isSolo===true;}
 function soloPartyCharacters(){return Array.isArray(currentGameData?.soloParty?.characters)?currentGameData.soloParty.characters:(currentGameData?.party||[]).map(p=>({characterId:p.characterId,characterName:p.characterName,level:p.level}));}
 function soloCharacterSwitchMarkup(compact=false){
-  if(!isSoloCampaign()||soloPartyCharacters().length<2)return '';
+  if(!isSoloCampaign()||soloPartyCharacters().length<1)return '';
   const active=String(currentGameData?.soloParty?.activeCharacterId||currentGameData?.character?.characterId||'');
   return `<label class="solo-active-character ${compact?'compact':''}"><span>Active Character</span><select class="input" data-solo-character-switch>${soloPartyCharacters().map(c=>`<option value="${escapeHtml(c.characterId)}" ${String(c.characterId)===active?'selected':''}>${escapeHtml(c.characterName)}</option>`).join('')}</select></label>`;
 }

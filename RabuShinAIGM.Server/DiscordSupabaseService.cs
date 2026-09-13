@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using QuestsOfRabuShinAIGM;
 
-public sealed class DiscordSupabaseService
+public sealed partial class DiscordSupabaseService
 {
     private readonly HttpClient _http;
     private readonly string _supabaseUrl;
@@ -165,60 +165,30 @@ public sealed class DiscordSupabaseService
 
     public async Task DeleteCampaignAsync(Guid playerId, Guid campaignId)
     {
-        var portraitPaths = new List<string>();
-        try
-        {
-            portraitPaths = (await GetPartyAsync(playerId, campaignId))
-                .Select(member => member.PortraitPath)
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => path!)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-        }
-        catch
-        {
-            // Campaign deletion must not be blocked if portrait cleanup discovery fails.
-        }
-
+        // BUILD 6.30.9: the database now detaches reusable characters before
+        // deleting campaign-scoped state. Do NOT remove portrait objects here;
+        // a surviving library/pending character still owns its portrait.
         using var response = await CallRpcAsync("discord_delete_campaign", new
         {
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
         await EnsureSuccessAsync(response, "Unable to delete campaign");
-
-        foreach (var path in portraitPaths)
-            await TryDeletePortraitObjectAsync(path);
+        _soloEffectivePlayerCache.Remove(SoloCacheKey(playerId, campaignId));
     }
-
     public async Task LeaveCampaignAsync(Guid playerId, Guid campaignId)
     {
-        string? portraitPath = null;
-        try
-        {
-            var character = await GetCharacterAsync(playerId, campaignId);
-            if (character is not null)
-            {
-                var party = await GetPartyAsync(playerId, campaignId);
-                portraitPath = party.FirstOrDefault(member => member.CharacterId == character.CharacterId)?.PortraitPath;
-            }
-        }
-        catch
-        {
-            // Leaving the campaign must not be blocked by optional portrait cleanup.
-        }
-
+        // BUILD 6.30.9: discord_leave_campaign now returns a library-origin
+        // character to My Characters or detaches a campaign-created character
+        // into pending_storage. The portrait must follow the character.
         using var response = await CallRpcAsync("discord_leave_campaign", new
         {
             p_player_id = playerId,
             p_campaign_id = campaignId
         });
         await EnsureSuccessAsync(response, "Unable to leave campaign");
-
-        if (!string.IsNullOrWhiteSpace(portraitPath))
-            await TryDeletePortraitObjectAsync(portraitPath);
+        _soloEffectivePlayerCache.Remove(SoloCacheKey(playerId, campaignId));
     }
-
     public async Task<DiscordCharacterInfo?> GetCharacterAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_character", new
