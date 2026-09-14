@@ -1,4 +1,4 @@
-using QuestsOfRabuShinAIGM;
+﻿using QuestsOfRabuShinAIGM;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Globalization;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-public sealed partial class OpenAiGameMasterService
+public sealed class OpenAiGameMasterService
 {
     private readonly HttpClient _http;
     private readonly IConfiguration _configuration;
@@ -182,12 +182,6 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE â€” SERVER-AUTHORITATIVE:
 - Prone attacks with disadvantage; attacks against a Prone target have advantage within 5 feet and disadvantage farther away. Voluntary tactical movement is crawling and costs double until Prone is removed.
 - Conditions do not directly change Armor Class here. Advantage and disadvantage from Conditions, Exhaustion, and other causes cancel normally rather than stacking extra d20s.
 - Every persistent condition change MUST use apply_condition or remove_condition. Never merely narrate a condition. For update_combat_monster, pass the compatibility conditions field as an empty string.
-- BUILD 6.30.11: save_ends conditions may keep making saves after combat. Use resolve_condition_save at the stored start/end timing until success, cure, expiration, or another explicit ending rule removes the condition.
-- BUILD 6.30.11: immediately call set_condition_lifecycle after apply_condition when the effect repeats saves, has a timed magical duration, ends with combat, ends when its source dies, or ends when source line of sight is lost.
-- BUILD 6.30.11: suppression is not removal. Calm Emotions-style effects use suppress_condition; restore_suppressed_condition ends suppression early. A true cure may permanently remove the underlying suppressed condition.
-- BUILD 6.30.11: condition immunity is distinct from curing. Heroism-style immunity uses set_condition_immunity and remove_condition_immunity. While immune, apply_condition is rejected for that condition.
-- BUILD 6.30.11: a curative potion/item MUST use consume_condition_cure_item so ownership, cure list, condition removal, and one-item consumption happen atomically. Never use remove_inventory_item plus remove_condition for the same potion.
-- BUILD 6.30.11: Dispel Magic may remove only a tracked magic_effect condition after the spell's normal success requirements are resolved; then use dispel_condition_effect.
 - Use durationType=rounds only for a known round duration; use save_ends with saveAbility/saveDc when an effect ends on a save; otherwise use persistent/until_removed.
 - For every roll_dice call, actorName MUST be the exact party character OR active monster display name when a creature rolls; use an empty string only for non-creature/random rolls. targetName MUST be the exact target when one exists. rollType, ability, distanceFeet, sensoryBasis, sourceVisible, and requiresAction MUST accurately describe the roll so the server can enforce Conditions and Exhaustion.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
@@ -782,16 +776,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildDiceTool(),
             BuildApplyConditionTool(),
             BuildRemoveConditionTool(),
-            // BUILD 6.30.11 - CONDITION LIFECYCLE
-            BuildSetConditionLifecycleTool(),
-            BuildResolveConditionSaveTool(),
-            BuildSuppressConditionTool(),
-            BuildRestoreSuppressedConditionTool(),
-            BuildSetConditionImmunityTool(),
-            BuildRemoveConditionImmunityTool(),
-            BuildConsumeConditionCureItemTool(),
-            BuildDispelConditionEffectTool(),
-            BuildResolveConditionSourceLosTool(),
             BuildAdjustExhaustionTool(),
             BuildCastSpellTool(),
             BuildSpendActionResourceTool(),
@@ -972,7 +956,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<ApplyConditionToolArguments>(
                             call.ArgumentsJson, "condition application");
-                        var result = await ApplyConditionWithImmunityAsync(campaign.CampaignId, args);
+                        var result = await ApplyConditionAsync(campaign.CampaignId, args);
                         conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
                         concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
                         var concentrationAfterCondition = concentrationState.FirstOrDefault(c =>
@@ -1138,85 +1122,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         stateAudits.Add(new GameMasterStateAudit(
                             "Faction Reputation",
                             $"{args.FactionName}: {args.SubjectType} {args.CharacterName}; {args.Delta:+#;-#;0}; {args.Reason}"));
-                        toolResult = result;
-                        break;
-                    }
-                    // BUILD 6.30.11 - CONDITION LIFECYCLE
-                    case "set_condition_lifecycle":
-                    {
-                        var args = DeserializeArguments<ConditionLifecycleToolArguments>(call.ArgumentsJson, "condition lifecycle");
-                        var result = await SetConditionLifecycleAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: lifecycle updated for {ConditionRulesService.Title(args.ConditionName)}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "resolve_condition_save":
-                    {
-                        var args = DeserializeArguments<ResolveConditionSaveToolArguments>(call.ArgumentsJson, "condition saving throw");
-                        var result = await ResolveConditionSaveAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Save", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} save resolved"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "suppress_condition":
-                    {
-                        var args = DeserializeArguments<SuppressConditionToolArguments>(call.ArgumentsJson, "condition suppression");
-                        var result = await SuppressConditionAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} suppressed by {args.SuppressingEffect}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "restore_suppressed_condition":
-                    {
-                        var args = DeserializeArguments<RestoreSuppressedConditionToolArguments>(call.ArgumentsJson, "condition restoration");
-                        var result = await RestoreSuppressedConditionAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: suppressed {ConditionRulesService.Title(args.ConditionName)} restored"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "set_condition_immunity":
-                    {
-                        var args = DeserializeArguments<ConditionImmunityToolArguments>(call.ArgumentsJson, "condition immunity");
-                        var result = await SetConditionImmunityAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Immunity", $"{args.TargetName}: immune to {ConditionRulesService.Title(args.ConditionName)} from {args.SourceName}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "remove_condition_immunity":
-                    {
-                        var args = DeserializeArguments<ConditionImmunityToolArguments>(call.ArgumentsJson, "condition immunity removal");
-                        var result = await RemoveConditionImmunityAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Immunity", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} immunity ended"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "consume_condition_cure_item":
-                    {
-                        var args = DeserializeArguments<ConsumeConditionCureItemToolArguments>(call.ArgumentsJson, "curative item use");
-                        var result = await ConsumeConditionCureItemAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Cure", $"{args.CharacterName}: curative item used"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "dispel_condition_effect":
-                    {
-                        var args = DeserializeArguments<DispelConditionEffectToolArguments>(call.ArgumentsJson, "condition dispel");
-                        var result = await DispelConditionEffectAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: magical {ConditionRulesService.Title(args.ConditionName)} effect dispelled"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "resolve_condition_source_los":
-                    {
-                        var args = DeserializeArguments<ResolveConditionSourceLosToolArguments>(call.ArgumentsJson, "condition source line of sight");
-                        var result = await ResolveConditionSourceLosAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
                         toolResult = result;
                         break;
                     }
