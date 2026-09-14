@@ -913,7 +913,7 @@ async function showCharacterCreator(campaignId, options={}) {
         const manualCharacterPath=libraryMode?'/game-api/characters/library/manual':`/game-api/campaigns/${campaignId}/${soloPartyMember?'solo-party/characters/manual':'characters/manual'}`;
         const result=await api(manualCharacterPath,{method:'POST',body:JSON.stringify({
           characterName:name,gender:document.querySelector('#manualGender').value,species,secondaryHeritage:species.startsWith('Half ')?document.querySelector('#manualHalf').value:'',className:document.querySelector('#manualClass').value,
-          background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,creationMulticlassPlan:(typeof window.__rabuGetCreationMulticlassPlan==='function'?window.__rabuGetCreationMulticlassPlan():[]),
+          background:document.querySelector('#manualBackground').value,alignment:document.querySelector('#manualAlignment').value,level:Number(document.querySelector('#manualLevel').value)||1,
           strength:score('#mStr'),dexterity:score('#mDex'),constitution:score('#mCon'),intelligence:score('#mInt'),wisdom:score('#mWis'),charisma:score('#mCha'),
           appearance:document.querySelector('#mAppearance').value.trim(),personality:document.querySelector('#mPersonality').value.trim(),backstory:document.querySelector('#mBackstory').value.trim(),notes:document.querySelector('#mNotes').value.trim(),...racial
         })});

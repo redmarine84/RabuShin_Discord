@@ -511,8 +511,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/characters/manual", async (
 
         var id = await service.CreateCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-        // BUILD 6.30.12.1 - FRIENDS CREATION MULTICLASS
-        await service.ApplyCreationMulticlassPlanSafelyAsync(playerId, id, body.CreationMulticlassPlan);
         await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });
@@ -653,8 +651,6 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/solo-party/characters/manual"
 
         var id = await service.CreateSoloPartyCharacterWithFeaturesAsync(playerId, campaignId, character, species, scores, profile,
             body.Appearance ?? "", body.Personality ?? "", body.Backstory ?? "", body.Notes ?? "");
-        // BUILD 6.30.12.1 - SOLO CREATION MULTICLASS
-        await service.ApplyCreationMulticlassPlanSafelyAsync(playerId, id, body.CreationMulticlassPlan);
         await service.SetCharacterGenderAsync(playerId, campaignId, id, gender);
         var saved = await service.GetCharacterAsync(playerId, campaignId);
         return Results.Ok(new { success = true, character = saved is null ? ProgramHelpers.ToClientGeneratedCharacter(id, character) : ProgramHelpers.ToClientCharacter(saved) });

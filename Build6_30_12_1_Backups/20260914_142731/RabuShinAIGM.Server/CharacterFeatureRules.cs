@@ -837,8 +837,6 @@ public sealed class CharacterFeatureProfile
 
 public sealed class EnhancedManualCharacterRequest
 {
-    // BUILD 6.30.12.1 - optional level-2+ creation-time multiclass distribution.
-    public JsonElement CreationMulticlassPlan { get; set; } = JsonSerializer.Deserialize<JsonElement>("[]");
     public string CharacterName { get; set; } = string.Empty;
     public string Gender { get; set; } = string.Empty;
     public string Species { get; set; } = string.Empty;

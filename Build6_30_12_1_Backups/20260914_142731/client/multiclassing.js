@@ -1,6 +1,6 @@
 import './multiclassing.css';
 
-// RabuShinAIGM Build 6.30.12.1 - Multiclassing + creation-time class distribution.
+// RabuShinAIGM Build 6.30.12 - Multiclassing client integration.
 // This module is intentionally side-effect based so the existing main.js API
 // remains stable. main.js exposes a very small context object used below.
 
@@ -22,10 +22,6 @@ let levelPlan = null;
 let levelPreview = null;
 let applyBusy = false;
 let rules = null;
-let creationMulticlassEnabled = false;
-let creationInitialClass = '';
-let creationTargetLevel = 1;
-let creationPlan = [];
 
 function getCtx() {
   return window.__rabuMulticlassContext || null;
@@ -88,207 +84,39 @@ function requirementsMarkup(eligibility=null) {
   return `<div class="mc-requirements">${list}</div>`;
 }
 
-const MC_ALL_SKILLS = [
-  'Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation',
-  'Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion',
-  'Sleight of Hand','Stealth','Survival'
-];
-const MC_RANGER_SKILLS = ['Animal Handling','Athletics','Insight','Investigation','Nature','Perception','Stealth','Survival'];
-const MC_ROGUE_SKILLS = ['Acrobatics','Athletics','Deception','Insight','Intimidation','Investigation','Perception','Performance','Persuasion','Sleight of Hand','Stealth'];
-
-function manualCreationStats(root) {
-  const read = id => {
-    const value = Number(root.querySelector(id)?.value);
-    return Number.isFinite(value) ? Math.max(1,Math.min(20,value)) : 10;
-  };
-  return {
-    strength:read('#mStr'), dexterity:read('#mDex'), constitution:read('#mCon'),
-    intelligence:read('#mInt'), wisdom:read('#mWis'), charisma:read('#mCha')
-  };
-}
-
-function eligibleCreationClasses(initialClass, stats) {
-  const initialEligible = localEligible(initialClass, stats);
-  return MC_CLASSES.filter(name => name === initialClass || (initialEligible && localEligible(name,stats)));
-}
-
-function creationProficiencyMarkup(className, choices={}) {
-  if (className === 'Bard') {
-    return `<div class="mc-proficiency-fields">
-      <label>Bard skill proficiency<select class="input mc-create-skill">${MC_ALL_SKILLS.map(v=>`<option value="${esc(v)}" ${v===(choices.skill||'')?'selected':''}>${esc(v)}</option>`).join('')}</select></label>
-      <label>Musical instrument proficiency<input class="input mc-create-instrument" value="${esc(choices.instrument||'')}" placeholder="Example: Lute"></label>
-    </div>`;
-  }
-  const skills = className === 'Ranger' ? MC_RANGER_SKILLS : className === 'Rogue' ? MC_ROGUE_SKILLS : null;
-  if (!skills) return '';
-  return `<div class="mc-proficiency-fields"><label>${esc(className)} skill proficiency<select class="input mc-create-skill">${skills.map(v=>`<option value="${esc(v)}" ${v===(choices.skill||'')?'selected':''}>${esc(v)}</option>`).join('')}</select></label></div>`;
-}
-
-function normalizeCreationPlan(root) {
-  const level = Math.max(1,Math.min(20,Number(root.querySelector('#manualLevel')?.value)||1));
-  const initial = String(root.querySelector('#manualClass')?.value||'').trim();
-  const stats = manualCreationStats(root);
-  const allowed = new Set(eligibleCreationClasses(initial,stats));
-  if (creationInitialClass !== initial) {
-    creationInitialClass = initial;
-    creationPlan = [];
-  }
-  creationTargetLevel = level;
-  const needed = Math.max(0,level-1);
-  while (creationPlan.length < needed)
-    creationPlan.push({totalLevel:creationPlan.length+2,className:initial,proficiencyChoices:{}});
-  if (creationPlan.length > needed) creationPlan.length = needed;
-  creationPlan.forEach((entry,index)=>{
-    entry.totalLevel=index+2;
-    if (!allowed.has(entry.className)) {
-      entry.className=initial;
-      entry.proficiencyChoices={};
-    }
-  });
-  if (level < 2) creationMulticlassEnabled=false;
-  return {level,initial,stats,allowed};
-}
-
-function creationSummary(initial, level) {
-  const counts = new Map([[initial,1]]);
-  creationPlan.slice(0,Math.max(0,level-1)).forEach(entry=>{
-    counts.set(entry.className,(counts.get(entry.className)||0)+1);
-  });
-  return [...counts.entries()].filter(([,count])=>count>0).map(([name,count])=>`${name} ${count}`).join(' / ');
-}
-
-function renderCreationPlanner(root, panel) {
-  const {level,initial,stats,allowed}=normalizeCreationPlan(root);
-  const body=panel.querySelector('.mc-creation-body');
-  if (!body) return;
-  const initialOk=localEligible(initial,stats);
-  const eligibleSecondary=[...allowed].filter(name=>name!==initial);
-
-  if(level<2){
-    body.innerHTML=`<p class="mc-muted">Choose character level 2 or higher to create a multiclass character. Level 1 always belongs to the initial class.</p>${requirementsMarkup(Object.fromEntries(MC_CLASSES.map(n=>[n,localEligible(n,stats)])))}`;
-    return;
-  }
-
-  const toggleChecked=creationMulticlassEnabled?'checked':'';
-  const intro = `<label class="mc-create-toggle"><input id="mcCreationEnabled" type="checkbox" ${toggleChecked}><span><b>Multiclass this Level ${level} character</b><small>Level 1 remains ${esc(initial)}. Distribute levels 2-${level} among the eligible classes below.</small></span></label>`;
-  if(!creationMulticlassEnabled){
-    body.innerHTML=`${intro}<div class="mc-creation-eligibility">
-      <b>Eligible secondary classes</b>
-      <p class="mc-muted">${initialOk
-        ? (eligibleSecondary.length?eligibleSecondary.map(n=>`${esc(n)} (${esc(MC_REQUIREMENTS[n])})`).join(' • '):'No secondary classes qualify with the current ability scores.')
-        : `You do not meet the ${esc(initial)} multiclass prerequisite (${esc(MC_REQUIREMENTS[initial])}), so you cannot multiclass out of ${esc(initial)}.`}</p>
-      <p class="mc-muted">Starting equipment and saving-throw proficiencies remain those of the initial class.</p>
-    </div>`;
-    body.querySelector('#mcCreationEnabled').onchange=e=>{
-      creationMulticlassEnabled=e.target.checked;
-      renderCreationPlanner(root,panel);
-    };
-    return;
-  }
-
-  const seen=new Set([initial]);
-  const rows=creationPlan.map((entry,index)=>{
-    const isNew=!seen.has(entry.className);
-    seen.add(entry.className);
-    const options=[...allowed].map(name=>`<option value="${esc(name)}" ${name===entry.className?'selected':''}>${esc(name)}${name===initial?' (initial class)':''}</option>`).join('');
-    const prof=isNew?creationProficiencyMarkup(entry.className,entry.proficiencyChoices):'';
-    return `<div class="mc-plan-row mc-create-plan-row" data-mc-create-index="${index}">
-      <div class="mc-plan-heading"><b>Total Level ${index+2}</b><small>Which class gains this level?</small></div>
-      <select class="input mc-create-class">${options}</select>
-      <div class="mc-create-prof">${prof}</div>
-    </div>`;
-  }).join('');
-
-  body.innerHTML=`${intro}
-    <div class="mc-creation-eligibility"><b>Available classes:</b> <span>${[...allowed].map(esc).join(', ')}</span></div>
-    <div class="mc-create-summary"><b>Final Level Distribution:</b> ${esc(creationSummary(initial,level))}</div>
-    ${rows}
-    <p class="mc-muted">RabuShin keeps ${esc(initial)} as the initial class, grants only multiclass proficiencies for later classes, recalculates HP and Hit Dice by class, and opens spell selection when any assigned class can cast spells.</p>`;
-
-  body.querySelector('#mcCreationEnabled').onchange=e=>{
-    creationMulticlassEnabled=e.target.checked;
-    renderCreationPlanner(root,panel);
-  };
-  body.querySelectorAll('.mc-create-plan-row').forEach(row=>{
-    const index=Number(row.dataset.mcCreateIndex);
-    const select=row.querySelector('.mc-create-class');
-    select.onchange=()=>{
-      creationPlan[index].className=select.value;
-      creationPlan[index].proficiencyChoices={};
-      renderCreationPlanner(root,panel);
-    };
-    const skill=row.querySelector('.mc-create-skill');
-    if(skill){
-      if(!creationPlan[index].proficiencyChoices.skill) creationPlan[index].proficiencyChoices.skill=skill.value;
-      skill.onchange=()=>creationPlan[index].proficiencyChoices.skill=skill.value;
-    }
-    const instrument=row.querySelector('.mc-create-instrument');
-    if(instrument) instrument.oninput=()=>creationPlan[index].proficiencyChoices.instrument=instrument.value;
-  });
-}
-
-function getCreationMulticlassPlan() {
-  const root=document.querySelector('#manualCreator');
-  if(!root || !creationMulticlassEnabled) return [];
-  const {level,initial,allowed}=normalizeCreationPlan(root);
-  if(level<2) return [];
-  const hasSecondary=creationPlan.some(entry=>entry.className!==initial);
-  if(!hasSecondary) return [];
-
-  const seen=new Set([initial]);
-  return creationPlan.map((entry,index)=>{
-    if(!allowed.has(entry.className)) throw new Error(`${entry.className} is no longer eligible for multiclassing with the current ability scores.`);
-    const isNew=!seen.has(entry.className);
-    seen.add(entry.className);
-    const choices={...(entry.proficiencyChoices||{})};
-    if(isNew && ['Bard','Ranger','Rogue'].includes(entry.className) && !String(choices.skill||'').trim())
-      throw new Error(`Choose the granted ${entry.className} skill proficiency.`);
-    if(isNew && entry.className==='Bard' && !String(choices.instrument||'').trim())
-      throw new Error('Enter the granted Bard musical instrument proficiency.');
-    return {totalLevel:index+2,className:entry.className,proficiencyChoices:choices};
-  });
-}
-window.__rabuGetCreationMulticlassPlan=getCreationMulticlassPlan;
-
 function mountCreatorGuidance() {
-  const random=document.querySelector('#randomCreator');
-  if(random && !random.querySelector('.mc-creator-panel')){
-    const panel=document.createElement('section');
-    panel.className='mc-creator-panel';
-    panel.innerHTML=`<div class="mc-creator-title"><b>Multiclassing</b><button type="button" class="button mc-toggle">Requirements</button></div>
-      <p class="mc-muted">Random Build creates a level 1 character. Multiclassing becomes available when the character gains later levels.</p>
+  const random = document.querySelector('#randomCreator');
+  const manual = document.querySelector('#manualCreator');
+  [random, manual].forEach((root) => {
+    if (!root || root.querySelector('.mc-creator-panel')) return;
+    const panel = document.createElement('section');
+    panel.className = 'mc-creator-panel';
+    panel.innerHTML = `<div class="mc-creator-title"><b>Multiclassing / Requirements</b><button type="button" class="button mc-toggle">View</button></div>
+      <p class="mc-muted">You begin at level 1 in one class. These requirements show which additional classes can become available when you gain a later character level.</p>
       <div class="mc-creator-body" hidden>${requirementsMarkup()}</div>`;
-    random.appendChild(panel);
-    const body=panel.querySelector('.mc-creator-body'),toggle=panel.querySelector('.mc-toggle');
-    toggle.onclick=()=>{body.hidden=!body.hidden;toggle.textContent=body.hidden?'Requirements':'Hide';};
-  }
-
-  const manual=document.querySelector('#manualCreator');
-  if(!manual) return;
-  let panel=manual.querySelector('.mc-creator-panel');
-  if(!panel){
-    creationMulticlassEnabled=false;
-    creationInitialClass='';
-    creationTargetLevel=1;
-    creationPlan=[];
-    panel=document.createElement('section');
-    panel.className='mc-creator-panel mc-creation-planner';
-    panel.innerHTML=`<div class="mc-creator-title"><b>Multiclassing / Level Distribution</b></div><div class="mc-creation-body"></div>`;
-    const headings=[...manual.querySelectorAll('.subhead')];
-    const characterDetails=headings.find(h=>/character details/i.test(h.textContent||''));
-    if(characterDetails) manual.insertBefore(panel,characterDetails);
-    else manual.appendChild(panel);
-    const refresh=()=>renderCreationPlanner(manual,panel);
-    manual.addEventListener('input',e=>{
-      if(e.target?.closest?.('.mc-creation-planner')) return;
+    root.appendChild(panel);
+    const body = panel.querySelector('.mc-creator-body');
+    const toggle = panel.querySelector('.mc-toggle');
+    const refresh = () => {
+      if (root !== manual) return;
+      const stats = {
+        strength:abilityValue(root,['manualStrength','strength']), dexterity:abilityValue(root,['manualDexterity','dexterity']),
+        constitution:abilityValue(root,['manualConstitution','constitution']), intelligence:abilityValue(root,['manualIntelligence','intelligence']),
+        wisdom:abilityValue(root,['manualWisdom','wisdom']), charisma:abilityValue(root,['manualCharisma','charisma'])
+      };
+      if (Object.values(stats).some(v => v === null)) return;
+      const e = Object.fromEntries(MC_CLASSES.map(name => [name, localEligible(name,stats)]));
+      body.innerHTML = requirementsMarkup(e);
+    };
+    toggle.onclick = async () => {
+      body.hidden = !body.hidden;
+      toggle.textContent = body.hidden ? 'View' : 'Hide';
+      await ensureRules();
       refresh();
-    });
-    manual.addEventListener('change',e=>{
-      if(e.target?.closest?.('.mc-creation-planner')) return;
-      refresh();
-    });
-    renderCreationPlanner(manual,panel);
-  }
+    };
+    root.addEventListener('input', refresh);
+    root.addEventListener('change', refresh);
+  });
 }
 
 async function loadLevelState() {

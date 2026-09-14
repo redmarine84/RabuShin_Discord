@@ -2,7 +2,7 @@ using System.Text.Json;
 
 public sealed partial class DiscordSupabaseService
 {
-    // BUILD 6.30.12.1 - MULTICLASSING / CREATION PLANNER
+    // BUILD 6.30.12 - MULTICLASSING
     public async Task<JsonElement> GetMulticlassStateAsync(Guid playerId, Guid campaignId)
     {
         using var response = await CallRpcAsync("discord_get_multiclass_state", new
@@ -28,44 +28,6 @@ public sealed partial class DiscordSupabaseService
             p_plan = safePlan
         });
         return await ReadMulticlassJsonAsync(response, "Unable to apply multiclass level plan");
-    }
-
-    public async Task<JsonElement> ApplyCreationMulticlassPlanSafelyAsync(
-        Guid playerId,
-        Guid characterId,
-        JsonElement plan)
-    {
-        if (plan.ValueKind != JsonValueKind.Array || plan.GetArrayLength() == 0)
-            return JsonSerializer.Deserialize<JsonElement>("{}");
-
-        try
-        {
-            using var response = await CallRpcAsync("discord_apply_creation_multiclass_plan", new
-            {
-                p_player_id = playerId,
-                p_character_id = characterId,
-                p_plan = plan
-            });
-            return await ReadMulticlassJsonAsync(response, "Unable to apply creation multiclass plan");
-        }
-        catch
-        {
-            try
-            {
-                using var cleanup = await CallRpcAsync("discord_delete_failed_creation_multiclass_character", new
-                {
-                    p_player_id = playerId,
-                    p_character_id = characterId
-                });
-                await EnsureSuccessAsync(cleanup, "Unable to clean up failed multiclass character creation");
-            }
-            catch
-            {
-                // Keep the original multiclass error. The cleanup RPC refuses to
-                // delete a character when the creation plan actually committed.
-            }
-            throw;
-        }
     }
 
     public async Task<JsonElement> SpendMulticlassHitDieAsync(
@@ -101,7 +63,6 @@ public sealed partial class DiscordSupabaseService
             {
                 if (first.TryGetProperty("discord_get_multiclass_state", out var state)) return state.Clone();
                 if (first.TryGetProperty("discord_apply_multiclass_level_plan", out var applied)) return applied.Clone();
-                if (first.TryGetProperty("discord_apply_creation_multiclass_plan", out var created)) return created.Clone();
                 if (first.TryGetProperty("discord_spend_multiclass_hit_die", out var hitDie)) return hitDie.Clone();
             }
             return first.Clone();

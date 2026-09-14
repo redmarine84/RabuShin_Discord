@@ -159,10 +159,6 @@ public static class CharacterLibraryEndpoints
                     body.Notes ?? string.Empty,
                     gender);
 
-                // BUILD 6.30.12.1 - LIBRARY CREATION MULTICLASS
-                await service.ApplyCreationMulticlassPlanSafelyAsync(
-                    playerId, id, body.CreationMulticlassPlan);
-
                 var saved = (await service.GetCharacterLibraryAsync(playerId))
                     .FirstOrDefault(c => c.CharacterId == id);
                 return Results.Ok(new
