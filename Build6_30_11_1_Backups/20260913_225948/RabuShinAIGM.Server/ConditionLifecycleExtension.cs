@@ -273,25 +273,18 @@ public sealed partial class OpenAiGameMasterService
         return document.RootElement.Clone();
     }
 
-    // BUILD 6.30.11.1 - CURATIVE ITEM NAME RESOLUTION
     private async Task<JsonElement> ConsumeConditionCureItemAsync(Guid campaignId, ConsumeConditionCureItemToolArguments args)
     {
-        Guid? inventoryItemId = null;
-        if (Guid.TryParse(args.InventoryItemId, out var parsedInventoryItemId))
-            inventoryItemId = parsedInventoryItemId;
-
-        var itemName = (args.ItemName ?? string.Empty).Trim();
-        if (inventoryItemId is null && itemName.Length == 0)
-            throw new InvalidOperationException("A curative item name or inventoryItemId is required.");
+        if (!Guid.TryParse(args.InventoryItemId, out var inventoryItemId))
+            throw new InvalidOperationException("A valid curative inventoryItemId is required.");
 
         var raw = await CallSupabaseRpcAsync(
-            "discord_gm_consume_condition_cure_item_resolved",
+            "discord_gm_consume_condition_cure_item",
             new
             {
                 p_campaign_id = campaignId,
                 p_character_name = args.CharacterName.Trim(),
                 p_inventory_item_id = inventoryItemId,
-                p_item_name = itemName,
                 p_reason = CleanReason(args.Reason, "Condition cured by inventory item")
             },
             "Unable to consume condition cure item");
@@ -481,7 +474,7 @@ public sealed partial class OpenAiGameMasterService
     {
         type = "function",
         name = "consume_condition_cure_item",
-        description = "Atomically use a carried potion/remedy whose rules cure an active condition. Prefer the exact itemName from CURRENT INVENTORY. inventoryItemId may be an empty string when an id is unavailable; the server safely resolves the carried item by name. RabuShin Antitoxin/Antivenom cures Poisoned. Custom items may define item_data.cures_conditions. The item is consumed only when at least one condition is actually cured.",
+        description = "Atomically use a carried potion/item whose rules explicitly cure conditions. The server verifies the exact inventory item, removes only conditions listed by that item's cure rule, and consumes one item only if at least one condition was actually cured. Custom items may define item_data.cures_conditions. Built-ins include Lesser Restoration potions, Greater Restoration potions, poison antidote potions, sight-restoration potions, and paralysis-removal potions.",
         strict = true,
         parameters = new
         {
@@ -489,11 +482,10 @@ public sealed partial class OpenAiGameMasterService
             properties = new
             {
                 characterName = new { type = "string" },
-                itemName = new { type = "string", description = "Exact carried curative item name, for example Antitoxin." },
-                inventoryItemId = new { type = "string", description = "Exact inventoryItemId when known; otherwise pass an empty string and the server resolves itemName." },
+                inventoryItemId = new { type = "string", description = "Exact inventoryItemId from CURRENT INVENTORY." },
                 reason = new { type = "string" }
             },
-            required = new[] { "characterName","itemName","inventoryItemId","reason" },
+            required = new[] { "characterName","inventoryItemId","reason" },
             additionalProperties = false
         }
     };
@@ -594,7 +586,6 @@ public sealed partial class OpenAiGameMasterService
     private sealed class ConsumeConditionCureItemToolArguments
     {
         public string CharacterName { get; set; } = string.Empty;
-        public string ItemName { get; set; } = string.Empty;
         public string InventoryItemId { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
     }
