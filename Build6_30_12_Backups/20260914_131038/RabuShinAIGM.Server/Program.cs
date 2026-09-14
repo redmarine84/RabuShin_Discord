@@ -30,9 +30,6 @@ app.UseStaticFiles();
 // BUILD 6.30.9 - Character Library / Leave / Kick / Solo Remove
 app.MapCharacterLibraryEndpoints();
 
-// BUILD 6.30.12 - Multiclassing
-app.MapMulticlassingEndpoints();
-
 app.MapGet("/api/health", () => Results.Ok(new
 {
     success = true,
@@ -401,7 +398,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/level-up/choices", async (
             success = true,
             fromLevel = levelUp.FromLevel,
             toLevel = levelUp.ToLevel,
-            needsSpellSelection = MulticlassSpellService.IsSupportedCaster(character)
+            needsSpellSelection = DiscordSpellService.IsSupportedCaster(character.ClassName)
         });
     }
     catch (Exception ex) { return Results.BadRequest(new { success = false, error = ex.Message }); }
@@ -925,11 +922,11 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/spell-options", async (Guid ca
         var character = await service.GetCharacterAsync(playerId, campaignId);
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
-        if (!MulticlassSpellService.IsSupportedCaster(character))
+        if (!DiscordSpellService.IsSupportedCaster(character.ClassName))
             return Results.Ok(new { success = true, required = false, className = character.ClassName });
 
-        var progression = MulticlassSpellService.GetProgression(character);
-        var available = MulticlassSpellService.GetAvailableSpells(character);
+        var progression = DiscordSpellService.GetProgression(character.ClassName, character.Level);
+        var available = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level);
         var existingSpells = await service.GetSpellsAsync(playerId, campaignId);
         object MapSpell(SrdSpellReference s) => new
         {
@@ -951,7 +948,7 @@ app.MapGet("/game-api/campaigns/{campaignId:guid}/spell-options", async (Guid ca
                 spellSlots = progression.SpellSlots,
                 warlockArcanumLevels = progression.WarlockArcanumLevels
             },
-            alwaysPrepared = MulticlassSpellService.GetBaseAlwaysPreparedSpellNames(character),
+            alwaysPrepared = DiscordSpellService.GetBaseAlwaysPreparedSpellNames(character.ClassName, character.Level),
             existingSpells = existingSpells.Select(s => new
             {
                 name = s.SpellName, level = s.SpellLevel, prepared = s.Prepared, sourceTag = s.SourceTag
@@ -973,14 +970,14 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/spell-selection", async (
         var character = await service.GetCharacterAsync(playerId, campaignId);
         if (character is null) return Results.NotFound(new { success = false, error = "Character could not be found." });
 
-        if (!MulticlassSpellService.IsSupportedCaster(character))
+        if (!DiscordSpellService.IsSupportedCaster(character.ClassName))
         {
             await service.SaveSpellsAsync(playerId, campaignId, new(), new());
             return Results.Ok(new { success = true, spellCount = 0, slotCount = 0 });
         }
 
-        var progression = MulticlassSpellService.GetProgression(character);
-        var available = MulticlassSpellService.GetAvailableSpells(character);
+        var progression = DiscordSpellService.GetProgression(character.ClassName, character.Level);
+        var available = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level);
         var cantripNames = ProgramHelpers.CleanDistinct(body.Cantrips);
         var spellNames = ProgramHelpers.CleanDistinct(body.Spells);
         var preparedWizard = ProgramHelpers.CleanDistinct(body.PreparedWizardSpells);
@@ -1021,7 +1018,7 @@ app.MapPost("/game-api/campaigns/{campaignId:guid}/spell-selection", async (
             }
         }
 
-        foreach (var name in MulticlassSpellService.GetBaseAlwaysPreparedSpellNames(character))
+        foreach (var name in DiscordSpellService.GetBaseAlwaysPreparedSpellNames(character.ClassName, character.Level))
         {
             if (saved.Any(s => s.SpellName.Equals(name, StringComparison.OrdinalIgnoreCase))) continue;
             var reference = available.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));

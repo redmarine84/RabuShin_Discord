@@ -4,7 +4,6 @@ import './conditions.css'; // RULES BUILD 6.19 - condition badges
 import { mountFinalGameplayInventoryPanels, handleFinalEquipmentToggle } from './final-gameplay-ui.js'; // BUILDS 6.22-6.23
 import { configureCharacterLibraryUI, mountCharacterLibraryLauncher } from './character-library.js'; // BUILD 6.30.9
 import './character-library.css'; // BUILD 6.30.9
-import './multiclassing.js'; // BUILD 6.30.12
 
 const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 let discordAuth = null;
@@ -181,16 +180,6 @@ async function api(path, options = {}) {
   return data;
 }
 
-// BUILD 6.30.12 - expose only the existing client helpers/state needed by the
-// side-effect multiclass UI module. No Discord token or private auth state is exposed.
-window.__rabuMulticlassContext = {
-  api,
-  escapeHtml,
-  showNotice,
-  getCampaignId: () => currentCampaignId,
-  getGameData: () => currentGameData,
-  getProgression: () => currentProgression
-};
 function showNotice(message, danger = false) {
   document.querySelector('#notice')?.remove();
   const el = document.createElement('div');

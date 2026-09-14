@@ -156,7 +156,7 @@ public static class ExperienceProgression
             xpNeededThisLevel = currentLevel >= 20 ? 0 : Math.Max(1, nextThreshold - currentThreshold),
             readyForLevelUp = currentLevel < 20 && earnedLevel > currentLevel,
             pendingLevelUp = state?.Pending ?? false,
-            spellSelectionPending = state is not null && !state.Pending && !character.SpellsComplete && MulticlassSpellService.IsSupportedCaster(character),
+            spellSelectionPending = state is not null && !state.Pending && !character.SpellsComplete && DiscordSpellService.IsSupportedCaster(character.ClassName),
             fromLevel = state?.FromLevel ?? currentLevel,
             toLevel = state?.ToLevel ?? currentLevel,
             abilityChoices = state is not null && state.AbilityChoices.ValueKind == JsonValueKind.Object

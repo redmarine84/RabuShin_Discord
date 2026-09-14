@@ -1,0 +1,17 @@
+﻿{
+    "existed":  {
+                    "RabuShinAIGM.Server/WeatherGameplayRulesService.cs":  false,
+                    "RabuShinAIGM.Server/OpenAiGameMasterService.cs":  true,
+                    "SUPABASE_SQL/54_DYNAMIC_RANDOM_ENCOUNTERS.sql":  false,
+                    "SUPABASE_SQL/55_WEATHER_GAMEPLAY_EFFECTS.sql":  false
+                },
+    "repoRoot":  "C:\\Users\\atymce\\source\\repos\\RabuShinAIGM_Discord\\RabuShinDiscord",
+    "build":  "6.21/6.21.1",
+    "touched":  [
+                    "RabuShinAIGM.Server/OpenAiGameMasterService.cs",
+                    "RabuShinAIGM.Server/WeatherGameplayRulesService.cs",
+                    "SUPABASE_SQL/54_DYNAMIC_RANDOM_ENCOUNTERS.sql",
+                    "SUPABASE_SQL/55_WEATHER_GAMEPLAY_EFFECTS.sql"
+                ],
+    "createdAt":  "2026-09-11T15:34:55.2627337-04:00"
+}

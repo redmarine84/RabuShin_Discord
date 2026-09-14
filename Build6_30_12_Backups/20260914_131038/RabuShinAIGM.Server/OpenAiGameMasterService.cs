@@ -393,14 +393,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("PLAYER CHARACTER:");
         inputBuilder.AppendLine($"{character.CharacterName}, Level {character.Level} {character.SpeciesName} {character.ClassName}");
-        if (character.CharacterData.ValueKind == JsonValueKind.Object &&
-            character.CharacterData.TryGetProperty("multiclassSummary", out var multiclassSummary) &&
-            multiclassSummary.ValueKind == JsonValueKind.String &&
-            !string.IsNullOrWhiteSpace(multiclassSummary.GetString()))
-        {
-            inputBuilder.AppendLine($"MULTICLASS BREAKDOWN: {multiclassSummary.GetString()}");
-            inputBuilder.AppendLine("MULTICLASS RULE: Treat each class at its individual class level for class features, spell access, Hit Dice, and class-specific progression. Proficiency bonus and XP use total character level.");
-        }
         inputBuilder.AppendLine($"Gender: {(string.IsNullOrWhiteSpace(character.Gender) ? "Unspecified" : character.Gender)}");
         inputBuilder.AppendLine($"HP {character.CurrentHp}/{character.MaxHp}; AC {character.ArmorClass}; Proficiency Bonus +{character.ProficiencyBonus}; GP {character.Gold:0.##}");
         var earnedXpLevel = ExperienceProgression.LevelForXp(character.Experience);
@@ -2936,7 +2928,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private static bool SpellRequiresConcentration(DiscordCharacterInfo character, DiscordSpellInfo spell)
     {
-        var reference = MulticlassSpellService.GetAvailableSpells(character)
+        var reference = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level)
             .FirstOrDefault(s =>
                 s.Name.Equals(spell.SpellName, StringComparison.OrdinalIgnoreCase) ||
                 (!string.IsNullOrWhiteSpace(s.PhbTitle) &&

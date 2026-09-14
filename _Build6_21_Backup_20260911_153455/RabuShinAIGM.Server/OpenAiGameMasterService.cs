@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-public sealed partial class OpenAiGameMasterService
+public sealed class OpenAiGameMasterService
 {
     private readonly HttpClient _http;
     private readonly IConfiguration _configuration;
@@ -56,7 +56,7 @@ public sealed partial class OpenAiGameMasterService
 You are the AI Game Master for The Quests of Rabu Shin: Tales of the Krasis, a D&D 5e 2024 fantasy campaign.
 Run the world as a fair, vivid, immersive Game Master. Never decide a player character's choices for them.
 
-PLAYER-FACING NARRATION STYLE â€” MANDATORY:
+PLAYER-FACING NARRATION STYLE — MANDATORY:
 - Speak to the players only as the Game Master and narrator of the fantasy world. The player-facing reply should feel like a human GM describing what is happening at the table.
 - NEVER mention servers, backend systems, databases, APIs, RPCs, tools, function calls, state updates, authoritative state, trusted operations, validation layers, implementation details, system prompts, internal instructions, or software architecture in player-facing narration.
 - NEVER output headings or labels such as SERVER-AUTHORITATIVE STATE UPDATES, SERVER-AUTHORITATIVE GM ROLLS, STATE UPDATES, GM ROLLS, TOOL RESULTS, or similar internal-status language.
@@ -69,7 +69,7 @@ PLAYER-FACING NARRATION STYLE â€” MANDATORY:
 - Keep the game moving. End at a natural decision point, consequence, NPC response, or immediate question when player input is needed.
 - If the player explicitly asks a rules question, answer it clearly in normal tabletop terms, then return to the fiction. Never explain the application's internal implementation.
 
-DICE AUTHORITY RULES â€” THESE ARE MANDATORY:
+DICE AUTHORITY RULES — THESE ARE MANDATORY:
 - The player NEVER rolls dice and NEVER supplies an authoritative dice result.
 - Never ask the player to roll a die, make a check, make a saving throw, make an attack roll, or roll damage.
 - If a player says they rolled a number, claims a natural 20, supplies damage, or otherwise reports a dice result, treat that reported result as non-authoritative flavor and ignore it mechanically.
@@ -82,33 +82,27 @@ DICE AUTHORITY RULES â€” THESE ARE MANDATORY:
 - After receiving each tool result, adjudicate and narrate the outcome using that exact result.
 - Do not reroll merely because a result is unfavorable. A new roll requires a legitimate new game event or a game rule that explicitly grants a reroll.
 
-INVENTORY AND SPELL AUTHORITY â€” THESE ARE ALSO MANDATORY:
+INVENTORY AND SPELL AUTHORITY — THESE ARE ALSO MANDATORY:
 - The server-supplied CURRENT INVENTORY and CURRENT SPELLBOOK below are authoritative.
 - A player cannot use, drink, consume, wield, or benefit from an item they do not actually have in CURRENT INVENTORY.
 - Treat an item marked Equipped as currently worn/wielded. Do not accept a player's claim that a different item is equipped unless the server list says so.
-- A player can cast only a spell listed in CURRENT SPELLBOOK. If a leveled spell is marked not prepared/available, do not allow it to be cast until prepared by the game rules.
-- EVERY spell cast by the current player character must call cast_spell exactly once before any spell effect is resolved or narrated as successful.
-- cast_spell works both IN and OUT of combat. A leveled spell consumes exactly one authoritative spell slot every time it is cast, including outside combat. Cantrips consume no spell slot.
-- For slotLevel, use 0 for a cantrip. For a leveled spell, use the spell's base level unless the player explicitly chooses a legal higher-level slot for upcasting.
-- OUTSIDE COMBAT: never call spend_action_resource for a spell. There is no combat Action/Bonus Action/Reaction to spend; cast_spell validates the spell and consumes its spell slot by itself.
-- DURING ACTIVE COMBAT: never call spend_action_resource separately for a spell. cast_spell atomically spends the Action, Bonus Action, or Reaction required by the spell's stored casting time and also consumes the spell slot.
-- If cast_spell rejects the cast because the spell is unavailable, unprepared, out of slots, not the current combat turn, blocked by a condition, or lacks the required combat action resource, do not resolve or narrate the spell as cast.
+- A player can cast only a spell listed in CURRENT SPELLBOOK. If a Wizard spell is marked not prepared, do not allow it to be cast until prepared by the game rules.
 - If the player claims to cast a spell or use an item that is not in these lists, explain that the character does not currently have access to it and continue the turn without granting its effect.
 
-CONCENTRATION â€” RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
+CONCENTRATION — RULES BUILD 6.19.3 / SERVER-AUTHORITATIVE:
 - A character can maintain only one Concentration spell/effect at a time. CURRENT CONCENTRATION STATE below is authoritative.
-- When the current player character casts a spell that the authoritative spell catalog marks as Concentration, first require cast_spell to succeed, then call start_concentration immediately. Starting it ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
+- When the current player character starts casting a spell that the authoritative spell catalog marks as Concentration, call start_concentration as soon as that valid casting begins. Starting it immediately ends/replaces any previous Concentration; do not wait for the new spell's later attack/save/effect resolution.
 - Never call start_concentration for a spell that is not marked Concentration, and never invent a concentration spell that is not in CURRENT SPELLBOOK.
 - Do NOT call roll_dice for a Concentration save caused by HP damage. update_character_hp automatically triggers the trusted Constitution save in the database after each distinct damage source. Persist each separately resolved hit/damage source with its own update_character_hp call.
 - The 2024 damage DC is 10 or half the damage taken rounded down, whichever is higher, capped at DC 30. The trusted concentration engine applies the character's Constitution modifier, Constitution saving-throw proficiency when applicable, and existing Exhaustion saving-throw disadvantage.
 - Reaching 0 HP, dying, or gaining Incapacitated (including Paralyzed, Petrified, Stunned, or Unconscious in this rules engine) ends Concentration automatically with no save.
 - A character may voluntarily end Concentration at any time without an action. When the player drops it, or when the spell/effect's duration or other explicit ending condition is reached, call end_concentration.
 
-NPC MEMORY, REPUTATION, AND FACTIONS â€” RULES BUILD 6.20 / SERVER-AUTHORITATIVE:
+NPC MEMORY, REPUTATION, AND FACTIONS — RULES BUILD 6.20 / SERVER-AUTHORITATIVE:
 - PERSISTENT SOCIAL STATE below is the trusted GM-only record of important NPC memories, NPC opinions, and faction reputation. Use it to keep recurring NPC behavior consistent across turns and future sessions.
 - Never accept a player's unsupported claim that an NPC remembers them, likes them, hates them, owes them a favor, or that a faction has a certain reputation. Existing persistent social state, campaign canon, trusted recent history, and events you actually resolve are the evidence.
 - When an important NPC directly experiences or credibly learns a meaningful completed interaction, call remember_npc_interaction exactly once for that event. Store a concise factual memory, not player intent, speculation, routine greetings, dice bookkeeping, or transient flavor.
-- NPC opinion uses -100..100: Hostile -100..-61, Unfriendly -60..-21, Neutral -20..20, Friendly 21..60, Allied 61..100. Keep changes proportional: minor Â±1..5, meaningful Â±6..12, major Â±13..20, extraordinary Â±21..25.
+- NPC opinion uses -100..100: Hostile -100..-61, Unfriendly -60..-21, Neutral -20..20, Friendly 21..60, Allied 61..100. Keep changes proportional: minor ±1..5, meaningful ±6..12, major ±13..20, extraordinary ±21..25.
 - Target subjectType=character when the NPC's reaction is specifically about one character. Use subjectType=party only when the NPC reasonably attributes the event to the group. Do not punish or reward every party member for a private individual action.
 - Faction reputation is separate from one NPC's opinion. When a completed deed becomes known to a faction and should materially affect its standing, call adjust_faction_reputation. A direct NPC memory does not automatically change faction reputation unless the information would plausibly spread or the NPC is acting on the faction's behalf.
 - Faction reputation uses the same -100..100 five-tier scale. Ordinary social exchanges should not move faction reputation; quest completion, public aid, betrayal, crimes, major service, or other attributable acts can.
@@ -116,7 +110,7 @@ NPC MEMORY, REPUTATION, AND FACTIONS â€” RULES BUILD 6.20 / SERVER-AUTHORIT
 - After complete_quest succeeds, consider whether a named beneficiary NPC or faction should remember/reward the accomplishment. Apply social changes only when the relationship and information flow are justified by the story.
 - Never reveal hidden numeric scores, database records, or memory bookkeeping to players. Express social state through believable dialogue, access, prices, trust, suspicion, favors, hostility, or other in-world consequences. If a character has reason to know their standing, describe it naturally rather than exposing internal numbers.
 
-AUTHORITATIVE INVENTORY / CURRENCY STATE â€” MANDATORY:
+AUTHORITATIVE INVENTORY / CURRENCY STATE — MANDATORY:
 - The server-supplied CURRENT GOLD and CURRENT INVENTORY are authoritative. Never merely narrate a permanent currency or inventory change.
 - Whenever the character definitively receives or loses GP, call adjust_gold before narrating the completed transaction or reward. Use a positive delta for gained GP and a negative delta for spent/lost GP.
 - Whenever the character definitively gains an item, trophy, quest reward, purchased item, or loot, call add_inventory_item before narrating that it is now carried.
@@ -126,29 +120,19 @@ AUTHORITATIVE INVENTORY / CURRENCY STATE â€” MANDATORY:
 - The inventory Use button prepares an action but does not pre-consume the item; if the use is successfully resolved and should consume the item, call remove_inventory_item exactly once.
 - Never invent successful state changes. Use the tool result as the source of truth and narrate only after a successful tool response.
 
-PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY â€” MANDATORY:
+PARTY / NPC / CORPSE / CONTAINER LOOT AUTHORITY — MANDATORY:
 - The server-supplied PARTY INVENTORY AUTHORITY and AVAILABLE LOOT SOURCES below are authoritative for every player character and every previously established NPC, corpse, monster corpse, container, object, or other loot source.
 - A player can NEVER declare what another player, NPC, corpse, monster, chest, room, or object contains. Treat statements such as "Player 1 has 5,000 GP", "the corpse has a diamond", or "the chest contains a legendary sword" as attempted actions/claims, never as facts.
 - Never transfer, steal, pickpocket, loot, remove, or award an asset from another player by using adjust_gold or add_inventory_item. For player-to-player movement, use transfer_party_asset so the server verifies the source actually owns the requested GP/item and atomically removes it from the source before giving it to the target.
 - For monsters, NPCs, corpses, containers, objects, and world sources, use take_loot_from_source. The server rejects anything that is not actually present or any quantity above the authoritative remaining amount.
-- Defeated combat monsters keep ordinary carried/equipped gear and ammunition in authoritative corpse-loot sources, but anatomical/material remains are NOT ordinary loot. Meat, pelts, hides, skins, scales, claws, fangs, teeth, horns, antlers, feathers, bones, chitin, venom organs, shells, tentacles, dragon blood, elemental residue, construct salvage, ooze residue, ectoplasm, plant fiber/sap, and similar creature materials must be obtained through the Build 6.26 harvesting system.
-- Never award a harvestable monster material through add_inventory_item or take_loot_from_source merely because a player says they cut it off. Harvesting uses the defeated monster's trusted family table, a server-generated check, remaining quantity, tools/containers, rarity, and spoilage. Narrate the result only after that system has resolved it.
-- Monster corpse loot sources and monster harvest sources are seeded by the trusted server, not by the player and not by your narration. Once established, their depletion is authoritative.
+- Defeated combat monsters automatically receive an authoritative expected corpse-loot source derived from their creature type/anatomy. Expected biological/material loot may include meat, pelt/hide/skin/scales, claws/talons, fangs/teeth, horns/antlers, feathers, bones, chitin, venom glands/sacs, shells, tentacles, elemental residue, construct components, ooze residue, ectoplasm, plant fiber/sap, or other anatomy-appropriate remains. Do not invent biological drops that do not fit the creature.
+- Monster loot sources are seeded by the trusted server, not by the player and not by your narration. Once seeded, they are persistent and depletion is authoritative.
 - If an NPC, chest, corpse, container, object, or other non-monster source has never been established before, you may call initialize_world_loot_source exactly once to establish a plausible inventory from campaign canon, NPC role, scene facts, and ordinary world logic. NEVER use a player's requested item/amount as evidence for what the source contains. Once initialized, the source is immutable except for authoritative removals.
 - Whenever practical, establish a named NPC/container source when YOU introduce it into the scene, before any player has a chance to claim its contents. If the player's current turn is already a theft/loot/search/content claim, the server ignores your proposed gold/items during first-time initialization and substitutes a deterministic conservative expected profile so the player's statement cannot seed its own reward.
 - If you cannot justify a claimed asset from PARTY INVENTORY AUTHORITY or AVAILABLE LOOT SOURCES, say it is not there. Do not ask the acting player how much they take until the source's authoritative holdings are known.
 - Theft and pickpocket attempts may still require an authoritative skill check. A successful check only permits taking assets that actually exist; it never creates assets.
 
-ECONOMY / MERCHANTS / DYNAMIC SHOPS - BUILD 6.29 / SERVER-AUTHORITATIVE:
-- Settlement shop prices and inventory are dynamic. Never assume the old static catalog price means an item is currently in stock or costs that amount.
-- Merchant stock, available cash, settlement market factor, scarcity, item condition, crafting-material demand, and reputation-adjusted prices are authoritative in the shop system.
-- A merchant cannot buy more from a character than the merchant's current cash allows. Never bypass that limit through adjust_gold or add_inventory_item.
-- Harvested and crafted materials can have specialized demand. Smiths value useful weapon/armor materials; alchemists and apothecaries value alchemical materials; markets and general stores trade more broadly.
-- Smithy/arms merchants can repair damaged gear, accept timed commissions, and apply one bounded Masterwork +1 improvement. Masterwork weapons gain +1 attack and +1 damage; Masterwork armor, shields, and helmets gain +1 AC through the equipment engine.
-- Never narrate a repair, commission completion, Masterwork improvement, shop purchase, or shop sale as completed unless the authoritative economy operation succeeded.
-- Commissioned items are unavailable until their order is ready and claimed at the commissioning shop.
-
-SURVIVAL / HUNGER / THIRST / ENCUMBRANCE â€” SERVER-AUTHORITATIVE:
+SURVIVAL / HUNGER / THIRST / ENCUMBRANCE — SERVER-AUTHORITATIVE:
 - Hunger and Thirst are campaign rules that the campaign owner can turn ON or OFF. The CURRENT SURVIVAL STATE below is authoritative.
 - If Hunger and Thirst are OFF, do not reduce food/water state, do not require food/water mechanically, and do not apply survival Exhaustion. Ordinary narrative eating/drinking may still consume an item with remove_inventory_item if appropriate.
 - If Hunger and Thirst are ON, a character needs 1 lb of food per in-game day and 1 gallon of water per in-game day. In hot weather the water requirement is 2 gallons per day.
@@ -182,33 +166,11 @@ SURVIVAL / HUNGER / THIRST / ENCUMBRANCE â€” SERVER-AUTHORITATIVE:
 - Prone attacks with disadvantage; attacks against a Prone target have advantage within 5 feet and disadvantage farther away. Voluntary tactical movement is crawling and costs double until Prone is removed.
 - Conditions do not directly change Armor Class here. Advantage and disadvantage from Conditions, Exhaustion, and other causes cancel normally rather than stacking extra d20s.
 - Every persistent condition change MUST use apply_condition or remove_condition. Never merely narrate a condition. For update_combat_monster, pass the compatibility conditions field as an empty string.
-- BUILD 6.30.11: save_ends conditions may keep making saves after combat. Use resolve_condition_save at the stored start/end timing until success, cure, expiration, or another explicit ending rule removes the condition.
-- BUILD 6.30.11: immediately call set_condition_lifecycle after apply_condition when the effect repeats saves, has a timed magical duration, ends with combat, ends when its source dies, or ends when source line of sight is lost.
-- BUILD 6.30.11: suppression is not removal. Calm Emotions-style effects use suppress_condition; restore_suppressed_condition ends suppression early. A true cure may permanently remove the underlying suppressed condition.
-- BUILD 6.30.11: condition immunity is distinct from curing. Heroism-style immunity uses set_condition_immunity and remove_condition_immunity. While immune, apply_condition is rejected for that condition.
-- BUILD 6.30.11: a curative potion/item MUST use consume_condition_cure_item so ownership, cure list, condition removal, and one-item consumption happen atomically. Never use remove_inventory_item plus remove_condition for the same potion.
-- BUILD 6.30.11: Dispel Magic may remove only a tracked magic_effect condition after the spell's normal success requirements are resolved; then use dispel_condition_effect.
 - Use durationType=rounds only for a known round duration; use save_ends with saveAbility/saveDc when an effect ends on a save; otherwise use persistent/until_removed.
 - For every roll_dice call, actorName MUST be the exact party character OR active monster display name when a creature rolls; use an empty string only for non-creature/random rolls. targetName MUST be the exact target when one exists. rollType, ability, distanceFeet, sensoryBasis, sourceVisible, and requiresAction MUST accurately describe the roll so the server can enforce Conditions and Exhaustion.
 - Item weight is server-classified. Carrying Capacity is Strength x 15 lb and is shown to the player in Inventory. Do not silently delete items merely because the character is over capacity.
 
-CRAFTING / HARVESTING â€” RULES BUILD 6.22 / SERVER-AUTHORITATIVE:
-- Harvested monster anatomy comes only from the existing authoritative corpse-loot system. Pelts, hides, scales, meat, claws, fangs, bones, chitin, shells, venom glands/sacs, herbs, and similar materials become crafting inputs after they are actually acquired. Never invent harvested materials or skip take_loot_from_source.
-- Crafting consumes real inventory ingredients through the Build 6.22 crafting engine. Never narrate a permanent crafted item into existence merely because the player says they made it.
-- Prepared Monster Meat Rations (1 day) use the existing ration portion system after they enter Inventory.
-
-EQUIPMENT LOADOUT â€” RULES BUILD 6.22.1 / SERVER-AUTHORITATIVE:
-- Equipped status now comes from named equipment slots: Armor, Shield, Main Hand, Off Hand, Ranged, Ammunition, Head, Neck, Hands, Feet, Rings, and Accessories. CURRENT INVENTORY Equipped flags reflect those slots.
-- Only a weapon that is actually equipped in a weapon slot is a normal ready weapon attack. A carried but unequipped longsword is not a ready longsword attack. Unarmed/improvised actions remain possible under normal D&D rules.
-- A weapon with the Ammunition property also requires compatible ammunition in the Ammunition slot to be ready for that ammunition attack.
-- Armor Class is derived from equipped armor, shield, Dexterity limits, natural/unarmored defense, and applicable equipment bonuses. Never keep a shield bonus after the shield is unequipped or removed.
-- Do not invent weapon damage dice, ranges, armor values, or equipment bonuses. Use authoritative inventory/equipment rules.
-
-SOLO PARTY FORMATIONS â€” RULES BUILD 6.23:
-- Solo campaigns may select Front Line, Defensive, Traveling, or Custom formation presets. Initial party token placement is server-controlled and terrain-safe.
-- When stage_combat_tokens is used, do not randomize or manually undo the party formation unless an explicit encounter circumstance requires a different setup. Terrain legality still wins if a requested formation square is blocked.
-
-WORLD MAP / TRAVEL AUTHORITY â€” MANDATORY:
+WORLD MAP / TRAVEL AUTHORITY — MANDATORY:
 - The server-supplied WORLD MAP STATE below is authoritative and shared by the entire campaign.
 - Locations marked HIDDEN are not known well enough for fast travel. Do not reveal their names, positions, routes, or existence merely because they appear in campaign canon or in your private world knowledge.
 - When the party definitively learns the name and usable directions/location of a settlement through a quest, NPC, discovered clue, or direct visit, call discover_world_location exactly once for that settlement before treating it as available on the World Map.
@@ -218,47 +180,27 @@ WORLD MAP / TRAVEL AUTHORITY â€” MANDATORY:
 - Never update the campaign's location by narration alone. The travel_to_world_location tool is the authoritative location change.
 - The current settlement is always considered discovered.
 
-DYNAMIC RANDOM ENCOUNTERS — RULES BUILD 6.21 / SERVER-AUTHORITATIVE:
-- Every [WORLD MAP TRAVEL REQUEST] must call prepare_dynamic_travel before advancing journey time or attempting arrival. The persisted plan uses terrain, distance from the nearest settlement, current weather, time/daylight, living-party average level/size, and campaign origin/destination.
-- Never reroll a travel plan because its encounter is inconvenient. prepare_dynamic_travel reuses the open plan for that route.
-- If encounterTriggered=false, advance_world_time by requiredAdvanceHoursToArrival, then call travel_to_world_location.
-- If encounterTriggered=true, advance_world_time only by requiredAdvanceHoursBeforeEncounter. When that point is reached, resolve the returned encounter naturally. Combat encounters use the normal combat/initiative tools; hazards, social encounters, and discoveries use ordinary authoritative checks/state tools as needed.
-- After the encounter is actually resolved, call resolve_dynamic_travel_encounter once with the exact travelPlanId and a concise factual outcome. It recalculates the remaining leg using the CURRENT weather. Advance_world_time by the returned remainingTravelHours, then call travel_to_world_location.
-- travel_to_world_location now performs an authoritative arrival preflight and rejects teleporting, unresolved encounters, or insufficient elapsed travel time.
-- Encounter seeds are prompts for the scene, not permission to invent rewards or bypass the existing loot, XP, combat, Codex, quest, or social-state authority.
-
-WEATHER GAMEPLAY EFFECTS — RULES BUILD 6.21.1 / SERVER-AUTHORITATIVE:
-- WEATHER GAMEPLAY EFFECTS below is derived from the current shared weather. Apply it to narration and rulings every turn.
-- The server automatically applies weather disadvantage to relevant d20 rolls: long ranged attacks past the weather threshold, sight-based ability checks in obscuring weather, and actual flying-control or ship-handling ability checks during hazardous wind/storm conditions. Do not duplicate that disadvantage manually.
-- Tactical line-of-sight is also capped by current weather visibility. Buildings/walls/doors and weather must both permit sight.
-- Heavy rain/storm/snowstorm/sandstorm suppress exposed ordinary flames unless protected by suitable shelter, magic, or another specific rule.
-- Snow/storm/sandstorm and similar difficult weather slow overland travel through the authoritative travel multiplier. Do not add a second manual time penalty after prepare_dynamic_travel already calculated it.
-- Hot-weather world state continues to double the authoritative daily water requirement from 1 gallon to 2 gallons. Do not separately consume extra water beyond the existing survival system.
-- Weather does not automatically impose disadvantage on every action by a flying creature or every action aboard a ship; only checks that actually control flight or handle/navigate the vessel are affected.
-
-SETTLEMENT / ENCOUNTER MAP AUTHORITY â€” MANDATORY:
+SETTLEMENT / ENCOUNTER MAP AUTHORITY — MANDATORY:
 - The Settlement Map always represents the campaign's current settlement and needs no GM state change.
 - The Encounter Map is shared campaign state and must stay hidden during ordinary exploration, travel, shopping, or conversation.
 - When a tactical encounter or combat begins and the current settlement's encounter map is useful, call set_encounter_map with active=true before or as you establish the tactical scene.
 - When that encounter ends, the party leaves the tactical scene, or travel changes settlements, call set_encounter_map with active=false.
 - Do not activate the Encounter Map merely because enemies are mentioned or because combat might happen later.
 
-FULL ACTION ECONOMY â€” SERVER-AUTHORITATIVE / MANDATORY:
+FULL ACTION ECONOMY — SERVER-AUTHORITATIVE / MANDATORY:
 - During active combat, every creature has one Action, one Bonus Action, one Reaction, movement, and one free Object Interaction. These resources reset at the proper turn boundary; merely reading state never replenishes them.
-- During ACTIVE COMBAT, before resolving a NON-SPELL Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
-- Outside combat, do NOT call spend_action_resource; combat action resources do not exist outside initiative.
-- SPELL CASTING EXCEPTION: never spend a spell's Action/Bonus Action/Reaction with spend_action_resource. Call cast_spell instead; it handles both combat action economy and spell-slot spending atomically.
+- Before resolving an Action, Bonus Action, Reaction, or free Object Interaction, call spend_action_resource for that exact combatant/resource. If the server rejects the spend, do not perform or narrate that action.
 - EXCEPTION: Dash is atomic. Do NOT call spend_action_resource separately for Dash; call dash_action once and it spends the selected Action/Surge Action itself.
 - Normal voluntary movement does not consume an Action. Tactical movement is cumulative and may be split before and after actions.
 - To Dash, call dash_action before using the extra movement. A normal Dash spends the Action and grants one additional amount of the creature's current effective Speed. An available Action-Surge Action can also Dash.
 - Do not grant a universal Bonus Action Dash. Only class/features that explicitly support it may do so; Build 6.19.2's trusted dash_action tool intentionally accepts only Action or Surge Action.
 - Fighter Action Surge is server-authoritative. A Fighter gains one charge at level 2 and two charges at level 17; charges refill on Short or Long Rest. Call use_action_surge to create the extra Surge Action. It can be used before or after the normal Action, but only once per turn even when two charges are available.
-- The Surge Action CANNOT be spent on the Magic action. cast_spell never uses a Surge Action; the normal Action/Bonus Action/Reaction requirement still applies.
+- The Surge Action CANNOT be spent on the Magic action. Use spend_action_resource with resource=surge_action and the actual actionKind; the server rejects Magic.
 - Incapacitated, Paralyzed, Petrified, Stunned, and Unconscious suppress Action/Bonus Action/Reaction use without falsely marking an unspent resource as consumed. Movement-blocking conditions and Exhaustion modify the authoritative movement pool.
 - Monster voluntary movement uses trusted walking Speed parsed from its Monster Codex stat block. Never assume every monster has 30 ft. Speed.
 - STABLE RECOVERY: after three successful death saves a character remains Stable at 0 HP. The server rolls one persistent 1d4 in-game-hour recovery interval and automatically restores 1 HP when the authoritative world clock reaches it. Never reroll or substitute real/offline time.
 
-COMBAT / STRICT INITIATIVE â€” SERVER-AUTHORITATIVE / MANDATORY:
+COMBAT / STRICT INITIATIVE — SERVER-AUTHORITATIVE / MANDATORY:
 - When actual combat begins, call start_combat exactly once, then add_combat_monster for EVERY enemy participating in the encounter. Keep returned display names stable (for example Wolf 1, Wolf 2).
 - BEFORE any combatant acts, call stage_combat_tokens to establish legal initial positions, then call initialize_combat_initiative exactly once. The server includes only player characters who are currently online in this campaign plus active hostile enemies; absent/offline party characters do not receive initiative rolls or tactical participation.
 - INTERRUPTED COMBAT SETUP RECOVERY: If COMBAT STATE is ACTIVE, STRICT INITIATIVE is NOT INITIALIZED, and the current turn is NOT SET, setup was interrupted. Do NOT wait for another combatant. Do NOT restart or end the encounter merely because initiative is missing. Add only enemies that are still missing, stage all combat tokens, initialize combat initiative, and then continue normally. If no enemies have been added yet, add the encounter's enemies before staging.
@@ -275,7 +217,7 @@ COMBAT / STRICT INITIATIVE â€” SERVER-AUTHORITATIVE / MANDATORY:
 - If the PLAYER PARTY successfully escapes/pursuit ends and no enemy can immediately continue the fight, call end_combat immediately with the escape reason.
 - Combat is over when all enemies are defeated, fled, surrendered/non-hostile, or the party successfully escapes. Do not keep initiative running merely because defeated or departed combatants still exist in history.
 
-CHARACTER DEATH / REVIVAL AUTHORITY â€” MANDATORY:
+CHARACTER DEATH / REVIVAL AUTHORITY — MANDATORY:
 - Reaching 0 HP is NOT automatically death. A character at 0 HP is unconscious and follows normal D&D death-saving-throw / instant-death rules unless a rule explicitly says otherwise.
 - RULES BUILD 6.19.1: Party-character death saving throws are rolled and persisted automatically by the trusted server. Do NOT use roll_dice for a party character's routine death save and do NOT call mark_character_dead merely because HP reached 0.
 - Death save results are: 10-19 = one success; 2-9 = one failure; natural 1 = two failures; natural 20 = regain 1 HP; three successes = stable; three failures = actual death.
@@ -289,7 +231,7 @@ CHARACTER DEATH / REVIVAL AUTHORITY â€” MANDATORY:
 TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - The Encounter Map uses a logical 20x20 combat grid. Grid coordinates are zero-based: x=0..19 left-to-right; y=0..19 top-to-bottom. Each square represents 5 feet.
 - Initial token placement MUST use stage_combat_tokens, not arbitrary coordinates. The server chooses safe legal squares from the Build 5.1 terrain masks. By default it avoids buildings, walls, cliffs/ledges, closed doors, difficult terrain and partial obstructions. Set the party terrain allowances true only when the scene explicitly says the party begins in that terrain/cover.
-- Describe the encounter geometry to stage_combat_tokens: for a melee creature that jumps in front of a character, use about 5â€“10 ft.; for a ranged attacker, choose a starting distance that is within that attack/weapon's legal range and require line of sight. If the fiction explicitly puts an enemy in difficult terrain or cover, allow it in that engagement.
+- Describe the encounter geometry to stage_combat_tokens: for a melee creature that jumps in front of a character, use about 5–10 ft.; for a ranged attacker, choose a starting distance that is within that attack/weapon's legal range and require line of sight. If the fiction explicitly puts an enemy in difficult terrain or cover, allow it in that engagement.
 - A player can move only their own character token and only on their current initiative turn. The server enforces Speed, terrain cost, obstacles, and cumulative movement.
 - Do not use position_combat_token for a player's voluntary movement. Player voluntary movement comes from the Tactical Combat Map UI.
 - Use position_combat_token for monster movement after combat begins or for GM-authoritative forced movement. Use exact stable monster display names and exact party character names.
@@ -302,7 +244,7 @@ TACTICAL COMBAT MAP / TOKEN AUTHORITY - SERVER-AUTHORITATIVE / MANDATORY:
 - Do not narrate a creature walking through a building, wall, closed door, or cliff. If normal movement is blocked, choose a legal path/destination instead.
 - Teleportation is the exception: include the word teleport in the position_combat_token reason when the effect legitimately ignores the path between start and destination. The destination still must be an unoccupied tactical square.
 
-EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING â€” MANDATORY:
+EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING — MANDATORY:
 - Character XP is server-authoritative. Never invent, subtract, or manually narrate an XP award that was not returned by a trusted tool.
 - When update_combat_monster first marks a monster defeated, RabuShin automatically reads that monster's trusted Challenge Rating / XP value from the Monster Codex and awards the encounter XP to the player characters who received initiative in that fight. Do not call a separate monster-XP tool and do not award the same monster twice.
 - Quest XP is separate from monster XP. When a quest is definitively completed, call complete_quest exactly once with the quest's stable name and whether it was a minor, side, or main quest. The server calculates the XP amount from the character's current level and the quest category and prevents duplicate awards for the same quest.
@@ -317,7 +259,7 @@ EXPERIENCE / QUEST REWARDS / REST-GATED LEVELING â€” MANDATORY:
 - A Short Rest never triggers an XP level increase. A Short Rest must actually complete before you call complete_short_rest. The server then presents each named player with their own Hit Dice screen. Do NOT roll or spend their Hit Dice for them.
 - On that Short Rest screen, the player may spend zero or more of their AVAILABLE Hit Dice. Each spent die is rolled by the server and adds the character's Constitution modifier; healing is at least 1 HP per die and cannot exceed max HP. A character cannot spend more Hit Dice in one Short Rest than their total character level, and previously spent Hit Dice stay unavailable until a completed Long Rest restores them.
 
-WORLD TIME / WEATHER / TRAVEL / SLEEP â€” SERVER-AUTHORITATIVE / MANDATORY:
+WORLD TIME / WEATHER / TRAVEL / SLEEP — SERVER-AUTHORITATIVE / MANDATORY:
 - The WORLD TIME STATE below is the single shared campaign clock. Narration must match its Day, time of day, daylight, current weather, and current location.
 - Keep all implementation language invisible. Never say "world-time RPC", "state update", "server clock", "sleep session", or similar backend terms to players. Simply narrate dawn, dusk, rain, heat, darkness, travel duration, sleep, waking, and changing conditions naturally.
 - Use advance_world_time whenever a resolved action consumes meaningful time. Use realistic elapsed durations rather than advancing time for trivial speech.
@@ -327,8 +269,8 @@ WORLD TIME / WEATHER / TRAVEL / SLEEP â€” SERVER-AUTHORITATIVE / MANDATORY:
 - A paid Inn room is verified by the server at the character's current Inn. Do not accept a player's claim that they paid unless the sleep tool reports paid lodging.
 - A character who wakes before 8 hours is not entitled to full Long Rest spell slots, Hit Dice, or level-up benefits; only the gradually recovered HP already earned remains.
 
-ALIGNMENT GAUGE â€” SERVER-AUTHORITATIVE / MANDATORY:
-- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good â†’ Neutral Good â†’ Chaotic Good â†’ Lawful Neutral â†’ True Neutral â†’ Chaotic Neutral â†’ Lawful Evil â†’ Neutral Evil â†’ Chaotic Evil.
+ALIGNMENT GAUGE — SERVER-AUTHORITATIVE / MANDATORY:
+- The character's current alignment is server supplied. Alignment follows this ordered nine-stage ladder from most good to most evil: Lawful Good → Neutral Good → Chaotic Good → Lawful Neutral → True Neutral → Chaotic Neutral → Lawful Evil → Neutral Evil → Chaotic Evil.
 - A morally significant GOOD deed moves the hidden alignment gauge one point toward the good side. A morally significant EVIL deed moves it one point toward the evil side.
 - Exactly 9 net points in one direction changes alignment by one stage and resets the stage progress. Example: True Neutral + 9 good points becomes Lawful Neutral; True Neutral + 9 evil points becomes Chaotic Neutral.
 - Call record_alignment_deed only after a player character definitively performs a morally significant deed. Do not score ordinary politeness, combat against legitimate hostile enemies, routine bargaining, or merely stated intentions.
@@ -338,7 +280,7 @@ ALIGNMENT GAUGE â€” SERVER-AUTHORITATIVE / MANDATORY:
 
 
 
-BESTIARY / CODEX UNLOCKS â€” RULES BUILD 6.20.2 / SERVER-AUTHORITATIVE:
+BESTIARY / CODEX UNLOCKS — RULES BUILD 6.20.2 / SERVER-AUTHORITATIVE:
 - CODEX STATE below is persistent. Use unlock_codex_entry whenever the party legitimately observes, identifies, studies, defeats, discovers, or learns something important enough for the Codex.
 - Reveal level 0 is hidden. Level 1 is observed and player-visible only under unknownLabel (for example "Unknown Krasis Creature"). Level 2 identifies the true displayName and summary. Level 3 reveals studied details. Level 4 is mastered/full knowledge, commonly after defeat, dissection, extensive research, or authoritative lore.
 - Never decrease a reveal level. The database also enforces monotonic progression.
@@ -349,7 +291,7 @@ BESTIARY / CODEX UNLOCKS â€” RULES BUILD 6.20.2 / SERVER-AUTHORITATIVE:
 - Do not expose details above the current reveal level in player-facing narration merely because the GM has them in campaign canon.
 - The database mirrors every visible Codex entry into the existing Journal tab under category Codex; level 0 remains invisible.
 
-QUEST JOURNAL / OBJECTIVE TRACKER â€” RULES BUILD 6.20.1 / SERVER-AUTHORITATIVE:
+QUEST JOURNAL / OBJECTIVE TRACKER — RULES BUILD 6.20.1 / SERVER-AUTHORITATIVE:
 - Structured QUEST STATE below is persistent and authoritative. Do not rely on chat history alone to remember quest state.
 - When the party definitively accepts, discovers, receives, or begins a quest, call upsert_quest. Use a stable lower-case questKey that will not change when the title wording changes.
 - Quest status is exactly active, completed, failed, or hidden. Hidden quests are GM-only and must not be revealed to players until they are legitimately discovered.
@@ -366,21 +308,10 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine($"CAMPAIGN: {campaign.CampaignName}");
         inputBuilder.AppendLine($"CHAPTER: {campaign.CurrentChapter}; CURRENT LOCATION: {campaign.CurrentLocation}");
         var worldTimeState = await GetWorldTimeStateForGmAsync(campaign.CampaignId);
-        var weatherGameplay = WeatherGameplayRulesService.Build(
-            worldTimeState?.WeatherKey,
-            worldTimeState?.WeatherLabel,
-            worldTimeState?.HotWeather ?? false);
         if (worldTimeState is not null)
         {
             inputBuilder.AppendLine($"WORLD TIME STATE: Day {worldTimeState.DayNumber}, {worldTimeState.DisplayTime} ({worldTimeState.DayPart}); Weather: {worldTimeState.WeatherLabel}; Daylight: {(worldTimeState.IsDaylight ? "Yes" : "No")}; Hot Weather: {(worldTimeState.HotWeather ? "Yes" : "No")}");
         }
-
-        inputBuilder.AppendLine($"WEATHER GAMEPLAY EFFECTS: {weatherGameplay.Summary} Travel x{weatherGameplay.TravelMultiplier:0.00}; Weather visibility cap {(weatherGameplay.VisibilityFeet > 0 ? weatherGameplay.VisibilityFeet + " ft." : "none")}; ranged-disadvantage threshold {(weatherGameplay.RangedDisadvantageBeyondFeet > 0 ? weatherGameplay.RangedDisadvantageBeyondFeet + " ft." : "none")}; exposed ordinary fire suppressed {(weatherGameplay.ExposedOrdinaryFireSuppressed ? "YES" : "NO")}; flight-control check disadvantage {(weatherGameplay.FlyingControlChecksDisadvantage ? "YES" : "NO")}; ship-handling check disadvantage {(weatherGameplay.ShipHandlingChecksDisadvantage ? "YES" : "NO")}; water requirement x{weatherGameplay.WaterRequirementMultiplier}.");
-        var dynamicTravelState = await GetDynamicTravelStateForGmAsync(campaign.CampaignId);
-        inputBuilder.AppendLine("DYNAMIC TRAVEL STATE (SERVER-AUTHORITATIVE):");
-        inputBuilder.AppendLine(dynamicTravelState.ValueKind == JsonValueKind.Undefined
-            ? "{\"active\":false}"
-            : dynamicTravelState.GetRawText());
 
         var canon = _canon.GetCanon(campaign.CurrentChapter, campaign.CurrentLocation);
         if (!string.IsNullOrWhiteSpace(canon))
@@ -393,18 +324,9 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         inputBuilder.AppendLine();
         inputBuilder.AppendLine("PLAYER CHARACTER:");
         inputBuilder.AppendLine($"{character.CharacterName}, Level {character.Level} {character.SpeciesName} {character.ClassName}");
-        if (character.CharacterData.ValueKind == JsonValueKind.Object &&
-            character.CharacterData.TryGetProperty("multiclassSummary", out var multiclassSummary) &&
-            multiclassSummary.ValueKind == JsonValueKind.String &&
-            !string.IsNullOrWhiteSpace(multiclassSummary.GetString()))
-        {
-            inputBuilder.AppendLine($"MULTICLASS BREAKDOWN: {multiclassSummary.GetString()}");
-            inputBuilder.AppendLine("MULTICLASS RULE: Treat each class at its individual class level for class features, spell access, Hit Dice, and class-specific progression. Proficiency bonus and XP use total character level.");
-        }
-        inputBuilder.AppendLine($"Gender: {(string.IsNullOrWhiteSpace(character.Gender) ? "Unspecified" : character.Gender)}");
         inputBuilder.AppendLine($"HP {character.CurrentHp}/{character.MaxHp}; AC {character.ArmorClass}; Proficiency Bonus +{character.ProficiencyBonus}; GP {character.Gold:0.##}");
         var earnedXpLevel = ExperienceProgression.LevelForXp(character.Experience);
-        inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " â€” LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");
+        inputBuilder.AppendLine($"XP {character.Experience:N0}; stored Level {character.Level}; XP-earned Level {earnedXpLevel}{(earnedXpLevel > character.Level ? " — LEVEL UP READY; LONG REST REQUIRED" : string.Empty)}");
         if (character.CharacterData.ValueKind == JsonValueKind.Object && character.CharacterData.TryGetProperty("lastLevelUp", out var lastLevelUp))
             inputBuilder.AppendLine($"LAST PLAYER-CHOSEN LEVEL-UP OPTIONS: {lastLevelUp.GetRawText()}");
         inputBuilder.AppendLine(
@@ -506,7 +428,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             foreach (var location in worldMapState)
             {
                 if (location.Discovered)
-                    inputBuilder.AppendLine($"- DISCOVERED: {location.LocationName}{(location.IsCurrent ? " â€” CURRENT LOCATION" : string.Empty)}");
+                    inputBuilder.AppendLine($"- DISCOVERED: {location.LocationName}{(location.IsCurrent ? " — CURRENT LOCATION" : string.Empty)}");
                 else
                     inputBuilder.AppendLine($"- HIDDEN: {location.LocationKey}");
             }
@@ -582,7 +504,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         }
         else
         {
-            inputBuilder.AppendLine($"- Combat: ACTIVE â€” {combatState.Title}; Round {combatState.RoundNumber}");
+            inputBuilder.AppendLine($"- Combat: ACTIVE — {combatState.Title}; Round {combatState.RoundNumber}");
             foreach (var enemy in combatState.Monsters)
             {
                 var enemyConditions = ConditionRulesService.FormatForEntity(conditionState, "monster", enemy.DisplayName);
@@ -617,7 +539,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                 if (source.Items.Count == 0) inputBuilder.AppendLine("  Items: (none)");
                 else
                     foreach (var lootItem in source.Items)
-                        inputBuilder.AppendLine($"  - {lootItem.Quantity} x {lootItem.ItemName}{(string.IsNullOrWhiteSpace(lootItem.Description) ? string.Empty : $" â€” {lootItem.Description}")}");
+                        inputBuilder.AppendLine($"  - {lootItem.Quantity} x {lootItem.ItemName}{(string.IsNullOrWhiteSpace(lootItem.Description) ? string.Empty : $" — {lootItem.Description}")}");
             }
         }
 
@@ -651,7 +573,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             foreach (var entry in initiativeState)
             {
-                inputBuilder.AppendLine($"- #{entry.OrderPosition}: {entry.DisplayName} ({entry.EntityType}) = {entry.InitiativeRoll}{FormatModifier(entry.InitiativeModifier)} = {entry.InitiativeTotal}{(entry.IsCurrent ? " â€” CURRENT TURN" : string.Empty)}{(entry.Defeated ? " â€” DEFEATED" : string.Empty)}");
+                inputBuilder.AppendLine($"- #{entry.OrderPosition}: {entry.DisplayName} ({entry.EntityType}) = {entry.InitiativeRoll}{FormatModifier(entry.InitiativeModifier)} = {entry.InitiativeTotal}{(entry.IsCurrent ? " — CURRENT TURN" : string.Empty)}{(entry.Defeated ? " — DEFEATED" : string.Empty)}");
             }
         }
 
@@ -790,18 +712,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildDiceTool(),
             BuildApplyConditionTool(),
             BuildRemoveConditionTool(),
-            // BUILD 6.30.11 - CONDITION LIFECYCLE
-            BuildSetConditionLifecycleTool(),
-            BuildResolveConditionSaveTool(),
-            BuildSuppressConditionTool(),
-            BuildRestoreSuppressedConditionTool(),
-            BuildSetConditionImmunityTool(),
-            BuildRemoveConditionImmunityTool(),
-            BuildConsumeConditionCureItemTool(),
-            BuildDispelConditionEffectTool(),
-            BuildResolveConditionSourceLosTool(),
             BuildAdjustExhaustionTool(),
-            BuildCastSpellTool(),
             BuildSpendActionResourceTool(),
             BuildDashActionTool(),
             BuildUseActionSurgeTool(),
@@ -827,8 +738,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             BuildSetWorldWeatherTool(),
             BuildStartLongRestTool(),
             BuildDiscoverWorldLocationTool(),
-            BuildPrepareDynamicTravelTool(),
-            BuildResolveDynamicTravelEncounterTool(),
             BuildTravelToWorldLocationTool(),
             BuildCompleteQuestTool(),
             BuildCompleteShortRestTool(),
@@ -945,17 +854,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
                         effectiveArgs.Advantage = conditionRoll.Advantage;
                         effectiveArgs.Disadvantage = conditionRoll.Disadvantage;
-                        var weatherRoll = WeatherGameplayRulesService.ApplyToRoll(
-                            weatherGameplay,
-                            effectiveArgs.Sides,
-                            effectiveArgs.RollType,
-                            effectiveArgs.DistanceFeet,
-                            effectiveArgs.SensoryBasis,
-                            effectiveArgs.Reason,
-                            effectiveArgs.Advantage,
-                            effectiveArgs.Disadvantage);
-                        effectiveArgs.Advantage = weatherRoll.Advantage;
-                        effectiveArgs.Disadvantage = weatherRoll.Disadvantage;
                         var audit = ExecuteAuthoritativeRoll(effectiveArgs);
                         rollAudits.Add(audit);
                         toolResult = new
@@ -980,7 +878,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                     {
                         var args = DeserializeArguments<ApplyConditionToolArguments>(
                             call.ArgumentsJson, "condition application");
-                        var result = await ApplyConditionWithImmunityAsync(campaign.CampaignId, args);
+                        var result = await ApplyConditionAsync(campaign.CampaignId, args);
                         conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
                         concentrationState = await GetConcentrationForGmAsync(campaign.CampaignId);
                         var concentrationAfterCondition = concentrationState.FirstOrDefault(c =>
@@ -1000,42 +898,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         stateAudits.Add(new GameMasterStateAudit(
                             "Condition",
                             $"{args.TargetName}: -{ConditionRulesService.Title(args.ConditionName)} ({CleanReason(args.Reason, "condition ended")})"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "cast_spell":
-                    {
-                        var args = DeserializeArguments<CastSpellToolArguments>(call.ArgumentsJson, "spell cast");
-                        var requestedSpellName = (args.SpellName ?? string.Empty).Trim();
-                        var spell = spells.FirstOrDefault(s =>
-                            s.SpellName.Equals(requestedSpellName, StringComparison.OrdinalIgnoreCase))
-                            ?? throw new InvalidOperationException(
-                                $"{character.CharacterName} does not have {requestedSpellName} in the current spellbook.");
-
-                        if (spell.SpellLevel > 0 && !spell.Prepared)
-                            throw new InvalidOperationException(
-                                $"{spell.SpellName} is not currently prepared/available.");
-
-                        var slotLevel = spell.SpellLevel == 0
-                            ? 0
-                            : args.SlotLevel <= 0 ? spell.SpellLevel : args.SlotLevel;
-
-                        if (spell.SpellLevel > 0 && slotLevel < spell.SpellLevel)
-                            throw new InvalidOperationException(
-                                $"{spell.SpellName} cannot use a level {slotLevel} slot because its base level is {spell.SpellLevel}.");
-
-                        var result = await CastSpellAsync(
-                            campaign.CampaignId,
-                            character.CharacterId,
-                            spell.SpellName,
-                            slotLevel,
-                            args.Reason);
-
-                        stateAudits.Add(new GameMasterStateAudit(
-                            "Spell",
-                            spell.SpellLevel == 0
-                                ? $"{character.CharacterName} cast cantrip {spell.SpellName}."
-                                : $"{character.CharacterName} cast {spell.SpellName} using a level {slotLevel} spell slot."));
                         toolResult = result;
                         break;
                     }
@@ -1149,85 +1011,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = result;
                         break;
                     }
-                    // BUILD 6.30.11 - CONDITION LIFECYCLE
-                    case "set_condition_lifecycle":
-                    {
-                        var args = DeserializeArguments<ConditionLifecycleToolArguments>(call.ArgumentsJson, "condition lifecycle");
-                        var result = await SetConditionLifecycleAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: lifecycle updated for {ConditionRulesService.Title(args.ConditionName)}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "resolve_condition_save":
-                    {
-                        var args = DeserializeArguments<ResolveConditionSaveToolArguments>(call.ArgumentsJson, "condition saving throw");
-                        var result = await ResolveConditionSaveAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Save", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} save resolved"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "suppress_condition":
-                    {
-                        var args = DeserializeArguments<SuppressConditionToolArguments>(call.ArgumentsJson, "condition suppression");
-                        var result = await SuppressConditionAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} suppressed by {args.SuppressingEffect}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "restore_suppressed_condition":
-                    {
-                        var args = DeserializeArguments<RestoreSuppressedConditionToolArguments>(call.ArgumentsJson, "condition restoration");
-                        var result = await RestoreSuppressedConditionAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: suppressed {ConditionRulesService.Title(args.ConditionName)} restored"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "set_condition_immunity":
-                    {
-                        var args = DeserializeArguments<ConditionImmunityToolArguments>(call.ArgumentsJson, "condition immunity");
-                        var result = await SetConditionImmunityAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Immunity", $"{args.TargetName}: immune to {ConditionRulesService.Title(args.ConditionName)} from {args.SourceName}"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "remove_condition_immunity":
-                    {
-                        var args = DeserializeArguments<ConditionImmunityToolArguments>(call.ArgumentsJson, "condition immunity removal");
-                        var result = await RemoveConditionImmunityAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Immunity", $"{args.TargetName}: {ConditionRulesService.Title(args.ConditionName)} immunity ended"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "consume_condition_cure_item":
-                    {
-                        var args = DeserializeArguments<ConsumeConditionCureItemToolArguments>(call.ArgumentsJson, "curative item use");
-                        var result = await ConsumeConditionCureItemAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition Cure", $"{args.CharacterName}: curative item used"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "dispel_condition_effect":
-                    {
-                        var args = DeserializeArguments<DispelConditionEffectToolArguments>(call.ArgumentsJson, "condition dispel");
-                        var result = await DispelConditionEffectAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        stateAudits.Add(new GameMasterStateAudit("Condition", $"{args.TargetName}: magical {ConditionRulesService.Title(args.ConditionName)} effect dispelled"));
-                        toolResult = result;
-                        break;
-                    }
-                    case "resolve_condition_source_los":
-                    {
-                        var args = DeserializeArguments<ResolveConditionSourceLosToolArguments>(call.ArgumentsJson, "condition source line of sight");
-                        var result = await ResolveConditionSourceLosAsync(campaign.CampaignId, args);
-                        conditionState = await GetCombatConditionsForGmAsync(campaign.CampaignId);
-                        toolResult = result;
-                        break;
-                    }
                     case "adjust_exhaustion":
                     {
                         var args = DeserializeArguments<AdjustExhaustionToolArguments>(call.ArgumentsJson, "exhaustion adjustment");
@@ -1267,7 +1050,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var reason = CleanReason(args.Reason, direction == "good" ? "Significant good deed" : "Significant evil deed");
                         var result = await RecordAlignmentDeedAsync(character.CharacterId, campaign.CampaignId, direction, reason);
                         if (result.Changed)
-                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} â†’ {result.Alignment} ({reason})"));
+                            stateAudits.Add(new GameMasterStateAudit("Alignment", $"Alignment changed: {result.PreviousAlignment} → {result.Alignment} ({reason})"));
                         toolResult = new
                         {
                             authoritative = true,
@@ -1302,7 +1085,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var carried = await AddInventoryItemAsync(
                             character.CharacterId, campaign.CampaignId, itemName, quantity,
                             args.Description, args.Source, args.Notes);
-                        var summary = $"Added {quantity} Ã— {itemName}; now carrying {carried}";
+                        var summary = $"Added {quantity} × {itemName}; now carrying {carried}";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "add_inventory_item", itemName, quantityAdded = quantity, quantityCarried = carried };
                         break;
@@ -1314,7 +1097,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         var itemName = CleanItemName(args.ItemName);
                         var remaining = await RemoveInventoryItemAsync(character.CharacterId, campaign.CampaignId, itemName, quantity);
                         var reason = CleanReason(args.Reason, "GM inventory change");
-                        var summary = $"Removed {quantity} Ã— {itemName} ({reason}); {remaining} remaining";
+                        var summary = $"Removed {quantity} × {itemName} ({reason}); {remaining} remaining";
                         stateAudits.Add(new GameMasterStateAudit("Inventory", summary));
                         toolResult = new { authoritative = true, action = "remove_inventory_item", itemName, quantityRemoved = quantity, quantityRemaining = remaining, reason };
                         break;
@@ -1424,46 +1207,14 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
                         toolResult = new { authoritative = true, action = "discover_world_location", locationName = discovered, reason };
                         break;
                     }
-                    case "prepare_dynamic_travel":
-                    {
-                        var args = DeserializeArguments<PrepareDynamicTravelToolArguments>(call.ArgumentsJson, "dynamic travel preparation");
-                        var locationName = CleanWorldLocationName(args.LocationName);
-                        var result = await PrepareDynamicTravelAsync(campaign.CampaignId, locationName);
-                        stateAudits.Add(new GameMasterStateAudit("Travel", $"Prepared dynamic travel toward {locationName}."));
-                        toolResult = result;
-                        break;
-                    }
-                    case "resolve_dynamic_travel_encounter":
-                    {
-                        var args = DeserializeArguments<ResolveDynamicTravelEncounterToolArguments>(call.ArgumentsJson, "dynamic travel encounter resolution");
-                        var result = await ResolveDynamicTravelEncounterAsync(campaign.CampaignId, args);
-                        stateAudits.Add(new GameMasterStateAudit("Travel", $"Travel encounter resolved: {CleanReason(args.Outcome, "Encounter resolved")}."));
-                        toolResult = result;
-                        break;
-                    }
                     case "travel_to_world_location":
                     {
                         var args = DeserializeArguments<TravelWorldLocationToolArguments>(call.ArgumentsJson, "world map travel");
                         var locationName = CleanWorldLocationName(args.LocationName);
-                        var arrivalCheck = await CheckDynamicTravelArrivalAsync(campaign.CampaignId, locationName);
-                        var ready = arrivalCheck.TryGetProperty("readyToArrive", out var readyValue) && readyValue.ValueKind == JsonValueKind.True;
-                        if (!ready)
-                        {
-                            toolResult = new
-                            {
-                                authoritative = true,
-                                action = "travel_to_world_location",
-                                rejected = true,
-                                travel = arrivalCheck
-                            };
-                            break;
-                        }
-
                         var arrived = await TravelToWorldLocationAsync(campaign.CampaignId, locationName);
-                        var completion = await CompleteDynamicTravelAsync(campaign.CampaignId, locationName);
                         var summary = $"Campaign location changed to {arrived}";
                         stateAudits.Add(new GameMasterStateAudit("WorldMap", summary));
-                        toolResult = new { authoritative = true, action = "travel_to_world_location", currentLocation = arrived, travel = completion };
+                        toolResult = new { authoritative = true, action = "travel_to_world_location", currentLocation = arrived };
                         break;
                     }
                     case "complete_quest":
@@ -2221,50 +1972,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         };
     }
 
-    // RULES BUILD 6.21 - DYNAMIC RANDOM ENCOUNTERS
-    private static object BuildPrepareDynamicTravelTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "prepare_dynamic_travel",
-            description = "Create or reuse the authoritative dynamic travel plan before a World Map journey. This determines travel time and any persisted encounter from terrain, settlement distance, weather, time/daylight, party level/size, and route location.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    locationName = new { type = "string", description = "Canonical discovered World Map destination requested by the party." }
-                },
-                required = new[] { "locationName" },
-                additionalProperties = false
-            }
-        };
-    }
-
-    private static object BuildResolveDynamicTravelEncounterTool()
-    {
-        return new
-        {
-            type = "function",
-            name = "resolve_dynamic_travel_encounter",
-            description = "Mark the exact persisted travel encounter resolved after its scene is actually complete. Recalculates the remaining journey using current weather.",
-            strict = true,
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    travelPlanId = new { type = "string", description = "Exact travelPlanId returned by prepare_dynamic_travel." },
-                    outcome = new { type = "string", description = "Concise factual outcome of the resolved encounter." }
-                },
-                required = new[] { "travelPlanId", "outcome" },
-                additionalProperties = false
-            }
-        };
-    }
-
     private static object BuildTravelToWorldLocationTool()
     {
         return new
@@ -2649,26 +2356,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     };
 
 
-    private static object BuildCastSpellTool() => new
-    {
-        type="function",
-        name="cast_spell",
-        description="Authorize one spell cast for the current player character in or out of combat. Leveled spells consume one authoritative spell slot; cantrips consume none. During active combat this atomically spends the Action, Bonus Action, or Reaction required by the spell's stored casting time. Do not separately call spend_action_resource for the same spell.",
-        strict=true,
-        parameters=new
-        {
-            type="object",
-            properties=new
-            {
-                spellName=new { type="string", description="Exact spell name from CURRENT SPELLBOOK." },
-                slotLevel=new { type="integer", minimum=0, maximum=9, description="0 for a cantrip. For a leveled spell use its base level unless the player explicitly upcasts with a legal higher-level slot." },
-                reason=new { type="string", description="Short in-world reason/context for the cast." }
-            },
-            required=new[]{"spellName","slotLevel","reason"},
-            additionalProperties=false
-        }
-    };
-
     private static object BuildSpendActionResourceTool() => new
     {
         type="function",
@@ -2936,7 +2623,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
 
     private static bool SpellRequiresConcentration(DiscordCharacterInfo character, DiscordSpellInfo spell)
     {
-        var reference = MulticlassSpellService.GetAvailableSpells(character)
+        var reference = DiscordSpellService.GetAvailableSpells(character.ClassName, character.Level)
             .FirstOrDefault(s =>
                 s.Name.Equals(spell.SpellName, StringComparison.OrdinalIgnoreCase) ||
                 (!string.IsNullOrWhiteSpace(s.PhbTitle) &&
@@ -3097,28 +2784,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         {
             return new();
         }
-    }
-
-    private async Task<JsonElement> CastSpellAsync(
-        Guid campaignId,
-        Guid characterId,
-        string spellName,
-        int slotLevel,
-        string? reason)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_cast_spell",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_character_id = characterId,
-                p_spell_name = (spellName ?? string.Empty).Trim(),
-                p_slot_level = Math.Clamp(slotLevel, 0, 9),
-                p_reason = CleanReason(reason, "Spell cast")
-            },
-            "Unable to cast spell");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
     }
 
     private async Task<JsonElement> SpendActionResourceAsync(Guid campaignId, ActionEconomyToolArguments args)
@@ -3804,9 +3469,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             throw new InvalidOperationException("Monster corpse loot can only be seeded after the monster is defeated.");
 
         var codex = MonsterCodexService.Shared.Find(monster.MonsterName);
-        var entries = MonsterLootCatalogService.Build(monster.MonsterName, codex?.Details, monster.MaxHp)
-            .Where(x => !MonsterLootCatalogService.IsHarvestableMaterial(x.ItemName, x.Description))
-            .ToList();
+        var entries = MonsterLootCatalogService.Build(monster.MonsterName, codex?.Details, monster.MaxHp);
         var payload = entries.Select(x => new
         {
             item_name = x.ItemName,
@@ -4010,71 +3673,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidOperationException("Supabase returned an invalid World Map discovery result.");
         return value;
-    }
-
-    private async Task<JsonElement> GetDynamicTravelStateForGmAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw = await CallSupabaseRpcAsync(
-                "discord_gm_get_dynamic_travel_state",
-                new { p_campaign_id = campaignId },
-                "Unable to load dynamic travel state");
-            using var document = JsonDocument.Parse(raw);
-            return document.RootElement.Clone();
-        }
-        catch
-        {
-            using var document = JsonDocument.Parse("{\"active\":false,\"migrationAvailable\":false}");
-            return document.RootElement.Clone();
-        }
-    }
-
-    private async Task<JsonElement> PrepareDynamicTravelAsync(Guid campaignId, string locationName)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_prepare_dynamic_travel",
-            new { p_campaign_id = campaignId, p_destination_location = locationName },
-            "Unable to prepare dynamic travel");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> ResolveDynamicTravelEncounterAsync(Guid campaignId, ResolveDynamicTravelEncounterToolArguments args)
-    {
-        if (!Guid.TryParse((args.TravelPlanId ?? string.Empty).Trim(), out var travelPlanId))
-            throw new InvalidOperationException("A valid dynamic travelPlanId is required.");
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_resolve_dynamic_travel_encounter",
-            new
-            {
-                p_campaign_id = campaignId,
-                p_travel_plan_id = travelPlanId,
-                p_outcome = CleanReason(args.Outcome, "Encounter resolved")
-            },
-            "Unable to resolve dynamic travel encounter");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> CheckDynamicTravelArrivalAsync(Guid campaignId, string locationName)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_check_dynamic_travel_arrival",
-            new { p_campaign_id = campaignId, p_destination_location = locationName },
-            "Unable to validate dynamic travel arrival");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
-    }
-
-    private async Task<JsonElement> CompleteDynamicTravelAsync(Guid campaignId, string locationName)
-    {
-        var raw = await CallSupabaseRpcAsync(
-            "discord_gm_complete_dynamic_travel",
-            new { p_campaign_id = campaignId, p_destination_location = locationName },
-            "Unable to complete dynamic travel plan");
-        using var document = JsonDocument.Parse(raw);
-        return document.RootElement.Clone();
     }
 
     private async Task<string> TravelToWorldLocationAsync(Guid campaignId, string locationName)
@@ -4613,18 +4211,12 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         var monsters=tactical.Tokens.Where(t=>t.EntityType.Equals("monster",StringComparison.OrdinalIgnoreCase)&&!t.Defeated).OrderBy(t=>t.DisplayName).ToList();
         if(characters.Count==0)throw new InvalidOperationException("No party character tokens are available for initial staging.");
 
-        var soloFormation=await GetSoloFormationForGmAsync(campaignId);
-        var formationByCharacter=(soloFormation?.IsSolo==true?soloFormation.Members:new List<SoloFormationPositionForGm>())
-            .ToDictionary(x=>x.CharacterId,x=>x);
-
         var anchor=TacticalTerrainCatalog.FindInitialPartyAnchor(localMap.LocationKey,doors,occupied,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
         for(var i=0;i<characters.Count;i++)
         {
             var token=characters[i];
             TacticalSpawnPoint point;
-            if(token.CharacterId is Guid formationCharacterId && formationByCharacter.TryGetValue(formationCharacterId,out var formationPosition))
-                point=TacticalTerrainCatalog.FindInitialFormationSpawn(localMap.LocationKey,anchor.GridX,anchor.GridY,formationPosition.OffsetX,formationPosition.OffsetY,doors,occupied,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
-            else if(i==0) point=anchor;
+            if(i==0) point=anchor;
             else point=TacticalTerrainCatalog.FindInitialSpawnNear(localMap.LocationKey,anchor.GridX,anchor.GridY,5,Math.Min(15,5+i*5),doors,occupied,true,args.PartyAllowDifficultTerrain,args.PartyAllowHalfCover);
             occupied.Add((point.GridX,point.GridY));
             characterPositions[token.DisplayName]=point;
@@ -4671,37 +4263,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         using var doc=JsonDocument.Parse(raw);
         var positioned=doc.RootElement.TryGetProperty("positioned",out var count)&&count.TryGetInt32(out var n)?n:positions.Count;
         return new CombatStagingResult(positioned,reason,positions);
-    }
-
-    // RULES BUILD 6.23 - SOLO PARTY FORMATIONS
-    private sealed class SoloFormationForGm
-    {
-        public bool IsSolo { get; set; }
-        public string PresetKey { get; set; } = string.Empty;
-        public List<SoloFormationPositionForGm> Members { get; set; } = new();
-    }
-
-    private sealed class SoloFormationPositionForGm
-    {
-        public Guid CharacterId { get; set; }
-        public string CharacterName { get; set; } = string.Empty;
-        public int SlotNo { get; set; }
-        public int OffsetX { get; set; }
-        public int OffsetY { get; set; }
-    }
-
-    private async Task<SoloFormationForGm?> GetSoloFormationForGmAsync(Guid campaignId)
-    {
-        try
-        {
-            var raw=await CallSupabaseRpcAsync("discord_gm_get_solo_formation",new { p_campaign_id=campaignId },"Unable to load Solo party formation");
-            return JsonSerializer.Deserialize<SoloFormationForGm>(raw,JsonOptions);
-        }
-        catch
-        {
-            // Safe pre-migration/default behavior: existing terrain-aware staging remains unchanged.
-            return null;
-        }
     }
 
     private async Task<TacticalCombatForGm?> GetTacticalCombatStateForGmAsync(Guid campaignId)
@@ -4846,15 +4407,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             throw new InvalidOperationException("Both tactical combatants must exist on the active map.");
         var doors=await GetTacticalDoorStatesForGmAsync(campaignId,localMap.LocationKey);
         var los=TacticalTerrainCatalog.CheckLineOfSight(localMap.LocationKey,from.GridX,from.GridY,target.GridX,target.GridY,doors);
-        var worldTime = await GetWorldTimeStateForGmAsync(campaignId);
-        var weather = WeatherGameplayRulesService.Build(worldTime?.WeatherKey,worldTime?.WeatherLabel,worldTime?.HotWeather ?? false);
-        var weatherDistanceFt = Math.Max(Math.Abs(from.GridX-target.GridX),Math.Abs(from.GridY-target.GridY))*5;
-        var weatherAllowsVisibility = weather.VisibilityFeet<=0 || weatherDistanceFt<=weather.VisibilityFeet;
-        var visible = los.Visible && weatherAllowsVisibility;
-        var weatherReason = weatherAllowsVisibility
-            ? string.Empty
-            : $" {weather.WeatherLabel} limits visibility to about {weather.VisibilityFeet} ft.";
-        return new { authoritative=true,from=from.DisplayName,target=target.DisplayName,visible,cover=los.Cover,reason=los.Reason+weatherReason,weatherVisibilityFeet=weather.VisibilityFeet,distanceFeet=weatherDistanceFt };
+        return new { authoritative=true,from=from.DisplayName,target=target.DisplayName,visible=los.Visible,cover=los.Cover,reason=los.Reason };
     }
 
     private async Task<JsonElement> SetTacticalDoorStateAsync(Guid campaignId,SetTacticalDoorStateArguments args)
@@ -5098,7 +4651,7 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
             }
 
             if (suppressAuditBullets &&
-                (trimmed.StartsWith("â€¢", StringComparison.Ordinal) ||
+                (trimmed.StartsWith("•", StringComparison.Ordinal) ||
                  trimmed.StartsWith("-", StringComparison.Ordinal) ||
                  trimmed.StartsWith("*", StringComparison.Ordinal)))
             {
@@ -5237,13 +4790,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
         public string TargetName { get; set; } = string.Empty;
         public string ConditionName { get; set; } = string.Empty;
         public string SourceName { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class CastSpellToolArguments
-    {
-        public string SpellName { get; set; } = string.Empty;
-        public int SlotLevel { get; set; }
         public string Reason { get; set; } = string.Empty;
     }
 
@@ -5406,17 +4952,6 @@ Keep continuity with the supplied campaign history and authoritative campaign ca
     {
         public string LocationName { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
-    }
-
-    private sealed class PrepareDynamicTravelToolArguments
-    {
-        public string LocationName { get; set; } = string.Empty;
-    }
-
-    private sealed class ResolveDynamicTravelEncounterToolArguments
-    {
-        public string TravelPlanId { get; set; } = string.Empty;
-        public string Outcome { get; set; } = string.Empty;
     }
 
     private sealed class TravelWorldLocationToolArguments
