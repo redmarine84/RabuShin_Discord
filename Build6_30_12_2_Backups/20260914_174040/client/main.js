@@ -4306,7 +4306,7 @@ function renderCharacterTab(){
           </div>
           <div class="character-sheet-details">
             <h2>${escapeHtml(c.characterName)}</h2>
-            <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml((String(c.characterData?.multiclassSummary || '').includes(' / ') ? c.characterData.multiclassSummary : c.className))} â€¢ ${escapeHtml(c.backgroundName)} â€¢ ${escapeHtml(c.alignment)}</p>
+            <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml(c.className)} • ${escapeHtml(c.backgroundName)} • ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b data-live-self-hp>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
             <div id="characterConditionsHost" class="character-conditions-card"><span class="muted">Loading active conditions...</span></div>
             <div class="currency-purse-card"><span>Currency Purse</span><b data-live-self-currency>${currencyPurseText(c.gold)}</b><small>10 CP = 1 SP • 10 SP = 1 GP • 10 GP = 1 PP</small></div>
