@@ -370,7 +370,7 @@ async function loadCampaigns() {
       <div class="campaign-card">
         <div>
           <h4>${escapeHtml(c.campaignName)}</h4>
-          <p>Chapter ${c.currentChapter} • ${escapeHtml(c.currentLocation)} • ${String(c.campaignMode||'friends').toLowerCase()==='solo'?'Solo Campaign':`${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}`}</p>
+          <p>Chapter ${c.currentChapter} \u2022 ${escapeHtml(c.currentLocation)} \u2022 ${String(c.campaignMode||'friends').toLowerCase()==='solo'?'Solo Campaign':`${c.memberCount} Player${c.memberCount === 1 ? '' : 's'}`}</p>
           <small>${String(c.campaignMode||'friends').toLowerCase()==='solo'
             ? `Solo Play: <strong>${escapeHtml(currentDiscordUser?.global_name||currentDiscordUser?.username||'Player')}</strong>`
             : `Campaign Code: <strong>${escapeHtml(c.joinCode)}</strong>`}</small>
@@ -524,7 +524,7 @@ function subraceDetailHtml(prefix,species,name,data){
   const rule=selectedSubraceRule(species,name,data);
   if(!rule)return '';
   const bonuses=rule.abilityBonuses&&typeof rule.abilityBonuses==='object'
-    ?Object.entries(rule.abilityBonuses).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • '):'';
+    ?Object.entries(rule.abilityBonuses).map(([ability,bonus])=>`${ability} +${bonus}`).join(' \u2022 '):'';
   const traits=Array.isArray(rule.traits)?rule.traits:[];
   const highElf=String(rule.name||'').toLowerCase()==='high elf';
   const cantrips=(data?.racialRules?.highElfWizardCantrips||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
@@ -545,7 +545,7 @@ function dragonbornAncestryDetailHtml(ancestry){
   if(!ancestry)return '';
   return `<div class="subrace-summary ancestry-summary">
     <b>${escapeHtml(ancestry.name)} Dragon Ancestry</b>
-    <small>Breath Weapon: ${escapeHtml(ancestry.damageType)} • ${escapeHtml(ancestry.area)} • ${escapeHtml(ancestry.savingThrow)} save</small>
+    <small>Breath Weapon: ${escapeHtml(ancestry.damageType)} \u2022 ${escapeHtml(ancestry.area)} \u2022 ${escapeHtml(ancestry.savingThrow)} save</small>
     <small>Damage Resistance: ${escapeHtml(ancestry.resistance)}</small>
     <small>Breath damage: 2d6 at level 1, 3d6 at 6th, 4d6 at 11th, 5d6 at 16th. Save DC = 8 + CON modifier + proficiency bonus. One use per short or long rest.</small>
   </div>`;
@@ -622,7 +622,7 @@ function racialOptionsHtml(prefix,species,data){
 
   const parts=[halfNote,`<div class="racial-rule-card"><b>${half?'Primary Half':'Racial Heritage'}: ${escapeHtml(heritage)}</b>`];
   if(fixed){
-    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
+    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' \u2022 ');
     parts.push(`<small>Base ${escapeHtml(heritage)} Ability Increase: ${escapeHtml(text)}</small>`);
   } else {
     parts.push(`<small>Base ${escapeHtml(heritage)} racial traits remain in effect.</small>`);
@@ -655,7 +655,7 @@ function secondaryHeritageOptionsHtml(prefix,species,data){
   const baseTraits=Array.isArray(data?.racialRules?.traitSummaries?.[secondary])?data.racialRules.traitSummaries[secondary]:[];
   const parts=[`<div class="racial-rule-card secondary-heritage-card"><b>Other Half: ${escapeHtml(secondary)}</b>`];
   if(fixed){
-    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' • ');
+    const text=Object.entries(fixed).map(([ability,bonus])=>`${ability} +${bonus}`).join(' \u2022 ');
     parts.push(`<small>Base ${escapeHtml(secondary)} Ability Increase: ${escapeHtml(text)} — compounds with the primary half.</small>`);
   } else {
     parts.push(`<small>The ${escapeHtml(secondary)} half's base racial traits are inherited.</small>`);
@@ -926,7 +926,7 @@ async function showCharacterCreator(campaignId, options={}) {
 
 async function showStartingEquipment(campaignId, character) {
   const main=document.querySelector('#mainContent');
-  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Starting Equipment</h2><p>${escapeHtml(character.characterName)} • ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="equipLoading" class="loading">Loading 2014 starting equipment...</div><div id="equipForm" hidden>
+  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Starting Equipment</h2><p>${escapeHtml(character.characterName)} \u2022 ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="equipLoading" class="loading">Loading 2014 starting equipment...</div><div id="equipForm" hidden>
     <div class="selection-summary"><b>2014 Starting Equipment</b><br>Choose each class equipment group below. Background equipment is added separately, and equipment packs are expanded into the actual items placed in your inventory.</div>
     <div id="equipCompatibility"></div>
     <div id="classEquipmentArea"></div>
@@ -1039,12 +1039,12 @@ async function showStartingEquipment(campaignId, character) {
 // RULES BUILD 6.14 - SPELL & CANTRIP SELECTION COUNTERS
 async function showSpellSelection(campaignId, character, fromLevelUp=false) {
   const main=document.querySelector('#mainContent');
-  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Spells & Cantrips</h2><p>${escapeHtml(character.characterName)} • Level ${character.level} ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="spellLoading" class="loading">Loading spell rules...</div><div id="spellForm" hidden></div><div id="spellError" class="error"></div></section></div>`;
+  main.innerHTML=`<div class="creator"><div class="section-title"><div><h2>Spells & Cantrips</h2><p>${escapeHtml(character.characterName)} \u2022 Level ${character.level} ${escapeHtml(character.className)}</p></div></div><section class="panel"><div id="spellLoading" class="loading">Loading spell rules...</div><div id="spellForm" hidden></div><div id="spellError" class="error"></div></section></div>`;
   try {
     const data=await api(`/game-api/campaigns/${campaignId}/spell-options`);
     if(!data.required){await api(`/game-api/campaigns/${campaignId}/spell-selection`,{method:'POST',body:JSON.stringify({cantrips:[],spells:[],preparedWizardSpells:[],mysticArcanum:{}})});return enterCampaign(campaignId);}
     const p=data.progression,form=document.querySelector('#spellForm');
-    const spellCard=(s,kind)=>`<label class="spell-option"><input type="checkbox" class="${kind}" value="${escapeHtml(s.name)}"><span><b>${escapeHtml(s.name)}</b><small>${s.level===0?'Cantrip':`Level ${s.level}`} • ${escapeHtml(s.school||'')}</small><em>${escapeHtml(s.description||'')}</em></span></label>`;
+    const spellCard=(s,kind)=>`<label class="spell-option"><input type="checkbox" class="${kind}" value="${escapeHtml(s.name)}"><span><b>${escapeHtml(s.name)}</b><small>${s.level===0?'Cantrip':`Level ${s.level}`} \u2022 ${escapeHtml(s.school||'')}</small><em>${escapeHtml(s.description||'')}</em></span></label>`;
     const wizard=data.className.toLowerCase()==='wizard';
     const cantripLimit=Math.max(0,Number(p.cantripsKnown)||0);
     const spellLimit=Math.max(0,Number(wizard?p.wizardSpellbookCount:p.preparedSpells)||0);
@@ -1053,8 +1053,8 @@ async function showSpellSelection(campaignId, character, fromLevelUp=false) {
       <div class="selection-summary">Choose <b>${p.cantripsKnown}</b> cantrip(s). ${wizard?`Add <b>${p.wizardSpellbookCount}</b> spells to your spellbook and prepare <b>${p.preparedSpells}</b>.`:`Choose <b>${p.preparedSpells}</b> class spell(s).`} ${data.alwaysPrepared?.length?`Always prepared: ${data.alwaysPrepared.map(escapeHtml).join(', ')}`:''}</div>
       <div id="spellSelectionCounters" class="selection-summary">
         ${cantripLimit>0?`<span><b id="cantripRemaining">${cantripLimit}</b> cantrip(s) remaining</span>`:''}
-        ${spellLimit>0?`<span>${cantripLimit>0?' • ':''}<b id="spellRemaining">${spellLimit}</b> ${wizard?'spellbook spell(s)':'spell(s)'} remaining</span>`:''}
-        ${wizard&&preparedLimit>0?`<span> • <b id="preparedRemaining">${preparedLimit}</b> prepared spell(s) remaining</span>`:''}
+        ${spellLimit>0?`<span>${cantripLimit>0?' \u2022 ':''}<b id="spellRemaining">${spellLimit}</b> ${wizard?'spellbook spell(s)':'spell(s)'} remaining</span>`:''}
+        ${wizard&&preparedLimit>0?`<span> \u2022 <b id="preparedRemaining">${preparedLimit}</b> prepared spell(s) remaining</span>`:''}
       </div>
       ${p.cantripsKnown>0?`<h3>Cantrips</h3><div class="spell-grid">${data.cantrips.map(s=>spellCard(s,'cantrip-check')).join('')}</div>`:''}
       ${p.preparedSpells>0||p.wizardSpellbookCount>0?`<h3 class="subhead">Spells</h3><div class="spell-grid">${data.spells.map(s=>wizard?`<div class="wizard-spell"><label><input class="spell-check" type="checkbox" value="${escapeHtml(s.name)}"> <b>${escapeHtml(s.name)}</b> <small>L${s.level}</small></label><label class="prepare"><input class="prepare-check" type="checkbox" value="${escapeHtml(s.name)}" disabled> Prepare</label><p>${escapeHtml(s.description||'')}</p></div>`:spellCard(s,'spell-check')).join('')}</div>`:''}
@@ -1267,7 +1267,7 @@ async function autoSwitchSoloInitiativeCharacter(combat){
 function renderGameShell() {
   const d=currentGameData,c=d.campaign,ch=d.character,main=document.querySelector('#mainContent');
   main.innerHTML=`<div class="game">
-    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} • <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> • ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div id="worldClockHost">${worldClockHtml(d.worldTime)}</div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
+    <div class="game-header"><div><button id="backLauncher" class="button small">← Campaigns</button><h2>${escapeHtml(c.campaignName)}</h2><p>Chapter ${c.currentChapter} \u2022 <span id="gameCurrentLocation">${escapeHtml(c.currentLocation)}</span> \u2022 ${escapeHtml(ch.characterName)}</p></div><div class="game-header-vitals"><div id="worldClockHost">${worldClockHtml(d.worldTime)}</div><div class="quick-vitals"><span>HP <b data-live-self-hp>${ch.currentHp}/${ch.maxHp}</b></span><span>AC <b>${ch.armorClass}</b></span><span>Coins <b data-live-self-currency>${currencyPurseText(ch.gold)}</b></span></div><div id="survivalMetersHost">${survivalMetersHtml(d.survival)}</div></div></div>
     <nav class="game-nav">
       <button class="game-tab active" data-tab="gm">AI Game Master</button><button class="game-tab" data-tab="character">Character</button><button class="game-tab" data-tab="inventory">Inventory</button><button class="game-tab" data-tab="spells">Spellbook</button><button class="game-tab" data-tab="journal">Journal</button><button class="game-tab" data-tab="chat">Campaign Chat</button><button class="game-tab" data-tab="settings">Settings</button>
     </nav><section id="gameView" class="game-view"></section></div>`;
@@ -1322,8 +1322,8 @@ function survivalMetersHtml(state) {
   const activeEffects=[];
   for(let i=1;i<=Math.min(6,exhaustion);i++)activeEffects.push(`L${i}: ${effects[i]}`);
   return `<div class="survival-meters">
-    <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb • starvation ${starvationDays}/${starvationLimit} safe days</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
-    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal • ${hydrationConsumed.toFixed(2)} gal counted this hydration day</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
+    <div class="survival-meter hunger-meter"><div class="survival-meter-label"><span>Hunger</span><b>${hunger.toFixed(0)}%</b><small>${food.toFixed(2)} / ${foodReq.toFixed(0)} lb \u2022 starvation ${starvationDays}/${starvationLimit} safe days</small></div><div class="survival-track"><i style="width:${hunger}%"></i></div></div>
+    <div class="survival-meter thirst-meter"><div class="survival-meter-label"><span>Thirst${hotWeather?' (Hot)':''}</span><b>${thirst.toFixed(0)}%</b><small>${water.toFixed(2)} / ${waterReq.toFixed(0)} gal \u2022 ${hydrationConsumed.toFixed(2)} gal counted this hydration day</small></div><div class="survival-track"><i style="width:${thirst}%"></i></div></div>
     ${exhaustion>0?`<div class="survival-exhaustion"><b>Exhaustion ${exhaustion}</b><small>${activeEffects.join(' ')}</small>${exhaustion>=2?`<small>Effective Speed: ${effectiveSpeed} ft.</small>`:''}${exhaustion>=4?`<small>Effective Max HP: ${effectiveMaxHp}</small>`:''}</div>`:''}
   </div>`;
 }
@@ -1413,7 +1413,7 @@ function experienceProgressHtml(progression) {
   let status=maxLevel?'Maximum Level Reached':`${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
   let badge='';
   if(progression.pendingLevelUp){badge='<span class="xp-ready-badge wake">LEVEL UP — CHOICES WAITING</span>';status=`Level ${progression.fromLevel} → ${progression.toLevel} after Long Rest`;}
-  else if(progression.readyForLevelUp){badge='<span class="xp-ready-badge">LEVEL UP READY</span>';status=`${xp.toLocaleString()} XP • Rest to reach Level ${earned}`;}
+  else if(progression.readyForLevelUp){badge='<span class="xp-ready-badge">LEVEL UP READY</span>';status=`${xp.toLocaleString()} XP \u2022 Rest to reach Level ${earned}`;}
   return `<div class="experience-card ${progression.readyForLevelUp||progression.pendingLevelUp?'ready':''}">
     <div class="experience-heading"><div><span>Experience</span><b>Level ${level}</b></div>${badge}</div>
     <div class="experience-track" role="progressbar" aria-valuemin="${start}" aria-valuemax="${maxLevel?xp:next}" aria-valuenow="${xp}"><i style="width:${percent}%"></i></div>
@@ -1575,7 +1575,7 @@ function worldClockHtml(rawWorld) {
   const awake=Math.max(0,Number(world.awakeActivePlayers)||0);
   const running=world.autoClockRunning===true&&!paused;
   const phase=world.isDaylight?'daylight':'nighttime';
-  const hot=world.hotWeather?' • Hot':'';
+  const hot=world.hotWeather?' \u2022 Hot':'';
   let clockStatus='';
   if(paused)clockStatus='PAUSED';
   else if(active<=0)clockStatus='Clock waits while party is offline';
@@ -1584,7 +1584,7 @@ function worldClockHtml(rawWorld) {
   const owner=currentGameData?.campaign?.isOwner===true;
   const control=owner?`<button type="button" class="world-clock-toggle" data-world-clock-toggle ${worldClockPauseBusy?'disabled':''}>${paused?'▶ Resume':'⏸ Pause'}</button>`:'';
   return `<div class="world-clock-chip ${phase}${paused?' paused':''}">
-    <div class="world-clock-top"><span>DAY ${day}${part?` • ${escapeHtml(part)}`:''}</span>${control}</div>
+    <div class="world-clock-top"><span>DAY ${day}${part?` \u2022 ${escapeHtml(part)}`:''}</span>${control}</div>
     <b>${escapeHtml(time)}</b>
     <small>${escapeHtml(weather)}${hot}</small>
     ${clockStatus?`<em>${escapeHtml(clockStatus)}</em>`:''}
@@ -1726,7 +1726,7 @@ function renderSleepingLongRestOverlay(sleep) {
   const progress=Math.min(100,Math.max(0,elapsed/480*100));
   const world=sleep.world||{};
   const lodging=sleep.paidLodging
-    ? `<span class="sleep-safe good">Paid ${escapeHtml(sleep.lifestyle||'')} room • ${escapeHtml(sleep.innName||'Inn')}</span>`
+    ? `<span class="sleep-safe good">Paid ${escapeHtml(sleep.lifestyle||'')} room \u2022 ${escapeHtml(sleep.innName||'Inn')}</span>`
     : sleep.safeLocation
       ? '<span class="sleep-safe good">Safe Long Rest location</span>'
       : '<span class="sleep-safe warn">Unsecured rest location</span>';
@@ -1738,8 +1738,8 @@ function renderSleepingLongRestOverlay(sleep) {
     ${soloCharacterSwitchMarkup(true)}
     <div class="sleep-world-clock">
       <span>World Time</span>
-      <b>Day ${Math.max(1,Number(world.dayNumber)||1)} • ${escapeHtml(world.displayTime||'--:--')}</b>
-      <small>${escapeHtml(world.dayPart||'')} • ${escapeHtml(world.weatherLabel||'Clear')}</small>
+      <b>Day ${Math.max(1,Number(world.dayNumber)||1)} \u2022 ${escapeHtml(world.displayTime||'--:--')}</b>
+      <small>${escapeHtml(world.dayPart||'')} \u2022 ${escapeHtml(world.weatherLabel||'Clear')}</small>
     </div>
     <div class="sleep-hp-block">
       <div><span>HP</span><b>${current}/${max}</b></div>
@@ -1801,7 +1801,7 @@ function restResourceHtml(rest) {
   const total=Math.max(1,Number(rest.hitDiceTotal)||Number(rest.level)||1);
   const available=Math.max(0,Number(rest.hitDiceAvailable)||0);
   const sides=Math.max(4,Number(rest.hitDieSides)||8);
-  return `<div class="rest-resource-card"><span>Hit Dice</span><b>${available}/${total} d${sides}</b><small>${Math.max(0,total-available)} spent • Long Rest restores all</small></div>`;
+  return `<div class="rest-resource-card"><span>Hit Dice</span><b>${available}/${total} d${sides}</b><small>${Math.max(0,total-available)} spent \u2022 Long Rest restores all</small></div>`;
 }
 
 function updateRestResourceUi(rest) {
@@ -3083,7 +3083,7 @@ function currencyParts(goldValue) {
 
 function currencyPurseText(goldValue) {
   const c=currencyParts(goldValue);
-  return `${c.pp} PP • ${c.gp} GP • ${c.sp} SP • ${c.cp} CP`;
+  return `${c.pp} PP \u2022 ${c.gp} GP \u2022 ${c.sp} SP \u2022 ${c.cp} CP`;
 }
 
 function formatCoinPrice(goldValue) {
@@ -3197,15 +3197,15 @@ function renderSettlementShop(shop,initialMode='buy') {
 
   const sellItems=shop.sellItems||[];
   const sellCatalog=sellItems.length?sellItems.map(item=>{
-    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' • ');
+    const status=[item.equipped?'Equipped':'',item.attuned?'Attuned':''].filter(Boolean).join(' \u2022 ');
     const sellControls=item.canSell
       ? `<div class="shop-item-buy shop-item-sell"><b>${formatShopGp(item.unitPriceGp)} each</b><label>Qty <input class="input shop-sell-quantity" type="number" min="1" max="${Math.max(1,Number(item.quantity)||1)}" value="1" aria-label="Quantity of ${escapeHtml(item.itemName)} to sell"></label><button class="button primary shop-sell-button" data-inventory-item-id="${escapeHtml(item.inventoryItemId)}">Sell</button></div>`
       : `<div class="shop-sell-unavailable">${escapeHtml(item.reason||'This merchant will not buy this item.')}</div>`;
-    return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} • Carried: ${Number(item.quantity)||0}${status?` • ${escapeHtml(status)}`:''}</p>${item.priceBand?`<small class="muted">${escapeHtml(item.priceBand)}</small>`:''}</div>${sellControls}</article>`;
+    return `<article class="shop-item-card shop-sell-card ${item.canSell?'':'disabled'}"><div class="shop-item-copy"><div class="item-value-line"><span class="item-rarity rarity-${String(item.rarity||'common').toLowerCase().replaceAll(' ','-')}">${escapeHtml(item.rarity||'Common')}</span><span>Base ${item.baseValueGp>0?formatShopGp(item.baseValueGp):'Priceless'}</span></div><h4>${escapeHtml(item.itemName)}</h4><p>${escapeHtml(item.category||'Inventory Item')} \u2022 Carried: ${Number(item.quantity)||0}${status?` \u2022 ${escapeHtml(status)}`:''}</p>${item.priceBand?`<small class="muted">${escapeHtml(item.priceBand)}</small>`:''}</div>${sellControls}</article>`;
   }).join(''):'<div class="empty">You have no inventory items to sell.</div>';
 
   overlay.innerHTML=`<div class="settlement-shop-modal">
-    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} • Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
+    <div class="settlement-shop-header"><div><p class="eyebrow">SHOP</p><h2>${escapeHtml(shop.shopName||'Settlement Shop')}</h2><p>${escapeHtml(shop.settlementName||'')} \u2022 Your Purse: <b data-shop-gold>${currencyPurseText(shop.gold??currentGameData?.character?.gold??0)}</b></p></div><button id="closeSettlementShop" class="modal-close" aria-label="Close">×</button></div>
     <div class="settlement-shop-actions"><button id="shopBackToMap" class="button">← Settlement Map</button><button id="shopOpenInventory" class="button">Inventory</button><span class="muted">Buying and selling update this character's authoritative inventory and GP.</span></div>
     <div class="shop-mode-tabs" role="tablist"><button class="button shop-mode-button" data-shop-mode="buy" role="tab">Buy</button><button class="button shop-mode-button" data-shop-mode="sell" role="tab">Sell</button><span class="muted shop-resale-note">Merchants normally pay 50% of the item's authoritative base value. Rarity and item category determine that value; Artifact items are priceless and protected.</span></div>
     <div id="shopError" class="error"></div>
@@ -3848,7 +3848,7 @@ function renderGameMasterTab() {
   if(existingInput)gmTurnDraft=existingInput.value;
 
   const view=document.querySelector('#gameView');
-  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><div><h3>AI Game Master</h3>${soloCharacterSwitchMarkup(true)}</div><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> • AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
+  view.innerHTML=`<div class="gm-layout"><div><div class="view-heading"><div><h3>AI Game Master</h3>${soloCharacterSwitchMarkup(true)}</div><button id="refreshGm" class="button small">Refresh</button></div><div id="gmTimeline" class="timeline">${timelineHtml(currentGameData.gmMessages,'Your adventure begins when you speak to the Game Master.',true)}</div><div id="combatInitiativeStatus" class="combat-initiative-status" hidden></div><div id="gmTurnStatus" class="gm-turn-status checking"><span>Checking shared GM turn...</span></div><div class="composer gm-combat-composer"><textarea id="gmInput" class="input" placeholder="What do you do?" disabled></textarea><button id="sendGm" class="button primary" disabled>Send</button><button id="endCombatTurn" class="button end-turn" hidden disabled>End Turn</button><button id="resumeEnemyTurns" class="button resume-enemy-turn" hidden disabled>Resume GM Turn</button></div><div id="gmError" class="error"></div></div><aside class="side-card"><h4>${escapeHtml(currentGameData.character.characterName)}</h4><p>Level ${currentGameData.character.level} ${escapeHtml(currentGameData.character.speciesName)} ${escapeHtml(currentGameData.character.className)}</p><p>HP <b data-live-self-hp>${currentGameData.character.currentHp}/${currentGameData.character.maxHp}</b> \u2022 AC ${currentGameData.character.armorClass}</p>${currentGameData.openAiConfigured?'<span class="good">OpenAI Ready</span>':'<span class="warn">OpenAI key needed in Settings</span>'}<p class="muted"><b>GM-Controlled Dice:</b> All checks, attacks, saves, damage, and random rolls are generated by the RabuShin server. Player-supplied roll results are ignored.</p></aside></div>`;
 
   const input=document.querySelector('#gmInput');
   input.value=gmTurnDraft;
@@ -4171,8 +4171,8 @@ async function showPartyMemberDetails(member) {
       ${portraitFrameHtml(member.characterId,member.characterName,member.hasPortrait,'party-detail-portrait')}
       <div class="party-member-sheet">
         <h2>${escapeHtml(member.characterName)}</h2>
-        <p>${escapeHtml(member.displayName)} • @${escapeHtml(member.discordUsername)}</p>
-        <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} • ${escapeHtml(member.backgroundName||'')} ${member.alignment?`• ${escapeHtml(member.alignment)}`:''}</p>
+        <p>${escapeHtml(member.displayName)} \u2022 @${escapeHtml(member.discordUsername)}</p>
+        <p>Level ${member.level} ${escapeHtml(member.speciesName)} ${escapeHtml(member.className)} \u2022 ${escapeHtml(member.backgroundName||'')} ${member.alignment?`\u2022 ${escapeHtml(member.alignment)}`:''}</p>
         <div class="vitals party-detail-vitals"><div>HP <b ${member.characterId===currentGameData?.character?.characterId?'data-live-self-hp':''}>${member.currentHp}/${member.maxHp}</b></div><div>AC <b>${member.armorClass}</b></div><div>Initiative <b>${formatSigned(member.initiative)}</b></div><div>Speed <b>${member.speed} ft.</b></div><div>Passive Perception <b>${member.passivePerception}</b></div><div>Proficiency <b>${formatSigned(member.proficiencyBonus)}</b></div></div>
         <div id="partyProgressionDetail"><div class="loading mini">Loading Experience and Alignment...</div></div>
         <div class="stats">${statBox('STR',member.strength)}${statBox('DEX',member.dexterity)}${statBox('CON',member.constitution)}${statBox('INT',member.intelligence)}${statBox('WIS',member.wisdom)}${statBox('CHA',member.charisma)}</div>
@@ -4302,14 +4302,14 @@ function renderCharacterTab(){
             <input id="portraitFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
             <button id="uploadPortrait" class="button primary wide">${hasPortrait?'Replace Portrait':'Upload Portrait'}</button>
             ${hasPortrait?'<button id="removePortrait" class="button danger-button wide">Remove Portrait</button>':''}
-            <small class="portrait-help">PNG, JPEG, or WebP • 5 MB max</small>
+            <small class="portrait-help">PNG, JPEG, or WebP \u2022 5 MB max</small>
           </div>
           <div class="character-sheet-details">
             <h2>${escapeHtml(c.characterName)}</h2>
-            <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml((String(c.characterData?.multiclassSummary || '').includes(' / ') ? c.characterData.multiclassSummary : c.className))} â€¢ ${escapeHtml(c.backgroundName)} â€¢ ${escapeHtml(c.alignment)}</p>
+            <p>Level ${c.level} ${escapeHtml(c.speciesName)} ${escapeHtml((String(c.characterData?.multiclassSummary || '').includes(' / ') ? c.characterData.multiclassSummary : c.className))} \u2022 ${escapeHtml(c.backgroundName)} \u2022 ${escapeHtml(c.alignment)}</p>
             <div class="vitals"><div>HP <b data-live-self-hp>${c.currentHp}/${c.maxHp}</b></div><div>AC <b>${c.armorClass}</b></div><div>Initiative <b>${formatSigned(c.initiative)}</b></div><div>Speed <b>${c.speed} ft.</b></div><div>Passive Perception <b>${c.passivePerception}</b></div><div>Proficiency <b>${formatSigned(c.proficiencyBonus)}</b></div></div>
             <div id="characterConditionsHost" class="character-conditions-card"><span class="muted">Loading active conditions...</span></div>
-            <div class="currency-purse-card"><span>Currency Purse</span><b data-live-self-currency>${currencyPurseText(c.gold)}</b><small>10 CP = 1 SP • 10 SP = 1 GP • 10 GP = 1 PP</small></div>
+            <div class="currency-purse-card"><span>Currency Purse</span><b data-live-self-currency>${currencyPurseText(c.gold)}</b><small>10 CP = 1 SP \u2022 10 SP = 1 GP \u2022 10 GP = 1 PP</small></div>
             <div id="experienceProgressHost" class="experience-progress-host">${experienceProgressHtml(currentProgression)}</div>
             <div id="restResourceHost" class="rest-resource-host">${restResourceHtml(lastRestState)}</div>
             <div class="stats">${statBox('STR',c.strength)}${statBox('DEX',c.dexterity)}${statBox('CON',c.constitution)}${statBox('INT',c.intelligence)}${statBox('WIS',c.wisdom)}${statBox('CHA',c.charisma)}</div>
@@ -4320,7 +4320,7 @@ function renderCharacterTab(){
       <section class="panel party-panel"><div class="party-panel-heading"><div><h3>Campaign Party</h3><p class="muted">Select a character to view combat stats, Experience, and Alignment.</p></div>${isSoloCampaign()?`<button id="addSoloPartyMember" class="button primary small" ${currentGameData.soloParty?.canAdd?'':'disabled'}>Add Party Member</button>`:''}</div>${isSoloCampaign()?`<small class="solo-party-count">${Number(currentGameData.soloParty?.characterCount)||party.length} / ${Number(currentGameData.soloParty?.maxCharacters)||5} player-controlled characters</small>`:''}
         <div class="party-list visual-party-list">${party.length?party.map((p,index)=>`<button class="party-card visual-party-card" data-party-index="${index}">
           ${portraitFrameHtml(p.characterId,p.characterName,p.hasPortrait,'party-thumbnail')}
-          <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} • Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP <b ${p.characterId===c.characterId?'data-live-self-hp':''}>${p.currentHp}/${p.maxHp}</b> • AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
+          <div class="party-card-copy"><b>${escapeHtml(p.characterName)}</b><small>${escapeHtml(p.displayName)} \u2022 Level ${p.level} ${escapeHtml(p.speciesName)} ${escapeHtml(p.className)}</small><span>HP <b ${p.characterId===c.characterId?'data-live-self-hp':''}>${p.currentHp}/${p.maxHp}</b> \u2022 AC ${p.armorClass}</span></div><span class="party-view-hint">View →</span>
         </button>`).join(''):'<div class="empty small">No characters are in this campaign yet.</div>'}</div>
       </section>
     </div>`;
@@ -4385,7 +4385,7 @@ function renderInventoryTabLegacy() {
       <section class="inventory-list-panel">
         ${items.length?items.map(i=>`
           <button class="inventory-list-item ${i.inventoryItemId===selectedInventoryId?'selected':''}" data-id="${i.inventoryItemId}">
-            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} • ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.ration?` • ${Math.max(0,Number(i.ration.portionsRemaining)||0)}/${Math.max(1,Number(i.ration.maximumPortions)||3)} Portions`:''}${i.waterskin?` • ${Math.max(0,Number(i.waterskin.drinksRemaining)||0)}/${Math.max(1,Number(i.waterskin.maximumDrinks)||30)} Drinks • ${escapeHtml(i.waterskin.waterQuality||'empty')}`:''}${i.equipped?' • Equipped':''}</small></span>
+            <span><b>${escapeHtml(i.itemName)}</b><small>${escapeHtml(i.rarity||'Common')} \u2022 ${escapeHtml(i.valuationCategory||i.itemType||'Item')}${i.ration?` \u2022 ${Math.max(0,Number(i.ration.portionsRemaining)||0)}/${Math.max(1,Number(i.ration.maximumPortions)||3)} Portions`:''}${i.waterskin?` \u2022 ${Math.max(0,Number(i.waterskin.drinksRemaining)||0)}/${Math.max(1,Number(i.waterskin.maximumDrinks)||30)} Drinks \u2022 ${escapeHtml(i.waterskin.waterQuality||'empty')}`:''}${i.equipped?' \u2022 Equipped':''}</small></span>
             <strong>×${i.quantity}</strong>
           </button>`).join(''):'<div class="empty small">No inventory items.</div>'}
       </section>
@@ -4409,7 +4409,7 @@ function renderInventoryTabLegacy() {
 }
 
 function inventoryDetailHtml(item) {
-  const meta=[item.rarity||'Common',item.valuationCategory||item.itemType||'Item',item.equipmentSlot?`Slot: ${item.equipmentSlot}`:'',`Quantity: ${item.quantity}`,item.equipped?'Equipped':''].filter(Boolean).join(' • ');
+  const meta=[item.rarity||'Common',item.valuationCategory||item.itemType||'Item',item.equipmentSlot?`Slot: ${item.equipmentSlot}`:'',`Quantity: ${item.quantity}`,item.equipped?'Equipped':''].filter(Boolean).join(' \u2022 ');
   const valueText=item.priceless?'Priceless':formatShopGp(item.baseValueGp||0);
   const resaleText=item.sellable&&!item.priceless?formatShopGp(item.standardSellValueGp||0):'Not normally sellable';
   return `
@@ -4562,7 +4562,7 @@ function renderSpellbookTab() {
     <div class="spellbook-list">${spells.length?spells.map((s,index)=>{const d=s.spellData||{};return `
       <button class="spell-card spell-cast-card" data-spell-index="${index}">
         <div class="spell-card-heading"><h4>${escapeHtml(s.spellName)} <small>${s.spellLevel===0?'Cantrip':`Level ${s.spellLevel}`}</small></h4><span class="cast-hint">Cast →</span></div>
-        <p>${s.prepared?'Prepared • ':'Not Prepared • '}${escapeHtml(d.casting_time||'')} ${escapeHtml(d.range||'')}</p>
+        <p>${s.prepared?'Prepared \u2022 ':'Not Prepared \u2022 '}${escapeHtml(d.casting_time||'')} ${escapeHtml(d.range||'')}</p>
         <div>${escapeHtml(d.description||'')}</div>
       </button>`;}).join(''):'<div class="empty small">This character has no class spells.</div>'}</div>`;
 
